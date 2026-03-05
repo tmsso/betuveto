@@ -4,7 +4,7 @@ Separated from UI for better maintainability.
 """
 from pathlib import Path
 import random
-from typing import List, Set
+from typing import Set
 
 
 class WordGame:
@@ -20,7 +20,7 @@ class WordGame:
         """
         self.wordlist_path = wordlist_path
         self.target_length = target_length
-        self.word_list: List[str] = []
+        self.word_set: Set[str] = set()
         self.current_word: str = ""
         self.scrambled_letters: str = ""
         self.correct_guesses: Set[str] = set()
@@ -30,18 +30,18 @@ class WordGame:
         self._load_words()
     
     def _load_words(self):
-        """Load word list from file."""
+        """Load word list from file into memory-efficient set."""
         try:
             with self.wordlist_path.open("r", encoding="utf-8") as file:
-                self.word_list = [line.strip().upper() for line in file 
-                                if line.strip()]
+                self.word_set = {line.strip().upper() for line in file 
+                               if line.strip()}
         except FileNotFoundError:
             raise FileNotFoundError(f"Word list not found: {self.wordlist_path}")
     
     def start_new_game(self) -> str:
         """Start a new game with a random word."""
         # Filter words by target length
-        valid_words = [w for w in self.word_list if len(w) == self.target_length]
+        valid_words = [w for w in self.word_set if len(w) == self.target_length]
         
         if not valid_words:
             raise ValueError(f"No words found with length {self.target_length}")
@@ -90,7 +90,7 @@ class WordGame:
             }
         
         # Check if word exists in dictionary
-        if word not in self.word_list:
+        if word not in self.word_set:
             return {
                 'valid': False,
                 'can_form': False,
