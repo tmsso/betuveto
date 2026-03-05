@@ -1,0 +1,7 @@
+# Core dependencies for Streamlit word game
+streamlit>=1.28.0
+pandas>=2.0.0
+streamlit-antd-components>=0.3.0
+
+# Optional: For better performance with large datasets
+# numpy>=1.24.0
