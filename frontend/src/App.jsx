@@ -62,21 +62,7 @@ function App() {
       const response = await betuAPI.makeGuess(currentGuess)
       
       // Increment guess count regardless of outcome
-      setGuessCount((prevCount) => {
-        const newCount = prevCount + 1;
-        // Auto-rescramble logic
-        if (newCount % 5 === 0) {
-          // Only rescramble if game is active or to immediately update after hint
-          if (gameState?.game_active) {
-            betuAPI.rescrambleLetters().then(rescrambleResponse => {
-              setScrambledLetters(rescrambleResponse.scrambled_letters.split(' '))
-              setError('Betűk újrakeverve!')
-              setTimeout(() => setError(null), 1500)
-            }).catch(err => console.error("Error rescrambling:", err));
-          }
-        }
-        return newCount;
-      });
+      setGuessCount((prevCount) => prevCount + 1);
 
       if (response.valid && response.can_form) {
         // Correct guess
@@ -86,6 +72,8 @@ function App() {
           // Check for celebration (7-letter word or using all letters)
           if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
             fireExplosion()
+            setIsSparkling(true); // Trigger subtle glow/sparkle on the letters container
+            setTimeout(() => setIsSparkling(false), 2000); // Remove after 2s
           } else {
             fireConfetti()
           }
@@ -95,24 +83,25 @@ function App() {
           setTimeout(() => setIsGuessShaking(false), 500)
         }
       } else {
-        // Invalid guess - shake animation and display message
+        // Invalid guess - shake animation and clear text immediately. NO OVERLAY.
         setIsGuessShaking(true)
         setTimeout(() => setIsGuessShaking(false), 500)
-        if (response.message) {
-            setError(response.message);
-            setTimeout(() => setError(null), 3000); // Clear message after 3s
-        }
+        // Ensure no error state is set here.
       }
-      // Clear guess after submission
+      
+      // Clear guess after submission (correct or invalid)
       setCurrentGuess('')
       document.getElementById('guess-input')?.focus() // Keep focus on input
     } catch (err) {
-      setError('Súlyos Hiba történt a tipp beküldésekor. Kérjük, próbálja újra.')
       console.error('Error submitting guess:', err)
+      // Only set generic error if the network request fails completely
+      // We don't block gameplay, just shake and clear.
+      setIsGuessShaking(true)
+      setTimeout(() => setIsGuessShaking(false), 500)
       setCurrentGuess('') // Clear guess on API error as well
       document.getElementById('guess-input')?.focus();
     }
-  }, [currentGuess, foundWords, scrambledLetters, guessCount, fireExplosion, fireConfetti, gameState])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti])
 
   const startNewGame = useCallback(async () => {
     try {
