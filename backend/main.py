@@ -40,7 +40,7 @@ class GameState:
     
     def _load_words(self):
         """Load Hungarian words from file."""
-        wordlist_path = Path("../data/magyar-szavak.txt")
+        wordlist_path = Path("data/magyar-szavak.txt")
         try:
             with wordlist_path.open("r", encoding="utf-8") as file:
                 self.word_set = {line.strip().upper() for line in file if line.strip()}
