@@ -34,6 +34,9 @@ jobs:
           git config user.name "Intermouse-Bot"
           git config user.email "bot@intermouse.com"
           
+          # This is the missing piece: Rename 'master' to 'main'
+          git branch -m main
+          
           # 5. Force push to Hugging Face
           git add .
           git commit -m "Deployment Sync: Backend + Data"
