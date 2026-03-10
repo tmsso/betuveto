@@ -13,27 +13,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Push Backend Subfolder to HF
+      - name: Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # 1. Navigate to the backend folder
-          cd backend
-
-          # Prepare for Hugging Face push: Create a temp directory and copy backend and data
+          # 1. Create a clean temporary workspace
           mkdir -p /tmp/hf_space
-          cp -r backend/* /tmp/hf_space/
-          cp -r data/* /tmp/hf_space/data/ # Assuming 'data' is a top-level folder here
-
-          # Initialize a git repo in the temp directory
+          
+          # 2. Copy the CONTENTS of backend to the root of the temp workspace
+          # This ensures Dockerfile and main.py are at the top level for HF
+          cp -r backend/. /tmp/hf_space/
+          
+          # 3. Copy the data FOLDER into the temp workspace
+          # This puts the words list at /tmp/hf_space/data/
+          cp -r data /tmp/hf_space/
+          
+          # 4. Move to temp workspace and initialize Git
           cd /tmp/hf_space
           git init
-          git config user.name "Temp-Bot"
-          git config user.email "bot@temp.com"
-
-          # Add all files in the temp folder
+          git config user.name "Intermouse-Bot"
+          git config user.email "bot@intermouse.com"
+          
+          # 5. Force push to Hugging Face
           git add .
-          git commit -m "Sync from GitHub Actions"
-
-          # Force push to Hugging Face
+          git commit -m "Deployment Sync: Backend + Data"
           git push -f https://thomasso:$HF_TOKEN@huggingface.co/spaces/thomasso/betuveto-api main:main
