@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -13,13 +13,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Push Backend Subfolder to HuggingFace
-        uses: nateraw/huggingface-sync-action@v0.0.5
-        with:
-          github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: thomasso/betuveto-api
-          hf_token: ${{ secrets.HF_TOKEN }}
-          repo_type: 'space'
-          private: 'false'
-          space_sdk: 'gradio'
-          subdirectory: 'backend'
+      - name: Push Backend Subfolder to HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # 1. Navigate to the backend folder
+          cd backend
+          
+          # 2. Initialize a temporary git repo inside this folder
+          git init
+          git config user.name "Temp-Bot"
+          git config user.email "bot@temp.com"
+          
+          # 3. Add all files in the backend folder
+          git add .
+          git commit -m "Sync from GitHub Actions"
+          
+          # 4. Force push to Hugging Face (This overwrites the Space with only the backend code)
+          git push -f https://thomasso:$HF_TOKEN@huggingface.co/spaces/thomasso/betuveto-api master:main
