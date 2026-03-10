@@ -19,15 +19,21 @@ jobs:
         run: |
           # 1. Navigate to the backend folder
           cd backend
-          
-          # 2. Initialize a temporary git repo inside this folder
+
+          # Prepare for Hugging Face push: Create a temp directory and copy backend and data
+          mkdir -p /tmp/hf_space
+          cp -r backend/* /tmp/hf_space/
+          cp -r data/* /tmp/hf_space/data/ # Assuming 'data' is a top-level folder here
+
+          # Initialize a git repo in the temp directory
+          cd /tmp/hf_space
           git init
           git config user.name "Temp-Bot"
           git config user.email "bot@temp.com"
-          
-          # 3. Add all files in the backend folder
+
+          # Add all files in the temp folder
           git add .
           git commit -m "Sync from GitHub Actions"
-          
-          # 4. Force push to Hugging Face (This overwrites the Space with only the backend code)
-          git push -f https://thomasso:$HF_TOKEN@huggingface.co/spaces/thomasso/betuveto-api master:main
+
+          # Force push to Hugging Face
+          git push -f https://thomasso:$HF_TOKEN@huggingface.co/spaces/thomasso/betuveto-api main:main
