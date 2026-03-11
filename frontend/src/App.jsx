@@ -135,7 +135,10 @@ function App() {
 
   const handleLetterClick = (letter) => {
     setCurrentGuess((prevGuess) => prevGuess + letter)
-    document.getElementById('guess-input')?.focus() // Keep focus on input
+    // Only focus input on wider screens (desktop)
+    if (window.innerWidth >= 640) {
+        document.getElementById('guess-input')?.focus()
+    }
   }
 
   // Global keydown listener for letters (only if input is not focused) and special keys
@@ -172,7 +175,7 @@ function App() {
   // Loading state UI
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-game-paper flex items-center justify-center font-hand">
+      <div className="min-h-screen bg-game-paper flex items-center justify-center font-sans">
         <div className="text-center">
           <div className="animate-pulse text-4xl text-game-secondary mb-4">Betöltés...</div>
           <p className="text-gray-600">Játék indítása...</p>
@@ -184,7 +187,7 @@ function App() {
   // Error state UI
   if (error && !isLoading) {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-hand">
+        <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-sans">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
                 <strong className="font-bold">Hiba!</strong>
                 <span className="block sm:inline"> {error}</span>
@@ -202,12 +205,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-game-paper p-4 flex flex-col items-center justify-center font-hand text-game-primary">
+    <div className="min-h-screen bg-game-paper p-4 flex flex-col items-center justify-center font-sans text-game-primary">
       <ReactCanvasConfetti ref={getInstance} style={canvasStyles} />
       
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-5xl font-extrabold text-game-primary mb-2 leading-tight">🔤 Betűvető</h1>
+        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-hand leading-tight">🔤 Betűvető</h1>
       </div>
 
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
@@ -249,7 +252,6 @@ function App() {
 
         {/* Current guess input area */}
         <div className="mb-6 relative">
-          <h3 className="text-2xl font-bold text-game-primary mb-3 text-center">Tipp:</h3>
           
           {/* Temporary Error Overlay */}
           {guessErrorMsg && (
