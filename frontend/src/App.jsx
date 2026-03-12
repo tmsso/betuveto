@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
 
@@ -9,6 +9,7 @@ const canvasStyles = {
   height: '100%',
   top: 0,
   left: 0,
+  zIndex: 9999,
 }
 
 function App() {
@@ -20,10 +21,19 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [guessCount, setGuessCount] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(180)
+  const [isTimerActive, setIsTimerActive] = useState(false)
+  const [isTimeUp, setIsTimeUp] = useState(false)
+  const [scoreAtExpiry, setScoreAtExpiry] = useState(0)
   
   // UI state
   const [isGuessShaking, setIsGuessShaking] = useState(false)
-  const [guessErrorMsg, setGuessErrorMsg] = useState(null) // New state for overlay message
+  const [guessErrorMsg, setGuessErrorMsg] = useState(null)
+  const [isSparkling, setIsSparkling] = useState(false)
+  const [justFoundWord, setJustFoundWord] = useState(null) // New state for glowing word
+  const [isAnimatingLetters, setIsAnimatingLetters] = useState(false)
+  const [currentAnimatingIndex, setCurrentAnimatingIndex] = useState(-1)
+  const [isScoreFlashing, setIsScoreFlashing] = useState(false)
 
   // Confetti instance
   const refAnimationInstance = useRef(null)
@@ -62,51 +72,109 @@ function App() {
     setTimeout(() => {
         setIsGuessShaking(false)
         setGuessErrorMsg(null)
-    }, 2000) // Clear message after 2s
+    }, 2000)
   }
 
+  // Clear the glowing effect after a short delay
+  useEffect(() => {
+    if (justFoundWord) {
+      const timer = setTimeout(() => {
+        setJustFoundWord(null)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [justFoundWord])
+
+  // Timer countdown effect
+  useEffect(() => {
+    let interval
+    if (isTimerActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setIsTimerActive(false)
+            setIsTimeUp(true)
+            setScoreAtExpiry(totalScore)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [isTimerActive, timeLeft, totalScore])
+
+  // Letter reveal animation effect
+  useEffect(() => {
+    if (!isAnimatingLetters || scrambledLetters.length === 0) return
+
+    const animate = async () => {
+      for (let i = 0; i < scrambledLetters.length; i++) {
+        setCurrentAnimatingIndex(i)
+        await new Promise(resolve => setTimeout(resolve, 100)) // 100ms per letter
+      }
+      // Animation complete
+      setCurrentAnimatingIndex(-1)
+      setIsAnimatingLetters(false)
+      setIsTimerActive(true) // Start timer after animation
+    }
+
+    animate()
+  }, [isAnimatingLetters, scrambledLetters])
+
   const handleSubmit = useCallback(async () => {
-    if (!currentGuess.trim()) return // Don't submit empty guesses
+    if (!currentGuess.trim()) return
 
     try {
       const response = await betuAPI.makeGuess(currentGuess)
       
-      // Increment guess count regardless of outcome
       setGuessCount((prevCount) => prevCount + 1);
 
       if (response.valid && response.can_form) {
-        // Correct guess
         if (!response.already_guessed) {
-          setFoundWords((prevWords) => [...prevWords, currentGuess])
-          
-          // Check for celebration (7-letter word or using all letters)
-          if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
-            fireExplosion()
-            setIsSparkling(true); // Trigger subtle glow/sparkle on the letters container
-            setTimeout(() => setIsSparkling(false), 2000); // Remove after 2s
+          if (!isTimeUp) {
+            setFoundWords((prevWords) => [...prevWords, currentGuess])
+            // Trigger the glow for the new word
+            setJustFoundWord(currentGuess)
+
+            if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
+              fireExplosion()
+              setIsSparkling(true); 
+              setTimeout(() => setIsSparkling(false), 2000);
+            } else {
+              fireConfetti()
+            }
           } else {
-            fireConfetti()
+            // Time's up - flash score to indicate no points added
+            setIsScoreFlashing(true)
+            setTimeout(() => setIsScoreFlashing(false), 500)
           }
-          // Clear text immediately on success
           setCurrentGuess('')
         } else {
-          // Already guessed
           showTemporaryError(`Ezt a szót már kitaláltad: ${currentGuess}`)
         }
       } else {
-        // Invalid guess
         showTemporaryError(`Nincs ilyen szó: ${currentGuess}`)
       }
       
-      // Always focus input
-      document.getElementById('guess-input')?.focus() 
+      // Only focus input on wider screens (desktop) to prevent mobile keyboard popup
+      if (window.innerWidth >= 640) {
+        document.getElementById('guess-input')?.focus() 
+      } else {
+        document.getElementById('guess-input')?.blur()
+      }
     } catch (err) {
       console.error('Error submitting guess:', err)
       showTemporaryError('Hiba történt a tipp küldésekor.')
-      setCurrentGuess('') // Clear guess on API error as well
-      document.getElementById('guess-input')?.focus();
+      setCurrentGuess('') 
+      // Safe to focus on error? logic implies we might want to retry, but adhere to consistent mobile behavior
+      if (window.innerWidth >= 640) {
+        document.getElementById('guess-input')?.focus()
+      } else {
+        document.getElementById('guess-input')?.blur()
+      }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp])
 
   const startNewGame = useCallback(async () => {
     try {
@@ -118,8 +186,17 @@ function App() {
       setFoundWords([])
       setCurrentGuess('')
       setGuessCount(0)
-      // Ensure input always receives focus
-      document.getElementById('guess-input')?.focus();
+      setJustFoundWord(null)
+      setTimeLeft(180)
+      setIsTimerActive(false)
+      setIsAnimatingLetters(true)
+      setCurrentAnimatingIndex(-1)
+      setIsTimeUp(false)
+      setScoreAtExpiry(0)
+      
+      if (window.innerWidth >= 640) {
+        document.getElementById('guess-input')?.focus();
+      }
     } catch (err) {
       setError('Hiba történt az új játék indításakor.')
       console.error('Error starting game:', err)
@@ -128,51 +205,53 @@ function App() {
     }
   }, [])
 
-  // Initialize game on component mount
   useEffect(() => {
     startNewGame()
   }, [startNewGame])
 
   const handleLetterClick = (letter) => {
     setCurrentGuess((prevGuess) => prevGuess + letter)
-    // Only focus input on wider screens (desktop)
     if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus()
     }
   }
 
-  // Global keydown listener for letters (only if input is not focused) and special keys
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Check if the event target is *not* the guess input field
-      // This allows direct typing into the input when focused, and global capture otherwise.
       if (e.target.id !== 'guess-input') {
         const acceptedKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÖŐÚÜŰ '
         if (acceptedKeys.includes(e.key.toUpperCase())) {
             handleLetterClick(e.key.toUpperCase())
-            e.preventDefault(); // Prevent default if key is handled globally
+            e.preventDefault(); 
         }
       }
-      // Always handle Backspace and Enter globally to ensure consistent behavior
       if (e.key === 'Backspace') {
         setCurrentGuess((prevGuess) => prevGuess.slice(0, -1))
-        e.preventDefault() // Prevent browser back/forward
+        e.preventDefault() 
       } else if (e.key === 'Enter') {
         handleSubmit()
-        e.preventDefault() // Prevent form submission
+        e.preventDefault() 
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [handleLetterClick, handleSubmit]) // Dependencies capture latest functions
+  }, [handleLetterClick, handleSubmit])
 
-
-  // Calculate current score
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
+  const displayScore = isTimeUp ? scoreAtExpiry : totalScore
 
-  // Loading state UI
+  const usedLetters = useMemo(() => {
+    const used = Array(scrambledLetters.length).fill(false)
+    const letters = currentGuess.split('')
+    for (const letter of letters) {
+      const index = scrambledLetters.findIndex((l, i) => l === letter && !used[i])
+      if (index !== -1) used[index] = true
+    }
+    return used
+  }, [currentGuess, scrambledLetters])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-game-paper flex items-center justify-center font-sans">
@@ -184,7 +263,6 @@ function App() {
     )
   }
 
-  // Error state UI
   if (error && !isLoading) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-sans">
@@ -217,32 +295,34 @@ function App() {
         {/* Score and New Game Button */}
         <div className="flex justify-between items-center mb-6">
           <div className="text-left">
-            <div className="text-3xl font-bold text-game-primary">
-              🏆 {totalScore} pont
+            <div className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600' : 'text-game-primary'}`}>
+              🏆 {displayScore} <span className="hidden sm:inline">pont</span>
             </div>
             <div className="text-md text-gray-500">
               {foundWords.length} talált szó
             </div>
           </div>
-          <button
-            onClick={startNewGame}
-            className="bg-game-secondary text-white text-lg px-6 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap"
-          >
-            🎲 Új Játék
-          </button>
+          <div className="flex items-center justify-center space-x-2">
+            <div className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}>
+              ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </div>
+          </div>
         </div>
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
           <h3 className="text-2xl font-bold text-game-primary mb-4">Betűk:</h3>
-          {/* Adjusted grid for better mobile layout */}
           <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto">
             {scrambledLetters.map((letter, index) => (
               <button
                 key={index}
                 onClick={() => handleLetterClick(letter)}
-                className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-100 border-2 border-blue-300 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold text-blue-800 
-                           shadow-md hover:bg-blue-200 transition-all transform hover:-translate-y-1 hover:scale-110 active:scale-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold shadow-md transition-all transform active:scale-90 focus:outline-none focus:ring-2 focus:ring-opacity-50
+                ${currentAnimatingIndex === index 
+                  ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10' 
+                  : usedLetters[index] 
+                    ? 'bg-gray-300 border-gray-400 text-gray-700' 
+                    : 'bg-blue-100 border-2 border-blue-300 text-blue-800 hover:bg-blue-200 hover:-translate-y-1 hover:scale-110 focus:ring-blue-500'}`}
               >
                 {letter}
               </button>
@@ -269,17 +349,16 @@ function App() {
               value={currentGuess}
               onChange={(e) => setCurrentGuess(e.target.value.toUpperCase())}
               className={
-                `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 text-4xl font-extrabold text-game-primary text-center font-hand uppercase 
+                `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 text-4xl font-extrabold text-game-primary text-center uppercase 
                 shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary 
                 ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 ' : 'border-game-border'}`
               }
-              placeholder="adj meg egy szót"
+              placeholder="tipp"
               autoComplete="off"
               autoCorrect="off"
               spellCheck="false"
               autoFocus // Auto-focus on load
             />
-            {/* Clear button for current guess */}
             {currentGuess && (
               <button
                 onClick={() => setCurrentGuess('')}
@@ -307,6 +386,16 @@ function App() {
           </button>
         </div>
 
+        {/* New Game Button (relocated) */}
+        <div className="text-right mb-6">
+          <button
+            onClick={startNewGame}
+            className="bg-game-secondary text-white text-lg px-6 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap"
+          >
+            🎲 Új Játék
+          </button>
+        </div>
+
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
           <div className="mt-8 border-t-2 border-game-border pt-6">
@@ -315,7 +404,8 @@ function App() {
               {[...foundWords].sort((a,b) => a.localeCompare(b, 'hu')).map((word, index) => (
                 <span
                   key={index}
-                  className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in"
+                  className={`bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
+                    ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 scale-110' : ''}`}
                 >
                   {word} ({word.length * word.length} pont)
                 </span>
@@ -324,7 +414,7 @@ function App() {
           </div>
         )}
 
-        {/* Temporary info/error messages (Persistent/System errors) */}
+        {/* Temporary info/error messages */}
         {error && (
           <div className={`mt-6 p-4 rounded-lg text-center font-semibold ${
             error.includes('újrakeverve') ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'

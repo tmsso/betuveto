@@ -5,17 +5,26 @@ This changelog records significant changes made to the Betűvető application.
 ## [Unreleased]
 
 ### Added
-- Temporary, vanishing overlay messages for incorrect guesses (e.g., "Nincs ilyen szó: [tipp]", "Ezt a szót már kitaláltad: [tipp]").
-- Alphabetical sorting of successfully found words.
-- Enhanced mobile view for scrambled letters, allowing them to display in two rows on narrower screens.
 
 ### Changed
-- Input box placeholder text updated to "adj meg egy szót".
-- Label for current guess changed from "Jelenlegi Tipp:" to "Tipp:".
-- Game title text "Magyar Szójáték" removed.
-- Font reverted to 'font-sans' globally, except for the game title which retains the 'font-hand' style.
-- Mobile letter display no longer auto-focuses the input box when letters are clicked to prevent keyboard pop-ups.
-- Game title emoji updated to 🔤.
 
 ### Fixed
-- Various UI adjustments for better user experience.
+
+## [1.1.0] - 2026-03-12
+
+### Added
+- Mobile-optimized score display (hides "pont" label on narrow screens)
+- Dynamic letter availability highlighting (greys out used letters)
+- Game timer system with visual countdown feedback
+- Initial letter reveal animation sequence
+
+### Changed
+- Input placeholder updated to "tipp"
+- Consistent font styling applied to input field
+- Improved focus management on mobile submit actions
+- Celebration effect visibility enhancements
+- Timer display replaces new game button position, new game button relocated
+
+### Fixed
+- Mobile keyboard popup prevention during guess submission
+- Visual feedback alignment across screen sizes
