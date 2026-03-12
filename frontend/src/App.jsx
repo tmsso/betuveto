@@ -85,6 +85,9 @@ function App() {
     }
   }, [justFoundWord])
 
+  const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
+  const displayScore = isTimeUp ? scoreAtExpiry : totalScore
+
   // Timer countdown effect
   useEffect(() => {
     let interval
@@ -238,9 +241,6 @@ function App() {
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [handleLetterClick, handleSubmit])
-
-  const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
-  const displayScore = isTimeUp ? scoreAtExpiry : totalScore
 
   const usedLetters = useMemo(() => {
     const used = Array(scrambledLetters.length).fill(false)
