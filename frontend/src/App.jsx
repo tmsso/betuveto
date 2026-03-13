@@ -410,6 +410,29 @@ function App() {
             <span>✅</span>
             <span className="max-[360px]:hidden">OK</span>
           </button>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleScramble}
+              className="w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-white border-2 border-game-border shadow-md hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all"
+              aria-label="Betűk keverése"
+              title="Betűk keverése"
+            >
+              🔀
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!currentGuess.trim()}
+              className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl 
+                shadow-lg transition-all transform 
+                ${currentGuess.trim()
+                  ? 'bg-game-success hover:bg-green-600 hover:scale-110 active:scale-95'
+                  : 'bg-gray-300 cursor-not-allowed text-gray-500'
+                }`}
+            >
+              ✅
+            </button>
+          </div>
         </div>
 
         {/* Found words display (Alphabetical Sort) */}
