@@ -10,9 +10,11 @@ from typing import List, Dict, Set, Optional
 from pathlib import Path
 import random
 import uvicorn
+import os
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-WORDLIST_PATH = BASE_DIR / "data" / "magyar-szavak.txt"
+# Use environment variable for flexible deployments (e.g. Docker, Hugging Face)
+WORDLIST_PATH = Path(os.getenv("WORDLIST_PATH", str(BASE_DIR / "data" / "magyar-szavak.txt")))
 
 app = FastAPI(
     title="Betűvetó API",
