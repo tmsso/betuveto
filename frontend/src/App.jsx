@@ -14,7 +14,6 @@ const canvasStyles = {
 
 function App() {
   // Game state
-  const [gameState, setGameState] = useState(null)
   const [currentGuess, setCurrentGuess] = useState('')
   const [foundWords, setFoundWords] = useState([])
   const [scrambledLetters, setScrambledLetters] = useState([])
@@ -29,7 +28,6 @@ function App() {
   // UI state
   const [isGuessShaking, setIsGuessShaking] = useState(false)
   const [guessErrorMsg, setGuessErrorMsg] = useState(null)
-  const [isSparkling, setIsSparkling] = useState(false)
   const [justFoundWord, setJustFoundWord] = useState(null) // New state for glowing word
   const [isAnimatingLetters, setIsAnimatingLetters] = useState(false)
   const [currentAnimatingIndex, setCurrentAnimatingIndex] = useState(-1)
@@ -142,8 +140,6 @@ function App() {
 
             if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
               fireExplosion()
-              setIsSparkling(true); 
-              setTimeout(() => setIsSparkling(false), 2000);
             } else {
               fireConfetti()
             }
@@ -184,7 +180,6 @@ function App() {
       setIsLoading(true)
       setError(null)
       const response = await betuAPI.startGame()
-      setGameState(response)
       setScrambledLetters(response.scrambled_letters.split(' '))
       setFoundWords([])
       setCurrentGuess('')
@@ -212,12 +207,12 @@ function App() {
     startNewGame()
   }, [startNewGame])
 
-  const handleLetterClick = (letter) => {
+  const handleLetterClick = useCallback((letter) => {
     setCurrentGuess((prevGuess) => prevGuess + letter)
     if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus()
     }
-  }
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -299,7 +294,7 @@ function App() {
               🏆 {displayScore} <span className="hidden sm:inline">pont</span>
             </div>
             <div className="text-md text-gray-500">
-              {foundWords.length} talált szó
+              {foundWords.length} talált szó • {guessCount} tipp
             </div>
           </div>
           <div className="flex items-center justify-center space-x-2">
