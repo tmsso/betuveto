@@ -54,9 +54,19 @@ class BetuAPIClient {
   // Game management
   async startGame(targetLength: number = 7): Promise<{ scrambled_letters: string; target_length: number; game_active: boolean }> {
     const params = new URLSearchParams({ target_length: String(targetLength) });
-    const response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
+    let response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
       method: 'POST',
     });
+
+    // Compatibility fallback for deployments expecting JSON body payload
+    if (!response.ok) {
+      response = await fetch(`${this.baseUrl}/game/start/body`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_length: targetLength })
+      });
+    }
+
     if (!response.ok) throw new Error('Failed to start game');
     return response.json();
   }

@@ -195,8 +195,17 @@ async def start_game(target_length: int = 7):
     """Start a new game"""
     return game_state.start_new_game(target_length)
 
+class StartGameRequest(BaseModel):
+    target_length: Optional[int] = None
+
 class GuessRequest(BaseModel):
     word: str
+
+@app.post("/api/game/start/body")
+async def start_game_with_body(request: StartGameRequest):
+    """Start a new game using JSON body payload (compatibility endpoint)."""
+    target_length = request.target_length if request.target_length is not None else 7
+    return game_state.start_new_game(target_length)
 
 @app.post("/api/game/guess")
 async def make_guess(request: GuessRequest):
