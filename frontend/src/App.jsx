@@ -378,12 +378,37 @@ function App() {
         </div>
 
         {/* Action Buttons */}
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={startNewGame}
+              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-secondary text-white text-sm sm:text-base font-semibold hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+            >
+              <span>🎲</span>
+              <span className="max-[420px]:hidden">Új Játék</span>
+            </button>
+            <button
+              onClick={handleScramble}
+              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-white border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              aria-label="Betűk keverése"
+              title="Betűk keverése"
+            >
+              <span>🔀</span>
+              <span className="max-[420px]:hidden">Kever</span>
+            </button>
+          </div>
+
           <button
-            onClick={startNewGame}
-            className="bg-game-secondary text-white text-lg px-5 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap"
+            onClick={handleSubmit}
+            disabled={!currentGuess.trim()}
+            className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
+              ${currentGuess.trim()
+                ? 'bg-game-success text-white hover:bg-green-600 hover:scale-105 active:scale-95'
+                : 'bg-gray-300 cursor-not-allowed text-gray-500'
+              }`}
           >
-            🎲 Új Játék
+            <span>✅</span>
+            <span className="max-[360px]:hidden">OK</span>
           </button>
 
           <div className="flex items-center gap-3">
