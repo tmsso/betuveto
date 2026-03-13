@@ -11,6 +11,9 @@ from pathlib import Path
 import random
 import uvicorn
 
+BASE_DIR = Path(__file__).resolve().parents[1]
+WORDLIST_PATH = BASE_DIR / "data" / "magyar-szavak.txt"
+
 app = FastAPI(
     title="Betűvetó API",
     description="Hungarian word puzzle game backend",
@@ -40,12 +43,11 @@ class GameState:
     
     def _load_words(self):
         """Load Hungarian words from file."""
-        wordlist_path = Path("data/magyar-szavak.txt")
         try:
-            with wordlist_path.open("r", encoding="utf-8") as file:
+            with WORDLIST_PATH.open("r", encoding="utf-8") as file:
                 self.word_set = {line.strip().upper() for line in file if line.strip()}
         except FileNotFoundError:
-            raise FileNotFoundError(f"Word list not found: {wordlist_path}")
+            raise FileNotFoundError(f"Word list not found: {WORDLIST_PATH}")
     
     def start_new_game(self, target_length: int = 7) -> Dict:
         """Start a new game with a random word."""
@@ -193,8 +195,17 @@ async def start_game(target_length: int = 7):
     """Start a new game"""
     return game_state.start_new_game(target_length)
 
+class StartGameRequest(BaseModel):
+    target_length: Optional[int] = None
+
 class GuessRequest(BaseModel):
     word: str
+
+@app.post("/api/game/start/body")
+async def start_game_with_body(request: StartGameRequest):
+    """Start a new game using JSON body payload (compatibility endpoint)."""
+    target_length = request.target_length if request.target_length is not None else 7
+    return game_state.start_new_game(target_length)
 
 @app.post("/api/game/guess")
 async def make_guess(request: GuessRequest):
