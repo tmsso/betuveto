@@ -16,7 +16,7 @@ export default {
         'game-border': '#dee2e6',
       },
       fontFamily: {
-        'hand': ['Comic Sans MS', 'Marker Felt', 'cursive'],
+        'hand': ['Brush Script MT', 'Lucida Handwriting', 'Apple Chancery', 'cursive'],
       },
       animation: {
         'shake': 'shake 0.5s',
