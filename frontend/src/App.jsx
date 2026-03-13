@@ -151,9 +151,11 @@ function App() {
           setCurrentGuess('')
         } else {
           showTemporaryError(`Ezt a szót már kitaláltad: ${currentGuess}`)
+          setCurrentGuess('')
         }
       } else {
         showTemporaryError(`Nincs ilyen szó: ${currentGuess}`)
+        setCurrentGuess('')
       }
       
       // Only focus input on wider screens (desktop) to prevent mobile keyboard popup
@@ -211,6 +213,17 @@ function App() {
     setCurrentGuess((prevGuess) => prevGuess + letter)
     if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus()
+    }
+  }, [])
+
+  const handleScramble = useCallback(async () => {
+    try {
+      const response = await betuAPI.rescrambleLetters()
+      setScrambledLetters(response.scrambled_letters.split(' '))
+      setCurrentGuess('')
+    } catch (err) {
+      console.error('Error scrambling letters:', err)
+      showTemporaryError('Hiba történt a betűk keverésekor.')
     }
   }, [])
 
@@ -306,7 +319,6 @@ function App() {
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
-          <h3 className="text-2xl font-bold text-game-primary mb-4">Betűk:</h3>
           <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto">
             {scrambledLetters.map((letter, index) => (
               <button
@@ -365,30 +377,37 @@ function App() {
           </div>
         </div>
 
-        {/* Submit Button */}
-        <div className="text-center mb-6">
-          <button
-            onClick={handleSubmit}
-            disabled={!currentGuess.trim()}
-            className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl 
-              shadow-lg transition-all transform 
-              ${currentGuess.trim()
-                ? 'bg-game-success hover:bg-green-600 hover:scale-110 active:scale-95'
-                : 'bg-gray-300 cursor-not-allowed text-gray-500'
-              }`}
-          >
-            ✅
-          </button>
-        </div>
-
-        {/* New Game Button (relocated) */}
-        <div className="text-right mb-6">
+        {/* Action Buttons */}
+        <div className="mb-6 flex items-center justify-between gap-3">
           <button
             onClick={startNewGame}
-            className="bg-game-secondary text-white text-lg px-6 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap"
+            className="bg-game-secondary text-white text-lg px-5 py-3 rounded-full shadow-lg hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap"
           >
             🎲 Új Játék
           </button>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleScramble}
+              className="w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-white border-2 border-game-border shadow-md hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all"
+              aria-label="Betűk keverése"
+              title="Betűk keverése"
+            >
+              🔀
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!currentGuess.trim()}
+              className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl 
+                shadow-lg transition-all transform 
+                ${currentGuess.trim()
+                  ? 'bg-game-success hover:bg-green-600 hover:scale-110 active:scale-95'
+                  : 'bg-gray-300 cursor-not-allowed text-gray-500'
+                }`}
+            >
+              ✅
+            </button>
+          </div>
         </div>
 
         {/* Found words display (Alphabetical Sort) */}
