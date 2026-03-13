@@ -11,6 +11,9 @@ from pathlib import Path
 import random
 import uvicorn
 
+BASE_DIR = Path(__file__).resolve().parents[1]
+WORDLIST_PATH = BASE_DIR / "data" / "magyar-szavak.txt"
+
 app = FastAPI(
     title="Betűvetó API",
     description="Hungarian word puzzle game backend",
@@ -40,12 +43,11 @@ class GameState:
     
     def _load_words(self):
         """Load Hungarian words from file."""
-        wordlist_path = Path("data/magyar-szavak.txt")
         try:
-            with wordlist_path.open("r", encoding="utf-8") as file:
+            with WORDLIST_PATH.open("r", encoding="utf-8") as file:
                 self.word_set = {line.strip().upper() for line in file if line.strip()}
         except FileNotFoundError:
-            raise FileNotFoundError(f"Word list not found: {wordlist_path}")
+            raise FileNotFoundError(f"Word list not found: {WORDLIST_PATH}")
     
     def start_new_game(self, target_length: int = 7) -> Dict:
         """Start a new game with a random word."""

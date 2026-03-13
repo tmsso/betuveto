@@ -1,16 +1,35 @@
-# React + Vite
+# Betűvető Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for the Betűvető Hungarian word game.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Frontend runs on `http://localhost:5173` by default.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Backend connection
 
-## Expanding the ESLint configuration
+The app uses `VITE_API_BASE_URL` to determine the API URL.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- If set, requests are sent to `${VITE_API_BASE_URL}`.
+- If unset, it falls back to `/api` (recommended for local dev through the Vite proxy).
+
+For local development with Vite proxy, `/api` requests are forwarded to `http://localhost:8000`.
+
+## Available scripts
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+```
+
+## Deployment notes
+
+- Vercel frontend deployments should set `VITE_API_BASE_URL` to the deployed backend API base URL (including `/api`).
+- Keep the backend CORS origin list aligned with frontend deployment domains.

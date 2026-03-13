@@ -3,7 +3,7 @@
  * Hungarian word puzzle game API utilities
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export interface GameState {
   active: boolean;
@@ -53,10 +53,9 @@ class BetuAPIClient {
 
   // Game management
   async startGame(targetLength: number = 7): Promise<{ scrambled_letters: string; target_length: number; game_active: boolean }> {
-    const response = await fetch(`${this.baseUrl}/game/start`, {
+    const params = new URLSearchParams({ target_length: String(targetLength) });
+    const response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_length: targetLength })
     });
     if (!response.ok) throw new Error('Failed to start game');
     return response.json();
@@ -100,11 +99,20 @@ export const betuAPI = new BetuAPIClient();
 
 // Utility functions
 export const canFormWord = (thisWord: string, fromWord: string): boolean => {
+  const sourceCounts = new Map<string, number>();
+
+  for (const char of fromWord.toUpperCase()) {
+    sourceCounts.set(char, (sourceCounts.get(char) ?? 0) + 1);
+  }
+
   for (const char of thisWord.toUpperCase()) {
-    if (fromWord.toUpperCase().count(char) < thisWord.toUpperCase().count(char)) {
+    const remaining = sourceCounts.get(char) ?? 0;
+    if (remaining === 0) {
       return false;
     }
+    sourceCounts.set(char, remaining - 1);
   }
+
   return true;
 };
 
