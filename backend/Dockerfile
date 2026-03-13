@@ -14,9 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Make port 7860 available to the world outside this container
 EXPOSE 7860
 
-# Define environment variable (optional, but good practice)
+# Define environment variables
 ENV MODULE_NAME="main"
 ENV VARIABLE_NAME="app"
+ENV WORDLIST_PATH="/app/data/magyar-szavak.txt"
 
 # Run app.py using uvicorn when the container launches
 # Use 0.0.0.0 to make it accessible from outside the container
