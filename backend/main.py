@@ -60,7 +60,7 @@ class GameState:
             raise HTTPException(status_code=404, detail=f"No words found with length {target_length}")
         
         self.current_word = random.choice(valid_words)
-        self.scrambled_letters = ' '.join(sorted(self.current_word))
+        self.scrambled_letters = self._scramble_word(self.current_word)
         self.correct_guesses.clear()
         self.total_score = 0
         self.guess_count = 0
@@ -160,13 +160,31 @@ class GameState:
             "guess_count": self.guess_count,
             "target_length": 7
         }
+
+    def _scramble_word(self, word: str) -> str:
+        """Shuffle letters and avoid returning the original order when possible."""
+        if len(word) < 2:
+            return word
+
+        letters = list(word)
+        scrambled = word
+
+        # Try a few times to avoid returning the same sequence as the source word.
+        for _ in range(10):
+            random.shuffle(letters)
+            candidate = ''.join(letters)
+            if candidate != word:
+                scrambled = candidate
+                break
+
+        return ' '.join(scrambled)
     
     def rescramble_letters(self) -> Dict:
         """Rescramble the current word letters."""
         if not self.game_active:
             raise HTTPException(status_code=400, detail="Game not active")
         
-        self.scrambled_letters = ' '.join(sorted(self.current_word))
+        self.scrambled_letters = self._scramble_word(self.current_word)
         return {
             "scrambled_letters": self.scrambled_letters,
             "message": "Betűk újrakeverve!"
