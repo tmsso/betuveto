@@ -1,0 +1,72 @@
+.main {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.panel {
+  display: grid;
+  gap: 16px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.controls button,
+.slotsSection button {
+  background: #1d2f66;
+  color: #f2f6ff;
+  border: 1px solid #4f6dd4;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.controls button:hover,
+.slotsSection button:hover {
+  background: #2a4090;
+}
+
+.reset {
+  margin-left: auto;
+  background: #6f2431 !important;
+  border-color: #d56c76 !important;
+}
+
+.runLabel {
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+.slotsSection {
+  background: #0d1736;
+  border: 1px solid #2f4dab;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.slotsSection ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.slotsSection li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #111f48;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.slotValue {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
