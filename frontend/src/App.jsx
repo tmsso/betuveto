@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
+import ConfirmationModal from './ConfirmationModal'
 
 const canvasStyles = {
   position: 'fixed',
@@ -11,6 +12,9 @@ const canvasStyles = {
   left: 0,
   zIndex: 9999,
 }
+
+// Adjustable constants
+const TOP_SCORES_COUNT = 3;
 
 function App() {
   // Game state
@@ -24,86 +28,49 @@ function App() {
   const [isTimerActive, setIsTimerActive] = useState(false)
   const [isTimeUp, setIsTimeUp] = useState(false)
   const [scoreAtExpiry, setScoreAtExpiry] = useState(0)
-  
+  const [isFailedWord, setIsFailedWord] = useState(false)
+
   // UI state
   const [isGuessShaking, setIsGuessShaking] = useState(false)
   const [guessErrorMsg, setGuessErrorMsg] = useState(null)
-  const [justFoundWord, setJustFoundWord] = useState(null) // New state for glowing word
+  const [justFoundWord, setJustFoundWord] = useState(null)
   const [isAnimatingLetters, setIsAnimatingLetters] = useState(false)
   const [currentAnimatingIndex, setCurrentAnimatingIndex] = useState(-1)
   const [isScoreFlashing, setIsScoreFlashing] = useState(false)
+  const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false)
+  const [highScores, setHighScores] = useState([])
+  const [showFailedWords, setShowFailedWords] = useState(false)
+  const [failedWordsHistory, setFailedWordsHistory] = useState([])
 
-  // Confetti instance
-  const refAnimationInstance = useRef(null)
-  const getInstance = useCallback((instance) => {
-    refAnimationInstance.current = instance
-  }, [])
-
-  const makeShot = useCallback((particleRatio, opts) => {
-    refAnimationInstance.current &&
-      refAnimationInstance.current({
-        ...opts,
-        origin: { y: 0.7 },
-        particleCount: Math.floor(200 * particleRatio),
-      })
-  }, [])
-
-  const fireConfetti = useCallback(() => {
-    makeShot(0.25, { spread: 26, startVelocity: 55 })
-    makeShot(0.2, { spread: 60 })
-    makeShot(0.35, { spread: 100, decay: 0.91, scalar: 0.8 })
-    makeShot(0.1, { spread: 120, startVelocity: 25, decay: 0.92 })
-    makeShot(0.1, { spread: 120, startVelocity: 45 })
-  }, [makeShot])
-  
-  const fireExplosion = useCallback(() => {
-    makeShot(0.7, { spread: 200, startVelocity: 60, decay: 0.92, scalar:2, gravity:1.5 });
-    makeShot(0.5, { spread: 150, startVelocity: 40, decay: 0.95, scalar: 1.5, ticks: 100 });
-  }, [makeShot])
-
-
-  // --- Game Logic Functions --- //
-
-  const showTemporaryError = (msg) => {
-    setGuessErrorMsg(msg)
-    setIsGuessShaking(true)
-    setTimeout(() => {
-        setIsGuessShaking(false)
-        setGuessErrorMsg(null)
-    }, 2000)
-  }
-
-  // Clear the glowing effect after a short delay
+  // Load high scores and failed words from localStorage on mount
   useEffect(() => {
-    if (justFoundWord) {
-      const timer = setTimeout(() => {
-        setJustFoundWord(null)
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [justFoundWord])
+    const storedScores = JSON.parse(localStorage.getItem('betuveto_high_scores') || '[]');
+    setHighScores(storedScores);
+
+    const storedFailed = JSON.parse(localStorage.getItem('betuveto_failed_words') || '[]');
+    setFailedWordsHistory(storedFailed);
+  }, []);
+
+  const updateHighScores = useCallback((finalScore) => {
+    if (finalScore <= 0) return;
+    setHighScores(prev => {
+      const newScores = [...prev, { score: finalScore, date: new Date().toLocaleDateString() }]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, TOP_SCORES_COUNT);
+      localStorage.setItem('betuveto_high_scores', JSON.stringify(newScores));
+      return newScores;
+    });
+  }, []);
 
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
   const displayScore = isTimeUp ? scoreAtExpiry : totalScore
 
-  // Timer countdown effect
+  // End of game score tracking
   useEffect(() => {
-    let interval
-    if (isTimerActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsTimerActive(false)
-            setIsTimeUp(true)
-            setScoreAtExpiry(totalScore)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+    if (isTimeUp) {
+      updateHighScores(scoreAtExpiry);
     }
-    return () => clearInterval(interval)
-  }, [isTimerActive, timeLeft, totalScore])
+  }, [isTimeUp, scoreAtExpiry, updateHighScores]);
 
   // Letter reveal animation effect
   useEffect(() => {
@@ -123,60 +90,6 @@ function App() {
     animate()
   }, [isAnimatingLetters, scrambledLetters])
 
-  const handleSubmit = useCallback(async () => {
-    if (!currentGuess.trim()) return
-
-    try {
-      const response = await betuAPI.makeGuess(currentGuess)
-      
-      setGuessCount((prevCount) => prevCount + 1);
-
-      if (response.valid && response.can_form) {
-        if (!response.already_guessed) {
-          if (!isTimeUp) {
-            setFoundWords((prevWords) => [...prevWords, currentGuess])
-            // Trigger the glow for the new word
-            setJustFoundWord(currentGuess)
-
-            if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
-              fireExplosion()
-            } else {
-              fireConfetti()
-            }
-          } else {
-            // Time's up - flash score to indicate no points added
-            setIsScoreFlashing(true)
-            setTimeout(() => setIsScoreFlashing(false), 500)
-          }
-          setCurrentGuess('')
-        } else {
-          showTemporaryError(`Ezt a szót már kitaláltad: ${currentGuess}`)
-          setCurrentGuess('')
-        }
-      } else {
-        showTemporaryError(`Nincs ilyen szó: ${currentGuess}`)
-        setCurrentGuess('')
-      }
-      
-      // Only focus input on wider screens (desktop) to prevent mobile keyboard popup
-      if (window.innerWidth >= 640) {
-        document.getElementById('guess-input')?.focus() 
-      } else {
-        document.getElementById('guess-input')?.blur()
-      }
-    } catch (err) {
-      console.error('Error submitting guess:', err)
-      showTemporaryError('Hiba történt a tipp küldésekor.')
-      setCurrentGuess('') 
-      // Safe to focus on error? logic implies we might want to retry, but adhere to consistent mobile behavior
-      if (window.innerWidth >= 640) {
-        document.getElementById('guess-input')?.focus()
-      } else {
-        document.getElementById('guess-input')?.blur()
-      }
-    }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp])
-
   const startNewGame = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -194,6 +107,10 @@ function App() {
       setIsTimeUp(false)
       setScoreAtExpiry(0)
       
+      // Check if this word was failed before
+      const wordRecord = failedWordsHistory.find(f => f.word === response.target_word);
+      setIsFailedWord(!!wordRecord && !wordRecord.learned);
+
       if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus();
       }
@@ -203,11 +120,95 @@ function App() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [failedWordsHistory])
+
+  const handleNewGameClick = () => {
+    if (foundWords.length > 0 && !isTimeUp) {
+      setIsNewGameModalOpen(true);
+    } else {
+      startNewGame();
+    }
+  };
+
+  const recordFailedWord = (word, learned = false) => {
+    setFailedWordsHistory(prev => {
+      const existing = prev.find(p => p.word === word);
+      let next;
+      if (existing) {
+        next = prev.map(p => p.word === word ? { ...p, learned } : p);
+      } else {
+        next = [...prev, { word, learned, timestamp: Date.now() }];
+      }
+      localStorage.setItem('betuveto_failed_words', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleSubmit = useCallback(async () => {
+    if (!currentGuess.trim()) return
+
+    try {
+      const response = await betuAPI.makeGuess(currentGuess)
+      
+      setGuessCount((prevCount) => prevCount + 1);
+
+      if (response.valid && response.can_form) {
+        if (!response.already_guessed) {
+          if (!isTimeUp) {
+            setFoundWords((prevWords) => [...prevWords, currentGuess])
+            setJustFoundWord(currentGuess)
+            
+            // If the target word is guessed, mark as learned
+            if (response.is_target) {
+                recordFailedWord(currentGuess, true);
+            }
+
+            if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
+              fireExplosion()
+            } else {
+              fireConfetti()
+            }
+          } else {
+            setIsScoreFlashing(true)
+            setTimeout(() => setIsScoreFlashing(false), 500)
+          }
+          setCurrentGuess('')
+        } else {
+          showTemporaryError(`Ezt a szót már kitaláltad: ${currentGuess}`)
+          setCurrentGuess('')
+        }
+      } else {
+        showTemporaryError(`Nincs ilyen szó: ${currentGuess}`)
+        setCurrentGuess('')
+      }
+      
+      // Update logic for specific hint/fail cases if backend returns target info
+      if (response.game_ended && !response.valid) {
+          // If ended via hint (length 1), record as failed
+          // Note: Backend needs to return the target word here
+      }
+
+      if (window.innerWidth >= 640) {
+        document.getElementById('guess-input')?.focus() 
+      } else {
+        document.getElementById('guess-input')?.blur()
+      }
+    } catch (err) {
+      console.error('Error submitting guess:', err)
+      showTemporaryError('Hiba történt a tipp küldésekor.')
+      setCurrentGuess('') 
+      if (window.innerWidth >= 640) {
+        document.getElementById('guess-input')?.focus()
+      } else {
+        document.getElementById('guess-input')?.blur()
+      }
+    }
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp])
 
   useEffect(() => {
     startNewGame()
-  }, [startNewGame])
+  }, []) // Remove startNewGame from deps to prevent infinite loops after adding state deps 
+
 
   const handleLetterClick = useCallback((letter) => {
     setCurrentGuess((prevGuess) => prevGuess + letter)
@@ -300,6 +301,13 @@ function App() {
       </div>
 
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
+        {/* Failed word indicator */}
+        {isFailedWord && (
+            <div className="absolute top-0 right-0 p-2 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-yellow-200">
+                ⚠️ Korábban elhibázott szó
+            </div>
+        )}
+
         {/* Score and New Game Button */}
         <div className="flex justify-between items-center mb-6">
           <div className="text-left">
@@ -317,6 +325,16 @@ function App() {
           </div>
         </div>
 
+        {/* High Scores (subtle display) */}
+        {highScores.length > 0 && (
+          <div className="mb-4 text-xs text-gray-400 flex gap-4 justify-center">
+             <span>Top Scores:</span>
+             {highScores.map((s, i) => (
+                 <span key={i} className="font-bold">#{i+1}: {s.score}</span>
+             ))}
+          </div>
+        )}
+
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
           <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto">
@@ -330,6 +348,7 @@ function App() {
                   : usedLetters[index] 
                     ? 'bg-gray-300 border-gray-400 text-gray-700' 
                     : 'bg-blue-100 border-2 border-blue-300 text-blue-800 hover:bg-blue-200 hover:-translate-y-1 hover:scale-110 focus:ring-blue-500'}`}
+                disabled={usedLetters[index]}
               >
                 {letter}
               </button>
@@ -354,11 +373,18 @@ function App() {
               id="guess-input"
               type="text"
               value={currentGuess}
-              onChange={(e) => setCurrentGuess(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase();
+                // Limit to 15 characters
+                if (val.length <= 15) {
+                  setCurrentGuess(val);
+                }
+              }}
               className={
-                `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 text-4xl font-extrabold text-game-primary text-center uppercase 
+                `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 font-extrabold text-game-primary text-center uppercase 
                 shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary 
-                ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 ' : 'border-game-border'}`
+                ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 ' : 'border-game-border'}
+                ${currentGuess.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'}`
               }
               placeholder="tipp"
               autoComplete="off"
@@ -381,7 +407,7 @@ function App() {
         <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={startNewGame}
+              onClick={handleNewGameClick}
               className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-secondary text-white text-sm sm:text-base font-semibold hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
               <span>🎲</span>
@@ -412,6 +438,32 @@ function App() {
           </button>
         </div>
 
+        {/* Failed Words History Button */}
+        <div className="mb-6 flex justify-center">
+            <button 
+                onClick={() => setShowFailedWords(!showFailedWords)}
+                className="text-xs text-game-secondary underline hover:text-blue-700"
+            >
+                {showFailedWords ? 'Elrejtés' : 'Előzmények: elhibázott szavak'}
+            </button>
+        </div>
+
+        {showFailedWords && failedWordsHistory.length > 0 && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <h4 className="text-sm font-bold mb-2 text-center text-gray-500">Korábbi elhibázott szavak:</h4>
+                <div className="flex flex-wrap gap-2 justify-center">
+                    {failedWordsHistory.map((f, i) => (
+                        <span 
+                            key={i} 
+                            className={`text-xs px-2 py-1 rounded border ${f.learned ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                        >
+                            {f.word}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        )}
+
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
           <div className="mt-8 border-t-2 border-game-border pt-6">
@@ -439,6 +491,13 @@ function App() {
           </div>
         )}
       </div>
+
+      <ConfirmationModal 
+        isOpen={isNewGameModalOpen}
+        onClose={() => setIsNewGameModalOpen(false)}
+        onConfirm={startNewGame}
+        message="A jelenlegi pontszámod elvész."
+      />
     </div>
   )
 }
