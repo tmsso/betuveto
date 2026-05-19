@@ -31,6 +31,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Adjustable constants
+FAIL_PROB_INITIAL_MULTIPLIER = 100.0
+FAIL_RETRY_MULTIPLIER = 2.0
+SUCCESS_MULTIPLIER = 0.5
+MIN_REAPPEAR_THRESHOLD = 5
+
 # Global game state
 class GameState:
     def __init__(self):
@@ -41,25 +47,49 @@ class GameState:
         self.total_score: int = 0
         self.guess_count: int = 0
         self.game_active: bool = False
+        
+        # New tracking for probability
+        self.failed_words: Dict[str, Dict] = {} # word -> {multiplier, last_game_failed}
+        self.total_games_played: int = 0
+        
         self._load_words()
     
     def _load_words(self):
         """Load Hungarian words from file."""
         try:
             with WORDLIST_PATH.open("r", encoding="utf-8") as file:
-                self.word_set = {line.strip().upper() for line in file if line.strip()}
+                # Limit word length to 15 characters
+                self.word_set = {line.strip().upper() for line in file if line.strip() and len(line.strip()) <= 15}
         except FileNotFoundError:
             raise FileNotFoundError(f"Word list not found: {WORDLIST_PATH}")
     
     def start_new_game(self, target_length: int = 7) -> Dict:
         """Start a new game with a random word."""
-        # Filter words by target length
-        valid_words = [w for w in self.word_set if len(w) == target_length]
+        self.total_games_played += 1
         
+        valid_words = [w for w in self.word_set if len(w) == target_length]
         if not valid_words:
             raise HTTPException(status_code=404, detail=f"No words found with length {target_length}")
         
-        self.current_word = random.choice(valid_words)
+        # Calculate weights
+        weights = []
+        for w in valid_words:
+            weight = 1.0
+            if w in self.failed_words:
+                stats = self.failed_words[w]
+                # Reappear only after MIN_REAPPEAR_THRESHOLD games
+                if self.total_games_played - stats['last_game_failed'] >= MIN_REAPPEAR_THRESHOLD:
+                    weight = stats['multiplier']
+                else:
+                    weight = 0.0 # Do not reappear earlier
+            weights.append(weight)
+        
+        # If all weights are 0 (unlikely but possible), fallback to uniform
+        if sum(weights) == 0:
+            self.current_word = random.choice(valid_words)
+        else:
+            self.current_word = random.choices(valid_words, weights=weights, k=1)[0]
+
         self.scrambled_letters = self._scramble_word(self.current_word)
         self.correct_guesses.clear()
         self.total_score = 0
@@ -69,7 +99,9 @@ class GameState:
         return {
             "scrambled_letters": self.scrambled_letters,
             "target_length": target_length,
-            "game_active": True
+            "game_active": True,
+            "target_word": self.current_word, # Need this for frontend tracking
+            "is_previously_failed": self.current_word in self.failed_words
         }
     
     def guess_word(self, word: str) -> Dict:
@@ -81,6 +113,17 @@ class GameState:
         
         # Handle reveal hint
         if len(word) == 1:
+            # Mark as failed if user didn't guess it
+            if self.current_word not in self.correct_guesses:
+                if self.current_word in self.failed_words:
+                    self.failed_words[self.current_word]['multiplier'] *= FAIL_RETRY_MULTIPLIER
+                else:
+                    self.failed_words[self.current_word] = {
+                        'multiplier': FAIL_PROB_INITIAL_MULTIPLIER,
+                        'last_game_failed': self.total_games_played
+                    }
+                self.failed_words[self.current_word]['last_game_failed'] = self.total_games_played
+
             self.game_active = False
             return {
                 "valid": True,
@@ -88,7 +131,8 @@ class GameState:
                 "already_guessed": False,
                 "score": 0,
                 "message": f"A teljes szó: {self.current_word}",
-                "game_ended": True
+                "game_ended": True,
+                "target_word": self.current_word
             }
         
         # Check if word exists in dictionary
@@ -132,6 +176,15 @@ class GameState:
         self.total_score += score
         self.guess_count += 1
         
+        is_target = (word == self.current_word)
+        if is_target:
+            # Halve probability if guessed right
+            if word in self.failed_words:
+                self.failed_words[word]['multiplier'] *= SUCCESS_MULTIPLIER
+                # Optional: if multiplier gets too low, remove?
+                # if self.failed_words[word]['multiplier'] <= 1.0:
+                #     del self.failed_words[word]
+
         return {
             "valid": True,
             "can_form": True,
@@ -139,7 +192,8 @@ class GameState:
             "score": score,
             "message": f"Helyes! {score} pont, összesen eddig {self.total_score}.",
             "game_ended": False,
-            "is_seven_letter": len(word) == 7
+            "is_seven_letter": len(word) == 7,
+            "is_target": is_target
         }
     
     def _can_form_word(self, this_word: str, from_word: str) -> bool:
