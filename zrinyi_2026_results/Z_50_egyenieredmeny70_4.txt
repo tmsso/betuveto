@@ -1,0 +1,24 @@
+
+Megye/körzet: Brassó
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Kiss István                    4       93      4       183     15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+2     Curelea Ida                    4       92      5       183     Áprily Lajos Fõgimnázium                      Brassó               Keresztes Zsófia                                                        
+3     Fejér Tihamér                  4       82      3       130     15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+4     Farkas Albert                  4       82      7       143     2. Sz. Általános Iskola                       Brassó               Miklósi Zsófia, Makai Emese                                                        
+5     Fehér Nándor                   4       79      6       125     15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+6     Csete Fruzsina Réka            4       76      5       134     Áprily Lajos Fõgimnázium                      Brassó               Keresztes Zsófia                                                        
+7     Nagy Vivien Regina             4       75      2       99      Áprily Lajos Fõgimnázium                      Brassó               Soos Anna Mária                                                        
+8     Bencze Péter                   4       75      10      158     15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+9     Halmaghi Arthur Péter          4       73      4       92      Áprily Lajos Fõgimnázium                      Brassó               Keresztes Zsófia                                                        
+10    Kajcsarácz Indira Izabella     4       70      3       98      George Moroianu Középiskola                   Négyfalu             Imbrea Klára                                                        
+11    Borbély András Dominik         4       70      7       126     Zajzoni Rab István Középiskola                Négyfalu 505600      Benedek-Káplár Ildikó                                                        
+12    Balázs Krisztián               4       68      5       89      2. Sz. Általános Iskola                       Brassó               Miklósi Zsófia, Makai Emese                                                        
+13    Demeter Róbert                 4       68      9       109     15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+14    Kádár Gusztáv                  4       68      9       97      15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+15    Biro Alma Rebecca              4       66      3       81      15. Sz. Általános Iskola                      Brassó               Bartha Izabella Cristina                                                        
+16    Kocsis Andor                   4       66      3       79      Zajzoni Rab István Középiskola                Négyfalu 505600      Benedek-Káplár Ildikó                                                        
+17    Simion Ianis                   4       64      5       75      2. Sz. Általános Iskola                       Brassó               Miklósi Zsófia, Makai Emese                                                        
+18    Kiss Áron                      4       61      8       85      Áprily Lajos Fõgimnázium                      Brassó               Keresztes Zsófia                                                        

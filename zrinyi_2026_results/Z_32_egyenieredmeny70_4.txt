@@ -1,0 +1,70 @@
+
+Megye/körzet: Vas
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Bercsán Boglárka               4       112     1       257     Nádasdy Tamás Általános Iskola                Sárvár               Horváth Attiláné                                                        
+2     Tóth Ambrus                    4       111     2       263     Árpád-házi Szent Margit Óv., ÁI., Gimn. és KolKõszeg               Weigl Marietta                                                        
+3     Nagy Soma Benedek              4       107     2       234     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Horváth Eszter                                                        
+4     Horváth-Takács Aisa Júlia      4       106     3       240     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+5     Kató Martin Eduárd             4       102     3       211     Árpád-házi Szent Margit Óv., ÁI., Gimn. és KolKõszeg               Weigl Marietta                                                        
+6     Friesl Ármin                   4       100     5       233     Sárvári Gárdonyi Géza Általános Iskola        Sárvár               Somlai Zsuzsanna                                                        
+7     Bognár Zsejke                  4       100     5       223     Gothard Jenõ Általános Iskola                 Szombathely          Molnár Kinga Petra, Horváth Gyõzõné Pintér Andrea                                                        
+8     Oszkó Vencel                   4       100     5       214     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+9     Domina Réka                    4       99      2       193     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Váginé Beretzky Katalin                                                        
+9     Németh Mór Marcell             4       99      2       193     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Farkasné Bakucz Henrietta                                                        
+11    Halász Erik                    4       99      2       191     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Schmallné Csákvári Gyöngyi                                                        
+12    Pünkösty Lia Anna              4       97      4       202     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Schmallné Csákvári Gyöngyi                                                        
+13    Németh Olívia                  4       97      4       201     Nádasdy Tamás Általános Iskola                Sárvár               Horváth Attiláné                                                        
+14    Mayer Ádám                     4       96      5       205     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+15    László Ármin                   4       95      2       189     Szent Gotthárd Általános Iskola               Szentgotthárd        Bágerné Kovács Eszter                                                        
+16    Horváth Panni                  4       95      2       173     Neumann János Általános Iskola                Szombathely          Bán Gabriella                                                        
+17    Szabó Szófia                   4       92      1       163     Oladi Általános Iskola                        Szombathely          Nagy Zsoltné                                                        
+18    Nagy Nimród                    4       91      6       188     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Herczeg Andrásné                                                        
+19    Farkas Benedek                 4       90      3       178     Olcsai-Kiss Zoltán Általános Iskola           Körmend              Tóthné Polgár Mónika Anna                                                        
+20    Takács Flóra                   4       90      3       170     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Váginé Beretzky Katalin                                                        
+21    Saródi Márton                  4       90      3       164     Gothard Jenõ Általános Iskola                 Szombathely          Horváth Gyõzõné Pintér Andrea, Némethné Gergácz Anita                                                        
+22    Halinka Levente                4       90      7       179     Neumann János Általános Iskola                Szombathely          Bán Gabriella                                                        
+23    Barity Benedek                 4       90      7       171     Oladi Általános Iskola                        Szombathely          Nagy Zsoltné                                                        
+24    Benkóczky Dóra                 4       89      4       173     Nádasdy Tamás Általános Iskola                Sárvár               Horváth Attiláné                                                        
+25    Hidi Zoltán Vince              4       88      5       179     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+26    Hegedûs Zsolt Soma             4       87      6       175     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Váginé Beretzky Katalin                                                        
+27    Orosz Márton László            4       87      6       161     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+28    Kovács Éva                     4       86      3       152     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Schmallné Csákvári Gyöngyi                                                        
+29    Szalay Mátyás                  4       86      7       167     Szent László Katolikus Általános Iskola       Sárvár               Márkus Sándorné                                                        
+30    Cseresnyés Ádám                4       85      4       156     Olcsai-Kiss Zoltán Általános Iskola           Körmend              Tóthné Polgár Mónika Anna                                                        
+31    Bárdics Szofi                  4       85      4       153     Árpád-házi Szent Margit Óv., ÁI., Gimn. és KolKõszeg               Weigl Marietta                                                        
+32    Csécsényi Áron                 4       85      4       139     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Horváth Eszter                                                        
+32    Joó Boglárka Eszter            4       85      4       139     Boldog Batthyány László Katolikus Általános IsKörmend              Némethné Marton Dóra                                                        
+34    Szabó Dávid                    4       85      8       192     Gothard Jenõ Általános Iskola                 Szombathely          Lakatosné Kovács Gyöngyvér                                                        
+35    Rózsa Lél Dániel               4       85      8       171     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Nagyné Kálmán Ágnes                                                        
+36    Holtai-Vágási Milán            4       85      8       159     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+37    Pásti Zsombor                  4       84      5       154     Neumann János Általános Iskola                Szombathely          Bán Gabriella                                                        
+38    Szabó Boróka                   4       84      5       153     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Váginé Beretzky Katalin                                                        
+39    Boda Leó Dávid                 4       84      5       151     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+40    Kiss Léna                      4       84      5       146     Boldog Brenner János Ált. Isk., Gimn. és Koll.Szombathely          Dévai Szele Zsuzsanna                                                        
+41    Bíró Zétény                    4       83      2       131     Nyitra Utcai Általános Iskola                 Szombathely          Horváth-Sümeg Andrea                                                        
+42    Kovács Olivér                  4       83      6       139     Árpád-házi Szent Margit Óv., ÁI., Gimn. és KolKõszeg               Weigl Marietta                                                        
+43    Kiss Lotti                     4       82      3       123     Boldog Brenner János Ált. Isk., Gimn. és Koll.Szombathely          Dévai Szele Zsuzsanna                                                        
+44    Soós Zalán                     4       81      0       110     Szent Gotthárd Általános Iskola               Szentgotthárd        Bágerné Kovács Eszter                                                        
+45    Szabó-Kaczmarski Barnabás      4       81      8       147     Oladi Általános Iskola                        Szombathely          Nagy Zsoltné                                                        
+46    Gallen Léna Krisztina          4       81      8       145     Oladi Általános Iskola                        Szombathely          Nagy Zsoltné                                                        
+47    Illés Hunor                    4       80      9       166     Sárvári Gárdonyi Géza Általános Iskola        Sárvár               Somlai Zsuzsanna                                                        
+48    Hajmásy-Juhász Kristóf         4       80      9       159     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Herczeg Andrásné                                                        
+49    Virág Dániel                   4       79      6       152     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Horváth Eszter                                                        
+50    Péntek-Révész Zelina Olga      4       78      3       133     Rábapatyi Arany János Általános Iskola        Rábapaty             Juranitsné Németh Beatrix                                                        
+51    Héjj Ignác                     4       77      4       119     Árpád-házi Szent Margit Óv., ÁI., Gimn. és KolKõszeg               Dóráné Csécsenyi Emerencia                                                        
+52    Bedics Liliána Csenge          4       77      8       158     Gyõrvári Béri Balogh Ádám Általános Iskola    Gyõrvár              Molnár Csabáné                                                        
+53    Sáray Anna                     4       77      8       143     Reményik Sándor Evangélikus Ált. Isk.         Szombathely          Horváth Eszter                                                        
+54    Lukács Izabella                4       76      9       130     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Herczeg Andrásné                                                        
+55    Kopfensteiner Dániel           4       75      10      134     Gothard Jenõ Általános Iskola                 Szombathely          Molnár Kinga Petra, Horváth Gyõzõné Pintér Andrea                                                        
+56    Góczán Merse Nimród            4       74      7       108     Szombathelyi Zrínyi Ilona Általános Iskola    Szombathely          Nagyné Kálmán Ágnes                                                        
+57    Herceg Mátyás                  4       73      4       98      Olcsai-Kiss Zoltán Ált. Isk. Somogyi Béla TagiKörmend              Tóth Anikó                                                        
+58    Csordás László                 4       73      8       127     Nádasdy Tamás Általános Iskola                Sárvár               Enzsölné Barkovics Anikó                                                        
+59    Kovács Lilla Róza              4       72      9       127     ELTE Bolyai János Gyakorló Ált. Isk. és Gimn. Szombathely          Bakó Zsuzsanna                                                        
+60    Ivánfai Bendegúz               4       72      9       118     Gothard Jenõ Általános Iskola                 Szombathely          Lakatosné Kovács Gyöngyvér                                                        
+61    Mitterstiller Máté             4       71      6       102     Neumann János Általános Iskola                Szombathely          Bán Gabriella                                                        
+62    Császár András                 4       71      6       97      Rábapatyi Arany János Általános Iskola        Rábapaty             Juranitsné Németh Beatrix                                                        
+63    Lisztes Bertalan               4       71      10      147     Paragvári Általános Iskola                    Szombathely          Horváth Erika                                                        
+64    Horváth Barnabás               4       70      7       111     Szent László Katolikus Általános Iskola       Sárvár               Sõréné Ódor Anikó                                                        

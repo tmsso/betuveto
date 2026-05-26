@@ -1,0 +1,69 @@
+
+Megye/körzet: Kolozs
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Maroján Zalán                  4       113     0       260     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+2     Modi Bálint                    4       110     3       263     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+3     Csutak Petra-Tímea             4       107     2       232     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+4     Kiss Huba-István               4       105     4       247     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+5     Balogh Zente Zsolt             4       103     2       210     Sigismund Toduta Zenelíceum                   Kolozsvár            Dósa Éva                                                        
+6     Dencsák Bernadett              4       102     3       222     János Zsigmond Unitárius Kollégium            Kolozsvár            Finta Erika                                                        
+7     Silye Hanga                    4       102     3       217     Sigismund Toduta Zenelíceum                   Kolozsvár            Dósa Éva                                                        
+8     Lõrincz Bence                  4       100     5       238     Nicolae Titulescu Iskola                      Kolozsvár            Török Zita                                                        
+9     Pöllnitz Emma                  4       98      3       207     Nicolae Titulescu Iskola                      Kolozsvár            Török Zita                                                        
+10    Keszeg Jázmin                  4       96      5       204     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+11    Nagy Ervin                     4       96      5       191     Református Kollégium                          Kolozsvár            Szántó Zita-Eliza                                                        
+12    Marczika-Gyöngyösi Balázs      4       93      4       191     Báthory István Elméleti Líceum                Kolozsvár            Boér Ágota                                                        
+13    Tasnadi János                  4       92      5       187     Széki Általános Iskola                        Szék                 Gyõri Irén -Maria                                                        
+14    Brem Vera                      4       91      2       157     Talentum Református Iskola                    Kolozsvár            Kádár Noémi                                                        
+15    Vicsacsán-Haltek Tamás         4       90      3       177     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+16    Balázs Ábel                    4       90      3       167     Sigismund Toduta Zenelíceum                   Kolozsvár            Dósa Éva                                                        
+17    Bányai Jázmin-Eszter           4       89      4       173     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+18    Ferencz Antónia-Timea          4       89      4       156     Báthory István Elméleti Líceum                Kolozsvár            Bárdos Margaretta, Krécsi Ágnes                                                        
+19    Vincze-Huszár Naomi            4       89      4       155     Általános Iskola                              Kalotaszentkirály    Ambrus-Péter Erzsébet                                                        
+20    Vásárhely Dorottya             4       88      5       164     Talentum Református Iskola                    Kolozsvár            Kádár Noémi                                                        
+21    Vincze Kende                   4       87      2       139     Waldorf Iskola                                Kolozsvár            Bolla Emese, Zsolt-Csaba Molnár-Chetan                                                        
+22    Bencze Elõd                    4       87      6       168     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+23    Képes Ádám                     4       86      3       154     Jósika Miklós Elméleti Líceum                 Torda                Szabó Júlia                                                        
+24    Simai Esther                   4       86      3       143     Apáczai Csere János Elméleti Líceum           Kolozsvár            Gõrõg Zsuzsa, Sebestyén Árpád                                                        
+25    Albert Kamilla                 4       86      7       182     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+26    Szeredai Zita                  4       85      4       152     Sigismund Toduta Zenelíceum                   Kolozsvár            Dósa Éva                                                        
+27    György Hunor                   4       85      8       182     Báthory István Elméleti Líceum                Kolozsvár            Boér Ágota                                                        
+28    Domokos Patrik-Robert          4       85      8       180     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+29    Gabor Zsófia                   4       85      8       163     Báthory István Elméleti Líceum                Kolozsvár            Bárdos Margaretta, Krécsi Ágnes                                                        
+30    Okos-Rigó Eszter               4       84      5       154     Báthory István Elméleti Líceum                Kolozsvár            Boér Ágota                                                        
+31    Szabó Dóra                     4       84      5       146     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+32    Farkas László- Márk            4       83      6       155     Széki Általános Iskola                        Szék                 Gyõri Irén -Maria                                                        
+33    Nagy-Kulcsár Ákos              4       83      6       152     Báthory István Elméleti Líceum                Kolozsvár            Bárdos Margaretta, Krécsi Ágnes                                                        
+34    Molnár Ábel                    4       82      3       136     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+35    Szentandrási Sára              4       82      7       167     Általános Iskola                              Kalotaszentkirály    Ambrus-Péter Erzsébet                                                        
+36    Boros Vajk                     4       82      7       166     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+37    Farkas Bíborka                 4       82      7       162     Apáczai Csere János Elméleti Líceum           Kolozsvár            Dobri Erika, Sebestyén Árpád                                                        
+38    Széles Petra                   4       82      7       153     Református Kollégium                          Kolozsvár            Szántó Zita-Eliza                                                        
+39    Juhász Rege Katalin            4       81      4       146     János Zsigmond Unitárius Kollégium            Kolozsvár            Finta Erika                                                        
+40    Burligica Róbert               4       81      8       149     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+41    Mocioi Andreas                 4       81      8       146     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+42    Zsekán Czégér Ákos Csaba       4       80      5       138     Kemény Zsigmond Elméleti Líceum               Szamosújvár          Daroczi Greta Orsolya, Biris Módi Erika                                                        
+43    Bashir Hani                    4       80      5       136     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+44    Kovács Emma                    4       80      9       191     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+45    Razman -Virágh Csongor         4       80      9       173     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+46    Ambrus Balázs-Tibor            4       80      9       166     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+47    Szabó Erik                     4       80      9       163     Báthory István Elméleti Líceum                Kolozsvár            Bárdos Margaretta, Krécsi Ágnes                                                        
+48    László - Kömüves Béla          4       80      9       155     Borbély József Általános Iskola               Tordaszentlászló     Bazsó Enikõ                                                        
+49    Elsayed Adam                   4       80      9       141     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+50    Csorba István                  4       79      2       114     Széki Általános Iskola                        Szék                 Gyõri Irén -Maria                                                        
+51    Tûrkösy Gellért                4       79      6       140     Onisifor Ghibu Elméleti Líceum                Kolozsvár            Illés Csilla                                                        
+52    Szilágyi Ákos                  4       78      3       127     János Zsigmond Unitárius Kollégium            Kolozsvár            Finta Erika                                                        
+53    Fejér Anna                     4       78      3       126     Báthory István Elméleti Líceum                Kolozsvár            Fábián Kinga                                                        
+54    Takács Ádám                    4       78      7       148     Báthory István Elméleti Líceum                Kolozsvár            Bárdos Margaretta, Krécsi Ágnes                                                        
+55    Bándi Dalma                    4       77      4       128     Onisifor Ghibu Elméleti Líceum                Kolozsvár            Illés Csilla                                                        
+56    Toró Tibor                     4       77      8       146     Talentum Református Iskola                    Kolozsvár            Kádár Noémi                                                        
+57    Csete Hanna Dorottya           4       76      9       154     János Zsigmond Unitárius Kollégium            Kolozsvár            Finta Erika                                                        
+58    Kiss Róbert-Csaba              4       75      10      148     Református Kollégium                          Kolozsvár            Szántó Zita-Eliza                                                        
+59    Albert Dávid                   4       75      10      137     János Zsigmond Unitárius Kollégium            Kolozsvár            Pop Éva Katalin                                                        
+60    Both Anna-Boróka               4       74      3       106     Apáczai Csere János Elméleti Líceum           Kolozsvár            Gõrõg Zsuzsa, Sebestyén Árpád                                                        
+61    Gál-Bancsi Nóra                4       72      5       102     Apáczai Csere János Elméleti Líceum           Kolozsvár            Gõrõg Zsuzsa, Sebestyén Árpád                                                        
+62    Gyõrffy Veronika               4       71      2       99      Talentum Református Iskola                    Kolozsvár            Kádár Noémi                                                        
+63    Kelemen Márk                   4       70      11      156     Onisifor Ghibu Elméleti Líceum                Kolozsvár            Illés Csilla                                                        

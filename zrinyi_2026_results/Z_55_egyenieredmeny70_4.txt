@@ -1,0 +1,10 @@
+
+Megye/körzet: Beszterce-Naszód
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Vaida Márk                     4       84      5       151     Andrei Muresanu Nemzeti Kollégium             Bistrita             Morosan Enikõ Melinda                                                        
+2     Zoltan-Sipos Viktor-Edward     4       77      4       109     Andrei Muresanu Nemzeti Kollégium             Bistrita             Morosan Enikõ Melinda                                                        
+3     Szabo Irisz Nikol              4       76      5       109     Andrei Muresanu Nemzeti Kollégium             Bistrita             Morosan Enikõ Melinda                                                        
+4     Kovacs Andor                   4       60      13      110     Andrei Muresanu Nemzeti Kollégium             Bistrita             Morosan Enikõ Melinda                                                        

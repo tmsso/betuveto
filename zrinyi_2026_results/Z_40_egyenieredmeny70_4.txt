@@ -1,0 +1,46 @@
+
+Megye/körzet: Kárpátalja
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Faggyas Tamás                  4       74      3       104     Nagyberegi Középiskola                        Nagybereg            Zenics-Lõrinc Edina                                                        
+2     Varga Kamilla                  4       67      6       106     Nagydobronyi Középiskola                      Nagydobrony          Hadar Judit                                                        
+3     Kovács Zoltán                  4       65      4       82      Beregszászi Kossuth Lajos Líceum              Beregszász           Bodnár Alexandra                                                        
+4     Sipos Viktória                 4       63      2       59      Tiszakeresztúri Általános Iskola              Tiszakeresztúr       Gorondi Sarolta                                                        
+5     Szabó Jázmin                   4       63      6       87      Tiszabökényi Általános Iskola                 Tiszabökény          Zsendely Viktória                                                        
+6     Homoki Olívia                  4       63      6       85      Dédai Gimnázium                               Déda                 Simon Mónika                                                        
+7     Szûcs István                   4       61      4       65      Beregszászi Bethlen Gábor Líceum              Beregszász           Tompa-Bacskó Éva                                                        
+8     Popovics Emília                4       61      4       61      Dédai Gimnázium                               Déda                 Simon Mónika                                                        
+9     Galajda Ádám                   4       61      8       79      Beregszászi Bethlen Gábor Líceum              Beregszász           Tompa-Bacskó Éva                                                        
+10    Jurisinec Marcell              4       60      1       65      Mezõkaszonyi Középiskola                      Mezõkaszony          Rózsa Erzsébet                                                        
+11    Kovács Panna                   4       60      13      113     Beregszászi Bethlen Gábor Líceum              Beregszász           Tompa-Bacskó Éva                                                        
+12    Kabai Ádám                     4       60      13      106     Tiszabökényi Általános Iskola                 Tiszabökény          Zsendely Viktória                                                        
+13    Neubauer Antal                 4       59      2       73      Munkácsi II. Rákóczi Ferenc Középiskola       Munkács              Seleljo Julianna                                                        
+14    Szegedi Johanna                4       58      3       48      Mezõkaszonyi Középiskola                      Mezõkaszony          Rózsa Erzsébet                                                        
+15    Homoki Emília                  4       58      7       56      Dédai Gimnázium                               Déda                 Simon Mónika                                                        
+16    Szabó Roland                   4       57      8       55      Beregszászi Bethlen Gábor Líceum              Beregszász           Tompa-Bacskó Éva                                                        
+17    Kiss Áron                      4       56      5       69      II. Rákóczi Ferenc Középiskola                Mezõvári             Salamon Olga                                                        
+18    Somi Bianka                    4       56      9       92      Dédai Gimnázium                               Déda                 Simon Mónika                                                        
+19    Balogh Péter                   4       56      9       79      Verbõci Középiskola                           Verbõc               Sinkó Mónika                                                        
+20    Báki Eszter                    4       55      6       97      Dédai Gimnázium                               Déda                 Simon Mónika                                                        
+21    Gazdag Inez                    4       55      6       51      Mezõkaszonyi Középiskola                      Mezõkaszony          Rózsa Erzsébet                                                        
+22    Tomori Jázmin                  4       55      14      102     Péterfalvai Kölcsey Ferenc Középiskola        Péterfalva           Bak Alexandra                                                        
+23    Bodnár Olivér                  4       54      11      89      Nagyberegi Középiskola                        Nagybereg            Zenics-Lõrinc Edina                                                        
+24    Tóth Ilona Jázmin              4       54      11      80      Beregszászi Bethlen Gábor Líceum              Beregszász           Tompa-Bacskó Éva                                                        
+25    Fanta Szofia                   4       53      8       64      Beregszászi Kossuth Lajos Líceum              Beregszász           Bodnár Alexandra                                                        
+26    Baksa Kornélia-Abigél          4       53      12      102     Hetyeni Általános Iskola                      Hetyen               Tóth Viktória                                                        
+27    Nemes István                   4       52      5       71      Csonkapapi Általános Iskola                   Csonkapapi           Cselle Emma                                                        
+28    Nagy Zsófia                    4       52      9       52      Nagydobronyi Középiskola                      Nagydobrony          Nagy Margit                                                        
+29    Tóth Anasztázia                4       51      10      61      Csonkapapi Általános Iskola                   Csonkapapi           Cselle Emma                                                        
+30    Siti Eszter                    4       50      11      53      Beregszászi Kossuth Lajos Líceum              Beregszász           Biró Ágnes                                                        
+31    Ozsvát Jázmin                  4       50      15      82      Nagydobronyi Középiskola                      Nagydobrony          Hadar Judit                                                        
+32    Kardos Kamilla                 4       49      8       61      Tiszakeresztúri Általános Iskola              Tiszakeresztúr       Gorondi Sarolta                                                        
+33    Huszár Amira                   4       48      5       46      Beregszászi Bethlen Gábor Líceum              Beregszász           Tompa-Bacskó Éva                                                        
+34    Zsigán Dorina                  4       48      13      54      Beregszászi Kossuth Lajos Líceum              Beregszász           Biró Ágnes                                                        
+35    Gál Csenge                     4       47      2       22      Beregszászi Kossuth Lajos Líceum              Beregszász           Biró Ágnes                                                        
+36    Csémi Dominik                  4       45      16      62      Nagyberegi Középiskola                        Nagybereg            Zenics-Lõrinc Edina                                                        
+37    Badó Réka                      4       44      1       21      Zápszonyi Általános Iskola                    Zápszony             Gazdag Réka                                                        
+38    Tóth Noémi                     4       44      5       26      Dayka Gábor Középiskola                       Ungvár               Varga Irén                                                        
+39    Árva Arabella                  4       41      8       25      Nagyberegi Középiskola                        Nagybereg            Zenics-Lõrinc Edina                                                        
+40    Mezei Bence                    4       41      12      71      Péterfalvai Kölcsey Ferenc Középiskola        Péterfalva           Bak Alexandra                                                        

@@ -1,0 +1,44 @@
+
+Megye/körzet: Nógrád
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Sándor Zsófia                  4       110     3       264     Kiss Árpád Általános Iskola                   Balassagyarmat       Gálné Deme Hajnalka                                                        
+2     Nándori László                 4       90      3       155     Balassagyarmati Szabó Lõrinc Általános Iskola Balassagyarmat       Kucsera István                                                        
+3     Fábián Gréta                   4       89      4       178     Kiss Árpád Általános Iskola                   Balassagyarmat       Apkó Marietta                                                        
+4     Horváth Lili                   4       86      3       144     SKÁID Kodály Zoltán Tagiskola                 Salgótarján          Szatmári Tünde                                                        
+5     Petõ Olívia                    4       85      4       162     Kiss Árpád Általános Iskola                   Balassagyarmat       Gálné Deme Hajnalka                                                        
+6     Malina Balázs                  4       85      4       148     Salgótarjáni Ált. Isk. és Kollégium SzékhelyinSalgótarján          Dudománé Bodor Tünde                                                        
+7     Pásztor Zétény                 4       85      4       140     Kiss Árpád Általános Iskola                   Balassagyarmat       Apkó Marietta                                                        
+8     Slezák Anna Róza               4       81      0       118     Kiss Árpád Általános Iskola                   Balassagyarmat       Apkó Marietta                                                        
+9     Chikán Anna                    4       80      9       179     Balassagyarmati Szabó Lõrinc Általános Iskola Balassagyarmat       Kucsera István                                                        
+10    Sári Alíz                      4       80      9       161     Zsigmond Király Általános Iskola              Pásztó               Sári-Zentai Evelin                                                        
+11    Takács Dávid                   4       78      3       115     SKÁID Kodály Zoltán Tagiskola                 Salgótarján          Szatmári Tünde                                                        
+12    Falusi Csenge                  4       78      7       141     Kiss Árpád Általános Iskola                   Balassagyarmat       Apkó Marietta                                                        
+13    Romhányi Bálint                4       77      8       145     Mocsáry Antal Általános Iskola                Karancslapujtõ       Juhászné Fodor Petra                                                        
+14    Szalai Fruzsina                4       76      5       123     Balassagyarmati Szabó Lõrinc Általános Iskola Balassagyarmat       Kucsera István                                                        
+15    Dani Benedek                   4       75      6       127     Magyar Szentek Római Katolikus Óvoda és ÁltaláPásztó               Molnár Marianna                                                        
+16    Zagyi Tamás                    4       75      10      144     Balassagyarmati Szabó Lõrinc Általános Iskola Balassagyarmat       Kucsera István                                                        
+17    Jaskó Zselyke                  4       73      8       135     Fráter Erzsébet Általános Iskola              Csécse               Sándor Zsuzsanna                                                        
+18    Jakubecz Áron                  4       71      2       84      Balassagyarmati Dózsa György Ált. Isk.        Balassagyarmat       Horváth Edina                                                        
+19    Szomora Áron                   4       71      6       126     Salgótarjáni Ált. Isk. és Kollégium SzékhelyinSalgótarján          Dudománé Bodor Tünde                                                        
+20    Mitasz Bence                   4       71      6       108     Kiss Árpád Általános Iskola                   Balassagyarmat       Apkó Marietta                                                        
+21    Balogh Emma                    4       71      10      130     Kiss Árpád Általános Iskola                   Balassagyarmat       Gálné Deme Hajnalka                                                        
+22    Ferenczi Szonja                4       69      8       123     Salgótarjáni ÁI. Beszterce-lakótelepi TagiskolSalgótarján          Szarvas-Oravecz Mária Maja                                                        
+23    Salgói Osszián Kristóf         4       68      5       83      Salgótarjáni ÁI. Beszterce-lakótelepi TagiskolSalgótarján          Kovácsné Jancsó Anita                                                        
+24    Jancsó Barnabás                4       66      7       108     Magyar Szentek Római Katolikus Óvoda és ÁltaláPásztó               Molnár Marianna                                                        
+25    Gulyás-Handó Soma              4       66      11      132     Mátranováki Fekete István Általános Iskola    Mátranovák           Esztergályos Rita                                                        
+26    Dely Zille                     4       65      8       110     Kiss Árpád Általános Iskola                   Balassagyarmat       Apkó Marietta                                                        
+27    Tóth Norbert                   4       65      8       91      Általános Iskola                              Nõtincs              Szabó Bence Tamás                                                        
+28    Burián Levente                 4       65      12      130     Salgótarjáni ÁI. Beszterce-lakótelepi TagiskolSalgótarján          Szarvas-Oravecz Mária Maja                                                        
+29    Horváth Noel                   4       65      12      126     Zsigmond Király Általános Iskola              Pásztó               Sári-Zentai Evelin                                                        
+30    Reviczki András                4       65      12      108     Zsigmond Király Általános Iskola              Pásztó               Sári-Zentai Evelin                                                        
+31    Gergely Larina                 4       65      12      103     Fráter Erzsébet Általános Iskola              Csécse               Sándor Zsuzsanna                                                        
+32    Bagyal Adél                    4       64      5       68      Széchenyi István Általános Iskola             Bercel               Nagy Enikõ                                                        
+33    Hegedûs Koppány                4       64      9       135     Mocsáry Antal Általános Iskola                Karancslapujtõ       Juhászné Fodor Petra                                                        
+34    László Anna                    4       64      9       81      SKÁID Kodály Zoltán Tagiskola                 Salgótarján          Szatmári Tünde                                                        
+35    Obrtal Gergõ                   4       63      6       96      Általános Iskola                              Nõtincs              Szabó Bence Tamás                                                        
+36    Zgheib John Morris             4       61      4       66      Balassagyarmati Dózsa György Ált. Isk.        Balassagyarmat       Horváth Edina                                                        
+37    Miklós Tamás                   4       60      13      105     Hesz Mihály Általános Iskola                  Nógrád               Szalai Annamária                                                        
+38    Pap Kira                       4       60      13      103     Balassagyarmati Szabó Lõrinc Általános Iskola Balassagyarmat       Kucsera István                                                        

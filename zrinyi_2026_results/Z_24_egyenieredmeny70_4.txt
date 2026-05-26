@@ -1,0 +1,82 @@
+
+Megye/körzet: Heves
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Gyõri Roland                   4       101     4       215     Gyöngyösi Kálváriaparti Sport- és Ált. Isk.   Gyöngyös             Salga Anna                                                        
+2     Klajzsovics Mira               4       98      3       196     Horti Batthyány József Általános Iskola       Hort                 Bernáth Valéria                                                        
+3     Varga Hanna Éva                4       95      6       204     Gyöngyösi Kálváriaparti Sport- és Ált. Isk.   Gyöngyös             Salga Anna                                                        
+4     Csige Barnabás                 4       95      6       200     Noszvaji Figedy János Általános Iskola        Noszvaj              Huszárné Luda Ágnes                                                        
+5     Bíró Bence                     4       93      4       184     Széchenyi István Katolikus Általános Iskola   Füzesabony           Kiss Andrea, Tóth Tünde                                                        
+6     Szûcs Nóra                     4       91      2       163     Szent Imre Általános Iskola                   Eger                 Ujvári Csabáné                                                        
+7     Tóth-Antal Zsófia              4       91      2       160     Hatvani Szent István Sportiskolai Ált. Isk.   Hatvan               Pete Zsoltné                                                        
+8     Kakuk-Major Abigél             4       90      3       164     II. Rákóczi Ferenc Katolikus Ált. Isk., AMI, ÓGyöngyös             Janotik Titanilla                                                        
+9     Fülöp Botond                   4       90      7       184     Gyöngyösi Kálváriaparti Sport- és Ált. Isk.   Gyöngyös             Salga Anna                                                        
+10    Kocsmár Nóra                   4       90      7       180     Eszterházy Károly Gyakorlóiskola              Eger                 Víg Noémi                                                        
+11    Kovács Anna Ilona              4       89      4       187     Gyöngyössolymosi Nagy Gyula Kat. ÁI. és AMI   Gyöngyössolymos      Borosiné Kiss Anna                                                        
+12    Németh Alexa                   4       89      4       167     Pásztorvölgyi Ált. Isk. és Gimn.              Eger                 Kiss-Szemán Mónika                                                        
+13    Hegedûs Lilla                  4       89      4       164     Hatvani Kodály Zoltán Értékközv. és Képfejl. ÁHatvan               Csörgõ Viktória                                                        
+14    Ócsai Emma                     4       89      4       158     Tarnamérai Általános Iskola                   Tarnaméra            Szarvas Zsoltné                                                        
+15    Molnár Röné                    4       88      5       173     Hatvani Kossuth Lajos Általános Iskola        Hatvan               Varsányi Gábor                                                        
+16    Farsang Soma Ábel              4       88      5       162     Egri Kemény Ferenc Sportiskolai Ált. Isk.     Eger                 Ádám Barnabásné                                                        
+17    Dobre-Kecsmár Hunor Balázs     4       86      3       169     Pásztorvölgyi Ált. Isk. és Gimn.              Eger                 Kiss-Szemán Mónika                                                        
+18    Kovács Vince                   4       86      7       159     Szent Imre Katolikus Általános Iskola         Tenk                 Lukács Viktor                                                        
+19    Kádas Korina                   4       85      4       136     Gyöngyössolymosi Nagy Gyula Kat. ÁI. és AMI   Gyöngyössolymos      Magos Judit                                                        
+20    Vicsev Linda                   4       85      8       178     EKE Gyakorlóiskola és Gimn. Barkóczy u. 5.    Eger                 Lénártné Földes Katalin                                                        
+21    Ádám Mátyás Richárd            4       85      8       174     Gyöngyösi Kálváriaparti Sport- és Ált. Isk.   Gyöngyös             Salga Anna                                                        
+22    Galambosi Noel                 4       84      1       135     Horti Batthyány József Általános Iskola       Hort                 Süki Csabáné                                                        
+23    Magyari Lenevte                4       84      5       152     Hunyadi Mátyás Általános Iskola               Eger                 Csiger Anikó                                                        
+24    Hammer Borbála Petra           4       83      6       158     Hatvani Kodály Zoltán Értékközv. és Képfejl. ÁHatvan               Barna Zsuzsanna                                                        
+25    Barczi-Veres Barnabás          4       83      6       145     Pásztorvölgyi Ált. Isk. és Gimn.              Eger                 Kiss-Szemán Mónika                                                        
+26    Bige Viktória                  4       81      8       144     Hatvani Kossuth Lajos Általános Iskola        Hatvan               Berta Edit                                                        
+27    Kaló Péter                     4       80      5       129     Felsõvárosi Általános Iskola                  Gyöngyös             Pestiné Barna Julianna                                                        
+28    Varga Nándor                   4       80      5       128     BBÁI ESZ. Tinódi S. Tagiskola                 Eger                 Veresné Nagy Zsuzsanna                                                        
+29    Erdélyi Dávid                  4       80      9       189     Lenkey János Általános Iskola                 Eger                 Fodor Ildikó                                                        
+30    Keresztes Ajtony               4       80      9       165     Eszterházy Károly Gyakorlóiskola              Eger                 Bodnár Andrea                                                        
+31    Kozmányi Martin Zente          4       80      9       142     Pásztorvölgyi Ált. Isk. és Gimn.              Eger                 Pásztor Ildikó                                                        
+32    Sáfrán Álmos                   4       78      7       141     Szent Imre Katolikus Általános Iskola         Tenk                 Lukács Viktor                                                        
+33    Tóth Áron                      4       77      4       138     Szent Imre Általános Iskola                   Eger                 Ujvári Csabáné                                                        
+34    Kedves Eszter                  4       77      4       122     Széchenyi István Katolikus Általános Iskola   Füzesabony           Czakóné Püspöki Ilona                                                        
+35    Erõs Levente                   4       76      5       134     Recski Jámbor Vilmos ÁI. Mátraderecskei TelephMátraderecske        Kis Lászlóné                                                        
+36    Lõrincz Viktória               4       76      5       119     Domoszlói III. András Általános Iskola        Domoszló             Herpai-Komoróczki Noémi                                                        
+37    Radics Liza                    4       75      10      153     Egri Kemény Ferenc Sportiskolai Ált. Isk.     Eger                 Ádám Barnabásné                                                        
+38    Kis Anikó                      4       74      3       107     Szent Imre Katolikus Általános Iskola         Tenk                 Lukács Viktor                                                        
+39    Nagy Marcell                   4       74      7       110     Hatvani Kodály Zoltán Értékközv. és Képfejl. ÁHatvan               Csörgõ Viktória                                                        
+40    Boldizsár Emma                 4       74      7       109     Eötvös József Ref. Okt. Kp. - Ált. Isk. Eger  Eger                 Novák Katalin                                                        
+41    Mongyik András                 4       73      4       94      Eötvös József Ref. Okt. Kp. - Ált. Isk. Eger  Eger                 Novák Katalin                                                        
+42    Nagy Dávid Szabolcs            4       73      8       132     Hatvani Kossuth Lajos Általános Iskola        Hatvan               Berta Edit                                                        
+43    Kovács Bercel Hunor            4       73      8       127     Hatvani Kossuth Lajos Általános Iskola        Hatvan               Varsányi Gábor                                                        
+44    Nagy Norina                    4       72      5       112     Hatvani Kodály Zoltán Értékközv. és Képfejl. ÁHatvan               Csörgõ Viktória                                                        
+45    Veres Hanna                    4       71      2       98      Hatvani Szent István Sportiskolai Ált. Isk.   Hatvan               Pete Zsoltné                                                        
+46    Szluka Léna                    4       71      2       97      Recski Jámbor Vilmos ÁI. Mátraderecskei TelephMátraderecske        Kis Lászlóné                                                        
+47    Hives Fanni                    4       71      6       99      II. Rákóczi Ferenc Katolikus Ált. Isk., AMI, ÓGyöngyös             Szõkéné Berzsenyi Györgyi Éva                                                        
+48    Bánszki Anita                  4       71      10      131     Domoszlói III. András Általános Iskola        Domoszló             Herpai-Komoróczki Noémi                                                        
+49    Lévai László Donát             4       70      7       134     Richter Gedeon Általános Iskola               Ecséd                Tuzáné Szabó Erika                                                        
+50    Makó Nikolett                  4       70      7       111     Hevesi Körzeti Általános Iskola és AMI        Heves                Danczné Galambos Anna                                                        
+51    Orbán Bendegúz                 4       69      4       84      Széchenyi István Katolikus Általános Iskola   Füzesabony           Tóth Tünde                                                        
+52    Kovács Janka                   4       68      1       82      Tarnamérai Általános Iskola                   Tarnaméra            Szarvas Zsoltné                                                        
+53    Kiszel Eszter                  4       68      1       75      Hatvani 5. Sz. Általános Iskola               Hatvan               Szabó Mónika                                                        
+54    Ivácsony Áron                  4       68      5       97      Horti Batthyány József Általános Iskola       Hort                 Süki Csabáné                                                        
+55    Országh Zsombor                4       68      5       96      Eszterházy Károly Gyakorlóiskola              Eger                 Borsós Lilla                                                        
+56    Szabó Áron                     4       68      5       85      Gyöngyössolymosi Nagy Gyula Kat. ÁI. és AMI   Gyöngyössolymos      Magos Judit                                                        
+57    Mihály Balázs                  4       68      5       84      Lenkey János Általános Iskola                 Eger                 Fodor Ildikó                                                        
+58    Bartók Boglárka                4       68      9       109     II. Rákóczi Ferenc Katolikus Ált. Isk., AMI, ÓGyöngyös             Janotik Titanilla                                                        
+59    Kaló Csongor                   4       68      9       104     EKE Gyakorlóiskola és Gimn. Barkóczy u. 5.    Eger                 Vinczéné Sós Tünde                                                        
+60    Czeglédi-Offenbacher Ármin     4       68      9       100     EKE Gyakorlóiskola és Gimn. Barkóczy u. 5.    Eger                 Lénártné Földes Katalin                                                        
+61    Hidvégi Enikõ                  4       67      6       96      Széchenyi István Katolikus Általános Iskola   Füzesabony           Czakóné Püspöki Ilona                                                        
+62    Váradi Levente                 4       67      10      97      Gyöngyössolymosi Nagy Gyula Kat. ÁI. és AMI   Gyöngyössolymos      Magos Judit                                                        
+63    Belkovics Márton               4       66      3       75      Pásztorvölgyi Ált. Isk. és Gimn.              Eger                 Pásztor Ildikó                                                        
+64    Tóth Jázmin                    4       65      8       114     Hatvani Kossuth Lajos Általános Iskola        Hatvan               Varsányi Gábor                                                        
+65    Góbor Anna                     4       65      8       86      Hevesi Körzeti Általános Iskola és AMI        Heves                Danczné Galambos Anna                                                        
+65    Nagy Zsolt                     4       65      8       86      Hevesi Körzeti Általános Iskola és AMI        Heves                Danczné Galambos Anna                                                        
+67    Szabó Ádám András              4       65      12      134     Gyöngyösi Kálváriaparti Sport- és Ált. Isk.   Gyöngyös             Salga Anna                                                        
+68    Valaska László                 4       65      12      123     Felsõvárosi Általános Iskola                  Gyöngyös             Pestiné Barna Julianna                                                        
+69    Lõrincz Balázs                 4       65      12      115     Boldogi Berecz Antal Általános Iskola         Boldog               Kucsera - Tóth Szilvia                                                        
+70    André Tímea                    4       65      12      113     Széchenyi István Általános Iskola             Gyöngyöshalász       Kiss Viktória                                                        
+71    Ipacs Márton                   4       64      9       116     Noszvaji Figedy János Általános Iskola        Noszvaj              Huszárné Luda Ágnes                                                        
+72    Szabó Léna                     4       63      10      85      Szent Imre Általános Iskola                   Eger                 Ujvári Csabáné                                                        
+73    Pelyhe Dorka                   4       62      7       113     Egri Kemény Ferenc Sportiskolai Ált. Isk.     Eger                 Ádám Barnabásné                                                        
+74    Zsák Eszter Anna               4       62      7       93      Hatvani Szent István Sportiskolai Ált. Isk.   Hatvan               Pete Zsoltné                                                        
+75    Homoki Gábor                   4       62      7       82      Felsõtárkányi Általános Iskola és AMI         Felsõtárkány         Varga Anita                                                        
+76    Biró Zoltán                    4       62      11      100     II. Rákóczi Ferenc Katolikus Ált. Isk., AMI, ÓGyöngyös             Szõkéné Berzsenyi Györgyi Éva                                                        

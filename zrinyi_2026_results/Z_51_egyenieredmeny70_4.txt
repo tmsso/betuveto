@@ -1,0 +1,25 @@
+
+Megye/körzet: Vajdaság
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Farkas András                  4       102     3       210     Stevan Sremac Általános Iskola                Zenta                Ágó Katalin                                                        
+2     Szabó Magdaléna                4       95      2       171     Petõfi Sándor Általános Iskola                Óbecse               Námesztovszki Tímea                                                        
+3     Varga Bodza                    4       94      3       176     Október 10. Általános Iskola                  Szabadka             Malagurszki Éva                                                        
+4     Bús Ráhel                      4       92      1       170     Jovan Jovanovic Zmaj                          Kanizsa              Danyi Zsuzsanna                                                        
+5     Bartus Bence                   4       89      4       168     Jovan Jovanovic Zmaj                          Kanizsa              Danyi Zsuzsanna                                                        
+6     Moisko Balázs                  4       88      5       165     Kókai Imre Általános Iskola                   Temerin              Morvai Szilvia                                                        
+7     Muhi Levente                   4       85      4       140     Cofman Iskola                                 Szabadka             Luncz Angéla, Sztarek Eleonóra                                                        
+8     Ivkovic Erika                  4       84      1       125     Thurzó Lajos Általános Iskola                 Zenta                Borgyoski Mónika                                                        
+9     Törteli Patrik                 4       82      3       129     Kókai Imre Általános Iskola                   Temerin              Erdélyi Erzsébet                                                        
+10    Pósa Márton                    4       80      5       161     Jovan Jovanovic Zmaj                          Kanizsa              Juhász Márta                                                        
+11    Orosz Teodóra                  4       80      5       131     Kókai Imre Általános Iskola                   Temerin              Erdélyi Erzsébet                                                        
+12    Sóti Luca                      4       78      3       112     Thurzó Lajos Általános Iskola                 Zenta                Nagy Mélykúti Piroska                                                        
+13    Mészáros Viktória              4       76      1       96      Hunyadi János Általános Iskola                Csantavér            Hovanyec Vékony Márta                                                        
+14    Kis Stangl Frida               4       75      6       138     Október 10. Általános Iskola                  Szabadka             Malagurszki Éva                                                        
+15    Lengyel József Bence           4       74      7       150     Kókai Imre Általános Iskola                   Temerin              Morvai Szilvia                                                        
+16    András Gyuricsin Ádám          4       72      5       95      Hunyadi János Általános Iskola                Csantavér            Hovanyec Vékony Márta                                                        
+17    Kurczinák Lea                  4       71      6       100     Kókai Imre Általános Iskola                   Temerin              Erdélyi Erzsébet                                                        
+18    Börcsök Ádám                   4       70      3       88      Kárász Karolina Általános Iskola Horgos       Horgos               Luncz Angéla, Gazdag Emese                                                        
+19    Varbai Maja                    4       69      0       72      Móricz Zsigmond kihelyezett tagozat Kispiac   Kispiac              Sárkány Dóra                                                        

@@ -1,0 +1,72 @@
+
+Megye/körzet: Somogy
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Szigeti Zalán                  4       115     2       293     Vak Bottyán János Általános Iskola és AMI     Siófok               Bartáné Tóth Zsuzsanna                                                        
+2     Steiner Stefánia               4       106     3       263     Palonai Magyar Bálint Általános Iskola        Fonyód               Gyõriné Welsch Marianna                                                        
+3     Mikó Dénes                     4       105     4       238     Zamárdi Fekete István Általános Iskola        Zamárdi              Hajdúné Gergõ Andrea                                                        
+4     Rosta Dorka                    4       105     4       237     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Vanyurné Ferk Ildikó                                                        
+5     Imre Mátyás                    4       103     2       221     Festetics Kristóf Általános Iskola            Balatonkeresztúr     Szuper Rita                                                        
+6     Gigler Júlia                   4       102     3       221     Vak Bottyán János Általános Iskola és AMI     Siófok               Bartáné Tóth Zsuzsanna                                                        
+7     Zsók Lilien                    4       100     5       216     Marcali Noszlopy Gáspár ÁI. és AMI            Marcali              Tamás Henrietta                                                        
+8     Lõrincz Nóra                   4       99      2       202     Balatonszemesi Reich Károly Általános Iskola  Balatonszemes        Reichert Edina                                                        
+9     Horváth Benedek                4       98      3       202     Vak Bottyán János Általános Iskola és AMI     Siófok               Bartáné Tóth Zsuzsanna                                                        
+10    Trenyik Marcell Vajk           4       97      4       198     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Ziegerné Horváth Erika                                                        
+11    Schaffer Olivér                4       95      6       198     Palonai Magyar Bálint Általános Iskola        Fonyód               Gyõriné Welsch Marianna                                                        
+12    Sánta Levente Hunor            4       94      3       181     Festetics Kristóf Általános Iskola            Balatonkeresztúr     Szuper Rita                                                        
+13    Tóth Ábris Fülöp               4       93      4       191     Nagyboldogasszony Római Kat. Gimn. és ÁI      Kaposvár             Fajtainé Magyarica Irén                                                        
+14    Werkman Zalán                  4       92      5       197     Barcsi Deák Ferenc Sportiskolai Átalános IskolBarcs                Horváth Ferncné                                                        
+15    Cseh-Balla Bence István        4       92      5       180     Balatonszemesi Reich Károly Általános Iskola  Balatonszemes        Reichert Edina                                                        
+16    Hivatal Péter                  4       92      5       179     Szennai Fekete László Általános Iskola        Szenna               Farkas-Túri Enikõ                                                        
+17    Kalmár Kitti                   4       92      5       176     Vak Bottyán János Általános Iskola és AMI     Siófok               Zsuponyóné Kovács Gabriella                                                        
+18    Bálint Alíz                    4       91      6       192     KKZKÁI Honvéd Utcai Tagiskola                 Kaposvár             Taubert Lilien                                                        
+19    Tóth Dóra Anna                 4       90      3       161     Berzsenyi Dániel Evangélikus Általános Iskola Kaposvár             Szabó-Erdélyi Laura                                                        
+20    Tóth Szabina                   4       90      7       195     Balatonlelle-Karád Ált. Isk. és AMI.          Balatonlelle         Kenéz Gabriella                                                        
+21    Balog Blanka                   4       90      7       183     Zrínyi Ilona Magy-Ang. Két.T.Ny. Tagisk.      Kaposvár             Szõcsné Nagy Gabriella                                                        
+22    Gigante Mattia                 4       90      7       176     Zrínyi Ilona Magy-Ang. Két.T.Ny. Tagisk.      Kaposvár             Szõcsné Nagy Gabriella                                                        
+23    Molnár Tamás                   4       89      4       189     Kisfaludy Utcai Tagiskola                     Kaposvár             Szelczi Ivett                                                        
+24    Wolf Máté                      4       89      4       163     Nagyboldogasszony Római Kat. Gimn. és ÁI      Kaposvár             Majoros Bernadett                                                        
+25    Lakics Zalán                   4       89      4       153     Kisfaludy Utcai Tagiskola                     Kaposvár             Szelczi Ivett                                                        
+26    Kövesi Hanga                   4       88      5       162     Barcsi Deák Ferenc Sportiskolai Átalános IskolBarcs                Horváth Ferncné                                                        
+27    Máté Benedek János             4       87      2       146     Benedek Elek Tagiskola                        Kaposvár-Kaposfüred  Frányóné Süle Henrietta                                                        
+28    Gerst Mátyás                   4       87      2       145     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Vanyurné Ferk Ildikó                                                        
+29    Rajkó Judit                    4       87      2       139     Kaposvári Kodály Zoltán Központi ÁI.          Kaposvár             Hermann-Né Sipos Erika                                                        
+30    Buzás Dóra                     4       87      6       171     Marcali Noszlopy Gáspár ÁI. és AMI            Marcali              Tamás Henrietta                                                        
+31    Horváth Zalán János            4       87      6       162     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Ziegerné Horváth Erika                                                        
+32    Komlóssy Katalin               4       86      3       144     Nagyboldogasszony Római Kat. Gimn. és ÁI      Kaposvár             Fajtainé Magyarica Irén                                                        
+33    Csépai Zsombor                 4       85      4       144     Vak Bottyán János Általános Iskola és AMI     Siófok               Bartáné Tóth Zsuzsanna                                                        
+34    Talián Dóra                    4       85      8       177     Árpád Fejedelem Általános Iskola              Nagyatád             Fodorné Nyilas Zsuzsanna                                                        
+35    Juhász Janka                   4       84      5       161     Marcali Noszlopy Gáspár ÁI. és AMI            Marcali              Tamás Henrietta                                                        
+36    Pintér Milán Péter             4       84      5       139     Kaposvári Kodály Zoltán Központi ÁI.          Kaposvár             Ferenczi Balogh Anikó                                                        
+37    Elmauer Ábel                   4       83      2       129     Nagyboldogasszony Római Kat. Gimn. és ÁI      Kaposvár             Fajtainé Magyarica Irén                                                        
+38    Nagy Marcell                   4       83      6       174     Barcsi Deák Ferenc Sportiskolai Átalános IskolBarcs                Horváth Ferncné                                                        
+39    Gjibexhi Mira                  4       82      7       150     Széchenyi István Általános Iskola             Siófok               Hajduné Nagy Ágota                                                        
+40    László Mátyás                  4       81      8       157     KKZKÁI Honvéd Utcai Tagiskola                 Kaposvár             Taubert Lilien                                                        
+41    Soltész Lilien                 4       81      8       144     Kaposvári Kodály Zoltán Központi ÁI.          Kaposvár             Hermann-Né Sipos Erika                                                        
+42    Szabó Péter Benedek            4       80      9       177     Balatonlelle-Karád Ált. Isk. és AMI.          Balatonlelle         Kenéz Gabriella                                                        
+43    Juhász Dóra                    4       80      9       169     Széchenyi István Általános Iskola             Siófok               Erdélyiné Burdohány Ilona                                                        
+44    Takács Máté Tamás              4       80      9       160     Kisfaludy Utcai Tagiskola                     Kaposvár             Czompó Rita                                                        
+45    Botykai István                 4       80      9       151     Zrínyi Ilona Magy-Ang. Két.T.Ny. Tagisk.      Kaposvár             Bácsai-Hullmann Zsófia                                                        
+46    Orbán Rozina                   4       79      2       111     Kisfaludy Utcai Tagiskola                     Kaposvár             Szelczi Ivett                                                        
+47    Szikulai Hanna                 4       79      6       149     KKZKÁI Honvéd Utcai Tagiskola                 Kaposvár             Taubert Lilien                                                        
+48    Hanák Péter                    4       78      7       159     Vak Bottyán János Általános Iskola és AMI     Siófok               Zsuponyóné Kovács Gabriella                                                        
+49    Bihary Cecília Ágnes           4       77      4       120     Balatonszemesi Reich Károly Általános Iskola  Balatonszemes        Reichert Edina                                                        
+50    Niklai Zsombor                 4       77      8       134     Általános Iskola                              Öreglak              Bognár Beáta                                                        
+51    Rózsa Regina                   4       75      2       102     Marcali Mikszáth Kálmán Általános Iskola      Marcali              Balogh Viktória                                                        
+52    Zsók Zsombor                   4       75      10      162     Marcali Noszlopy Gáspár ÁI. és AMI            Marcali              Tamás Henrietta                                                        
+53    Kadácsi Dominik                4       75      10      133     Vak Bottyán János Általános Iskola és AMI     Siófok               Bartáné Tóth Zsuzsanna                                                        
+54    Horváth Diána                  4       73      4       114     Boglári Általános Iskola és AMI               Balatonboglár        Stepics Zsanett                                                        
+55    Perneczki Luca                 4       73      4       100     Boglári Általános Iskola és AMI               Balatonboglár        Stepics Zsanett                                                        
+56    Krajcsovszki András            4       73      4       95      Marcali Mikszáth Kálmán Általános Iskola      Marcali              Balogh Viktória                                                        
+57    Bíró Natasa Luca               4       72      5       101     Marcali Noszlopy Gáspár ÁI. és AMI            Marcali              Pappné Kocsis Mónika                                                        
+58    Pintér Botond                  4       72      9       150     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Ziegerné Horváth Erika                                                        
+59    Botos Zsófia                   4       72      9       140     Marcali Mikszáth Kálmán Általános Iskola      Marcali              Balogh Viktória                                                        
+60    Gáspár Máté                    4       71      6       113     Kaposvári Kodály Zoltán Központi ÁI.          Kaposvár             Hermann-Né Sipos Erika                                                        
+61    Fábián Eliot                   4       70      3       90      Bölcsesség Kezdete Óvoda, Általános Iskola és Bodrog               Csernák Judit                                                        
+62    Pernecz Bence                  4       70      3       78      Festetics Kristóf Általános Iskola            Balatonkeresztúr     Szuper Rita                                                        
+63    Horváth Márton                 4       70      7       120     Vak Bottyán János Általános Iskola és AMI     Siófok               Bartáné Tóth Zsuzsanna                                                        
+64    Fett Petra Nelli               4       70      11      131     Toldi Lakótelepi Tagiskola                    Kaposvár             Kovács Erzsébet                                                        
+65    Kóbor Máté Nimród              4       70      11      109     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Ziegerné Horváth Erika                                                        
+66    Puspán Gergõ                   4       69      8       116     Lorántffy Zsuzsanna Ref. Óv., ÁI., Gimn. és KoKaposvár             Ziegerné Horváth Erika                                                        

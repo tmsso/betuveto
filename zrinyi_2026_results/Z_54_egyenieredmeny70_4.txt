@@ -1,0 +1,12 @@
+
+Megye/körzet: Temes
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Simo Andrei Oliver             4       105     4       235     Bartók Béla Líceum                            Temesvár             Pál Krisztina                                                        
+2     Uszkai-Gyuritza Arnold         4       101     4       212     Bartók Béla Líceum                            Temesvár             Pál Krisztina                                                        
+3     Keresztes Pelbárt              4       90      7       191     Bartók Béla Líceum                            Temesvár             Pál Krisztina                                                        
+4     Kása Hanga                     4       84      1       127     Bartók Béla Líceum                            Temesvár             Bakos Ágnes- Mónika, Tasi Ottilia- Gyöngyvér                                                        
+5     Demjén Rafael                  4       83      2       130     Bartók Béla Líceum                            Temesvár             Pál Krisztina                                                        
+6     Jula Áron                      4       82      7       141     Bartók Béla Líceum                            Temesvár             Pál Krisztina                                                        
