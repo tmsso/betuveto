@@ -42,6 +42,37 @@ function App() {
   const [showFailedWords, setShowFailedWords] = useState(false)
   const [failedWordsHistory, setFailedWordsHistory] = useState([])
 
+  // Confetti ref
+  const confettiRef = useRef(null);
+  const getInstance = useCallback((instance) => {
+    confettiRef.current = instance;
+  }, []);
+
+  const fireConfetti = useCallback(() => {
+    confettiRef.current?.({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  }, []);
+
+  const fireExplosion = useCallback(() => {
+    confettiRef.current?.({
+      particleCount: 200,
+      spread: 160,
+      origin: { y: 0.3 }
+    });
+  }, []);
+
+  const showTemporaryError = useCallback((msg) => {
+    setGuessErrorMsg(msg);
+    setIsGuessShaking(true);
+    setTimeout(() => {
+      setGuessErrorMsg(null);
+      setIsGuessShaking(false);
+    }, 2000);
+  }, []);
+
   // Load high scores and failed words from localStorage on mount
   useEffect(() => {
     const storedScores = JSON.parse(localStorage.getItem('betuveto_high_scores') || '[]');
