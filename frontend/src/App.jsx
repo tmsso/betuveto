@@ -42,6 +42,8 @@ function App() {
   const [showFailedWords, setShowFailedWords] = useState(false)
   const [failedWordsHistory, setFailedWordsHistory] = useState([])
   const [possibleWordsCount, setPossibleWordsCount] = useState(0)
+  const [allPossibleWords, setAllPossibleWords] = useState([])
+  const [showRemainingWords, setShowRemainingWords] = useState(false)
   const [allPossibleWordsFound, setAllPossibleWordsFound] = useState(false)
 
   // Confetti ref
@@ -168,12 +170,14 @@ function App() {
       setIsTimerActive(false)
       setIsAnimatingLetters(true)
       setAllPossibleWordsFound(false)
+      setShowRemainingWords(false)
       setCurrentAnimatingIndex(-1)
       setIsTimeUp(false)
       setScoreAtExpiry(0)
       
       // Fetch possible words count
       const possibleWords = await betuAPI.getPossibleWords()
+      setAllPossibleWords(possibleWords)
       setPossibleWordsCount(possibleWords.length)
 
       // Check if this word was failed before
@@ -383,14 +387,9 @@ function App() {
             <div className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600' : 'text-game-primary'}`}>
               🏆 {displayScore} <span className="hidden sm:inline">pont</span>
             </div>
-            <div className="text-md text-gray-500">
-              {foundWords.length} talált szó • {guessCount} tipp
+            <div className={`text-md text-gray-500 transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
+              {foundWords.length} / {possibleWordsCount} talált szó • {guessCount} tipp {allPossibleWordsFound && '✨'}
             </div>
-            {possibleWordsCount > 0 && (
-              <div className={`text-xs mt-1 transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : 'text-gray-400'}`}>
-                {foundWords.length} / {possibleWordsCount} talált szó {allPossibleWordsFound && '✨'}
-              </div>
-            )}
           </div>
           <div className="flex items-center justify-center space-x-2">
             <div className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}>
@@ -399,7 +398,8 @@ function App() {
           </div>
         </div>
 
-        {/* High Scores (subtle display) */}
+        {/* High Scores (subtle display) - Hidden as per request */}
+        {/*
         {highScores.length > 0 && (
           <div className="mb-4 text-xs text-gray-400 flex gap-4 justify-center">
              <span>Top Scores:</span>
@@ -408,6 +408,7 @@ function App() {
              ))}
           </div>
         )}
+        */}
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
@@ -554,6 +555,32 @@ function App() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Remaining Words Dropdown (Only after game end) */}
+        {isTimeUp && allPossibleWords.length > foundWords.length && (
+            <div className="mt-6 pt-4 border-t border-dashed border-gray-200">
+                <button 
+                  onClick={() => setShowRemainingWords(!showRemainingWords)}
+                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-blue-700 flex items-center justify-center gap-2"
+                >
+                  {showRemainingWords ? '🔼 Rejtett szavak elrejtése' : `🔽 Hiányzó szavak megjelenítése (${allPossibleWords.length - foundWords.length} szó)`}
+                </button>
+                
+                {showRemainingWords && (
+                    <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                        {allPossibleWords
+                            .filter(word => !foundWords.includes(word))
+                            .sort((a,b) => a.localeCompare(b, 'hu'))
+                            .map((word, index) => (
+                                <span key={index} className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
+                                    {word}
+                                </span>
+                            ))
+                        }
+                    </div>
+                )}
+            </div>
         )}
 
         {/* Temporary info/error messages */}
