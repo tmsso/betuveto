@@ -1,0 +1,115 @@
+
+Megye/körzet: Maros
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Nemes Botond Márk              4       113     0       256     Dr. Bernády György Általános Iskola           Marosvásárhely       Szõcs- Adorjáni Mária                                                        
+2     Korodi-Gál Máté                4       110     3       261     Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+3     Iszlai Kristóf Endre           4       107     2       232     Református Kollégium                          Marosvásárhely       Géczi Melinda Erzsébet                                                        
+4     Portik Zselyke                 4       106     3       240     Liviu Rebreanu Általános Iskola               Marosvásárhely       Nagy Árkosi Éva                                                        
+5     Kinda Dániel                   4       98      3       202     Református Kollégium                          Marosvásárhely       Géczi Melinda Erzsébet                                                        
+6     Ravasz Kamilla                 4       97      4       209     Általános Iskola                              Gyulakuta            Varga Éva                                                        
+7     Király Anna - Zselyke          4       96      1       173     Általános Iskola                              Gyulakuta            Varga Éva                                                        
+8     Simon Dávid                    4       95      2       177     Mûvészeti Fõgimnázium                         Marosvásárhely       Csizmadi Csilla                                                        
+9     Lukács Magyari Ádám Oszkár     4       95      2       172     Általános Iskola                              Nyárádkarácsonfalva  Mátyus Andrea, Farkas Csilla Noémi                                                        
+10    Pózna-Tokos Huba               4       95      6       205     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+11    Kovács Anna                    4       95      6       201     Általános Iskola                              Marossárpatak        Vajda Annamária                                                        
+12    Suba Botond                    4       94      3       180     Mûvészeti Fõgimnázium                         Marosvásárhely       Csizmadi Csilla                                                        
+13    Rácz Áron                      4       94      3       177     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+14    Bartha Zalán- Sándor           4       93      4       184     Friedrich Schiller Általános Iskola           Marosvásárhely       Moga Melinda                                                        
+15    Horvát Kincsõ Anna             4       91      2       166     Európa Általános Iskola                       Marosvásárhely       Szobolai Réka                                                        
+16    Thiesz Ráhel                   4       90      7       191     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+17    Bereczki Margit Eszter         4       88      5       159     Európa Általános Iskola                       Marosvásárhely       Kis Rózália                                                        
+17    Kulcsár Zenkõ                  4       88      5       159     Mûvészeti Fõgimnázium                         Marosvásárhely       Csizmadi Csilla                                                        
+19    Dobai Ádám Róbert              4       87      2       146     Általános Iskola                              Búzásbesenyõ         Keresztes Judith                                                        
+20    Sütõ Flóra                     4       87      6       186     7. sz. Általános Iskola                       Marosvásárhely       Lázár Emese                                                        
+21    Miklós Ervin                   4       87      6       185     Dr. Nyulas Ferenc Általános Iskola            Nyárádremete         Erdélyi Tünde                                                        
+22    Antal Márk                     4       86      3       145     Alexandru Ioan Cuza Általános Iskola          Marosvásárhely       Mezei Xenia                                                        
+23    Dancs Tompa Margó              4       86      3       144     Nicolae Balcescu Általános Iskola             Marosvásárhely       Kusztos Melinda                                                        
+24    Lakatos Endre                  4       86      3       138     George Cosbuc Általános Iskola                Marosvásárhely       Szigeti Anna                                                        
+25    Feiffer Vazul                  4       86      7       183     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+26    Tolvaly Nikolett               4       86      7       158     Gimnaziul De Stat ''T Vladimirescu''          Marosvásárhely       Orbán Márta                                                        
+27    Barta Zsanett Krisztin         4       85      0       125     Mihai Viteazul Általános Iskola               Marosvásárhely       Imre Márta                                                        
+28    Biró Cecilia                   4       85      8       168     Körtvélyfályai Általános Iskola               Körtvélyfálya        Kolcsár Gyöngyvér                                                        
+29    Markos Hanna                   4       83      6       175     7. sz. Általános Iskola                       Marosvásárhely       Lázár Emese                                                        
+30    Benõ Balázs                    4       83      6       145     Dr. Bernády György Általános Iskola           Marosvásárhely       Ferenczi Andrea                                                        
+31    Diós Kovács Márk István        4       82      3       139     Református Kollégium                          Marosvásárhely       Géczi Melinda Erzsébet                                                        
+32    Hideg Konrád                   4       82      3       132     Európa Általános Iskola                       Marosvásárhely       Kis Rózália                                                        
+33    Forika Eszter Brigitta         4       81      4       136     Dr. Nyulas Ferenc Általános Iskola            Nyárádremete         Jenei Adél                                                        
+34    Incze Sidlovszky Orsolya       4       81      4       125     Európa Általános Iskola                       Marosvásárhely       Kis Rózália                                                        
+35    Andrejkovits Teofil            4       81      4       124     Dr. Bernády György Általános Iskola           Marosvásárhely       Ferenczi Andrea                                                        
+36    Szõcs Eszter                   4       80      5       137     Gimnaziul De Stat ''T Vladimirescu''          Marosvásárhely       Orbán Márta                                                        
+37    Nagy Zsófia                    4       80      5       127     Általános Iskola                              Somosd               Szabó Piroska                                                        
+38    Zincenco Viktoria Beatriz      4       80      5       125     S. Illyés Lajos Általános Iskola              Szováta              Kiss Enikõ                                                        
+39    Molnár Timea Beáta             4       80      9       152     Liviu Rebreanu Általános Iskola               Marosvásárhely       Nagy Árkosi Éva                                                        
+40    Máthé Eszter                   4       79      6       137     Sfantul Gheroghe Általános Iskola             Marosszentgyörgy     Opra Kinga                                                        
+41    Nagy Balázs                    4       79      6       129     Romulus Guga Általános Iskola                 Marosvásárhely       Székely Irénke                                                        
+42    Gyõri Jázmin Tímea             4       78      3       109     Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+43    Henter Eszter                  4       78      3       108     Általános Iskola                              Somosd               Szabó Piroska                                                        
+44    Bíró Ákos                      4       78      7       144     Kádár Márton Általános Iskola                 Mezõpanit            Szõcs Róbert                                                        
+45    Fekete Anita Bernadett         4       77      4       128     Marosszentkirályi Általános Iskola            Marosszentkirály     Sebesi Margit                                                        
+46    Enea Balázs                    4       77      4       119     Általános Iskola                              Ákosfalva            Nám Mária Emese                                                        
+47    Székely-Varga Máté István      4       77      4       118     Református Kollégium                          Marosvásárhely       Géczi Melinda Erzsébet                                                        
+48    Horváth Zsombor                4       77      8       137     Friedrich Schiller Általános Iskola           Marosvásárhely       Moga Melinda                                                        
+49    Zelkó Áron Bendegúz            4       76      1       100     Mihai Viteazul Általános Iskola               Marosvásárhely       Imre Márta                                                        
+50    Egyed Tamás István             4       76      5       117     Nyárádszeredai Általános Iskola               Nyárádszereda        Trufán Ildikó                                                        
+51    Dolooczki Eszter               4       76      5       114     Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+52    Zincenco Francesca Aoife       4       75      6       122     S. Illyés Lajos Általános Iskola              Szováta              Kiss Enikõ                                                        
+53    Bálint Katalin                 4       75      10      145     Szent Gyögy Iskolaközpont                     Erdõszentgyörgy      György Viola                                                        
+54    Molnár Csanád                  4       75      10      132     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+55    Kerekes Zsuzsa                 4       74      3       119     Általános Iskola                              Csíkfalva            Balogh Tünde                                                        
+56    Kovács Anna Bíborka            4       74      7       155     Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+57    Toth Zalán József              4       74      7       129     Nyárádszeredai Általános Iskola               Nyárádszereda        Gergely Gyopár                                                        
+58    Kiss Anthony                   4       74      7       128     Szász Adalbert Sportlíceum                    Marosvásárhely       Szõcs Enikõ                                                        
+59    Biró Zsombor                   4       73      0       89      Általános Iskola                              Sóvárad              Biró Piroska                                                        
+60    Mészáros Márk Krisztián        4       73      4       129     Mihai Viteazul Általános Iskola               Marosvásárhely       Imre Márta                                                        
+61    Kis Samu                       4       73      4       107     Dr. Bernády György Általános Iskola           Marosvásárhely       Szõcs- Adorjáni Mária                                                        
+62    Kluzsán Dóra-Szófia            4       73      8       143     Marosszentkirályi Általános Iskola            Marosszentkirály     Sebesi Margit                                                        
+63    Angi Balázs                    4       72      9       109     Liviu Rebreanu Általános Iskola               Marosvásárhely       Nagy Árkosi Éva                                                        
+64    Ferencz Eszter                 4       71      2       93      Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+65    Jánosi Bernadett               4       71      2       86      Általános Iskola                              Maroskeresztúr       Nagy Izabella                                                        
+66    Sipos Dórka                    4       71      6       118     Nyárádszeredai Általános Iskola               Nyárádszereda        Gergely Gyopár                                                        
+67    Sófalvi Klaudia-Krisztina      4       71      6       114     Általános Iskola                              Sóvárad              Biró Piroska                                                        
+68    Bardóczy Keve-Tamás            4       70      3       96      Romulus Guga Általános Iskola                 Marosvásárhely       Székely Irénke                                                        
+69    Nagy Erdõs Bence               4       70      7       106     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+69    Nemes Áron                     4       70      7       106     7. sz. Általános Iskola                       Marosvásárhely       Lázár Emese                                                        
+71    Wenzel-Gazdag János            4       70      7       94      Báthory István Általános Iskola               Medgyes              Bordi Nemeth Irenke                                                        
+72    Soós Máté                      4       70      11      160     Dr. Bernády György Általános Iskola           Marosvásárhely       Ferenczi Andrea                                                        
+73    Janka Nóra                     4       70      11      128     Liviu Rebreanu Általános Iskola               Marosvásárhely       Nagy Árkosi Éva                                                        
+74    Székely Lehel                  4       70      11      113     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+75    Szobo Rita                     4       69      4       102     Báthory István Általános Iskola               Medgyes              Bordi Nemeth Irenke                                                        
+76    Suciu Flórián                  4       69      8       131     Szent Gyögy Iskolaközpont                     Erdõszentgyörgy      Barabás Katalin                                                        
+77    Babos Csenge                   4       69      8       126     Mûvészeti Fõgimnázium                         Marosvásárhely       Csizmadi Csilla                                                        
+78    Kovács Anna Nóra               4       69      8       106     Kádár Márton Általános Iskola                 Mezõpanit            Pálfi Pálma                                                        
+79    Kovács Zalán András            4       69      8       103     Református Kollégium                          Marosvásárhely       Géczi Melinda Erzsébet                                                        
+80    Székely Botond                 4       68      5       101     Református Kollégium                          Marosvásárhely       Géczi Melinda Erzsébet                                                        
+81    Jári - Ady Zsófia              4       68      9       128     Körtvélyfályai Általános Iskola               Körtvélyfálya        Kolcsár Gyöngyvér                                                        
+82    Kiss István- Dávid             4       68      9       116     Friedrich Schiller Általános Iskola           Marosvásárhely       Moga Melinda                                                        
+83    Demeter Patrick                4       67      2       82      Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+84    Ambrus Hanna Édua              4       67      2       75      Liviu Rebreanu Általános Iskola               Marosvásárhely       Diosán Csilla                                                        
+85    Szalma Viola                   4       67      6       104     Általános Iskola                              Gyulakuta            Varga Éva                                                        
+86    Székely Kinga                  4       67      6       90      Liviu Rebreanu Általános Iskola               Marosvásárhely       Diosán Csilla                                                        
+87    Szakács István-Róbert          4       67      6       81      Általános Iskola                              Sóvárad              Biró Piroska                                                        
+88    Bartalis Jázmin                4       66      3       89      Mihai Viteazul Általános Iskola               Marosvásárhely       Imre Márta                                                        
+89    Jakab Anita                    4       66      3       79      Báthory István Általános Iskola               Medgyes              Bordi Nemeth Irenke                                                        
+90    Nagy Ágota Rebeka              4       66      7       119     Marosszentkirályi Általános Iskola            Marosszentkirály     Sebesi Margit                                                        
+91    Filimon Erik                   4       66      7       78      Alexandru Ioan Cuza Általános Iskola          Marosvásárhely       Mezei Xenia                                                        
+92    Székely Béres Ábel             4       66      11      115     Bolyai Farkas Elméleti Líceum                 Marosvásárhely       Fülöp Tünde Izabella                                                        
+93    More Eszter                    4       65      4       83      Általános Iskola                              Ákosfalva            Berecki Ilona                                                        
+94    Kálmán Olivér                  4       65      4       75      Marosszentkirályi Általános Iskola            Marosszentkirály     Sebesi Margit                                                        
+95    Czerán Dávid                   4       65      4       73      Báthory István Általános Iskola               Medgyes              Bordi Nemeth Irenke                                                        
+96    Csiszár Dávid                  4       65      8       124     Dr. Nyulas Ferenc Általános Iskola            Nyárádremete         Jenei Adél                                                        
+97    Kali Dávid                     4       65      8       121     Romulus Guga Általános Iskola                 Marosvásárhely       Székely Irénke                                                        
+98    Csizmadia Vanessza             4       65      8       116     Sfantul Gheroghe Általános Iskola             Marosszentgyörgy     Opra Kinga                                                        
+99    Kiss Stefánia                  4       65      12      135     Európa Általános Iskola                       Marosvásárhely       Kis Rózália                                                        
+100   Samaj Mózes Péter              4       65      12      125     Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+101   Murar-Daróczi Balázs           4       65      12      120     Gimnaziul De Stat ''T Vladimirescu''          Marosvásárhely       Orbán Márta                                                        
+102   Tölgyesi Csanád                4       65      12      119     Római Katolikus Teológiai Liceum              Marosvásárhely       Vincze Éva                                                        
+103   Cotovanu Andrei                4       64      1       64      Balavásári Általános Iskola                   Balavásár            Magyari Imola                                                        
+104   Török Hanna                    4       64      5       111     Sfantul Gheroghe Általános Iskola             Marosszentgyörgy     Opra Kinga                                                        
+105   Ugron Ákos                     4       64      5       73      Nicolae Balcescu Általános Iskola             Marosvásárhely       Kusztos Melinda                                                        
+106   Nemes Csanád                   4       64      9       99      Marosszentkirályi Általános Iskola            Marosszentkirály     Sebesi Margit                                                        
+107   Horváth Szófia                 4       63      2       77      Általános Iskola                              Maroskeresztúr       Nagy Izabella                                                        
+108   Roman Dóra-Enikõ               4       63      6       86      Marosszentkirályi Általános Iskola            Marosszentkirály     Sebesi Margit                                                        
+109   Farkas Anna Veronika           4       63      10      114     Általános Iskola                              Nyárádkarácsonfalva  Mátyus Andrea, Farkas Csilla Noémi                                                        

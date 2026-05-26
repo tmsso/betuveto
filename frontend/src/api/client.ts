@@ -87,6 +87,13 @@ class BetuAPIClient {
     return response.json();
   }
 
+  async getPossibleWords(): Promise<string[]> {
+    const response = await fetch(`${this.baseUrl}/game/possible_words`);
+    if (!response.ok) throw new Error('Failed to fetch possible words');
+    const data = await response.json();
+    return data.possible_words;
+  }
+
   async rescrambleLetters(): Promise<{ scrambled_letters: string; message: string }> {
     const response = await fetch(`${this.baseUrl}/game/rescramble`, {
       method: 'POST'

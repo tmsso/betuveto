@@ -1,0 +1,76 @@
+
+Megye/körzet: Kovászna
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Dombay Gergõ-Regõ              4       106     3       234     Váradi József Általános Iskola                Sepsiszentgyörgy     Incze Mária, Gyárfás Anna-Mária                                                        
+2     Fábián Kristóf-Tamás           4       105     4       242     Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+3     Kolumbán Lõrinc                4       98      3       200     Székely Mikó Kollégium                        Sepsiszentgyörgy     Incze Jolán                                                        
+4     Kastal Balázs                  4       97      4       213     Váradi József Általános Iskola                Sepsiszentgyörgy     Tankó Blanka                                                        
+5     Hável Léda                     4       95      6       212     Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+6     Havlin-Bocskor Boglárka        4       92      5       200     Váradi József Általános Iskola                Sepsiszentgyörgy     Tankó Blanka                                                        
+7     Demjén Eszter                  4       90      7       197     Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+8     Medvés Bence                   4       88      1       143     Apor István Általános Iskola                  Kézdiszentlélek      Marthi Enikõ                                                        
+9     Molnár Kata                    4       88      5       185     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+10    Bodó Örs                       4       88      5       169     Kõrösi Csoma Sándor Líceum                    Kovászna             Fülöp Annamária                                                        
+10    Mihály Hanna                   4       88      5       169     Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+12    Balázs Abigél                  4       88      5       165     Székely Mikó Kollégium                        Sepsiszentgyörgy     Incze Jolán                                                        
+13    Baksa Eszter                   4       87      2       141     Kelemen Didák Általános Iskola                Kézdialmás           Gál Olga                                                        
+14    Benedek Gergõ                  4       86      3       142     Gaál Mózes Általános Iskola                   Barót                Csiki Réka-Magdolna                                                        
+14    Velencei András                4       86      3       142     Gaál Mózes Általános Iskola                   Barót                Csiki Réka-Magdolna                                                        
+16    Támpa Dorka                    4       86      7       169     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+17    Toth Nóra Beatrix              4       85      4       142     Székely Mikó Kollégium                        Sepsiszentgyörgy     Incze Jolán                                                        
+18    Ferencz Petra                  4       85      8       175     Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+19    Tót Bence                      4       85      8       166     Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+20    Bardócz Zénó                   4       85      8       157     Gaál Mózes Általános Iskola                   Barót                Derzsi Zsuzsánna                                                        
+21    Fábián Boróka                  4       83      2       127     Apor István Általános Iskola                  Kézdiszentlélek      Marthi Enikõ                                                        
+22    Hodor Tamás                    4       82      7       162     Apor István Általános Iskola                  Kézdiszentlélek      Marthi Enikõ                                                        
+23    Asztalos Balázs                4       82      7       148     Gaál Mózes Általános Iskola                   Barót                Derzsi Zsuzsánna                                                        
+24    Marton Boldizsár               4       81      4       151     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+25    Kiss Róbert                    4       81      8       149     Gaál Mózes Általános Iskola                   Barót                Csiki Réka-Magdolna                                                        
+26    Sánta Attila                   4       80      5       149     Kõrösi Csoma Sándor Líceum                    Kovászna             Székely Márta                                                        
+27    Fancsal Bíborka                4       80      5       138     Gaál Mózes Általános Iskola                   Barót                Derzsi Zsuzsánna                                                        
+28    Gáj Zente András               4       80      9       177     Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+29    Bájkuj Dávid                   4       80      9       173     Kõrösi Csoma Sándor Líceum                    Kovászna             Székely Márta                                                        
+30    Molnár Elisabeth-Panna         4       80      9       172     Petõfi Sándor Általános Iskola                Kézdivásárhely       Bartók Erzsébet                                                        
+31    Mihály Dávid                   4       80      9       162     Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+32    Orbán Dorka                    4       80      9       158     Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+33    Kisgyörgy Blanka-Aranka        4       80      9       148     Bölöni Farkas Sándor Általános Iskola         Bölön                Incze Borbála                                                        
+34    Lázár Szabina                  4       79      2       113     Általános Iskola                              Olasztelek           Tókos Gabriela-Kati                                                        
+35    Hermány Antónia                4       79      6       157     Gaál Mózes Általános Iskola                   Barót                Csiki Réka-Magdolna                                                        
+36    Balogh Csenge                  4       79      6       149     Apor István Általános Iskola                  Kézdiszentlélek      Marthi Enikõ                                                        
+37    Kádár Kriszta                  4       79      6       134     Kõrösi Csoma Sándor Líceum                    Kovászna             Fülöp Annamária                                                        
+38    György-Szakács Kincsõ          4       79      6       126     Székely Mikó Kollégium                        Sepsiszentgyörgy     Incze Jolán                                                        
+39    Baló Panna                     4       78      7       131     Kriza János Általános Iskola                  Nagyajta             Simon Annamária                                                        
+40    Zsigó Mátyás                   4       77      4       132     Székely Mikó Kollégium                        Sepsiszentgyörgy     Incze Jolán                                                        
+41    Román Tamás                    4       77      4       117     Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+42    Bokor Bulcsú                   4       76      9       158     Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+43    Vitális Janka - Nóra           4       76      9       143     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+44    Kovács Dávid                   4       75      10      172     Nagy Mózes Líceum                             Kézdivásárhely       Kisgyörgy Katalin                                                        
+45    Kertész Anna                   4       75      10      129     Nagy Mózes Líceum                             Kézdivásárhely       Kisgyörgy Katalin                                                        
+46    Opra Lea                       4       75      10      123     Petõfi Sándor Általános Iskola                Kézdivásárhely       Nyircsa Klára                                                        
+47    Dallos Máté                    4       74      7       125     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+48    Kovács Ádám                    4       74      7       116     Petõfi Sándor Általános Iskola                Kézdivásárhely       Bartók Erzsébet                                                        
+49    Lénárt Lilla                   4       73      4       104     Trefán Leonárd Általános Iskola               Kézdiszentkereszt    Gábor Judit                                                        
+50    Földes Zsolt                   4       73      8       143     Kõrösi Csoma Sándor Líceum                    Kovászna             Fülöp Annamária                                                        
+51    Vajna Zalán                    4       73      8       129     Kõrösi Csoma Sándor Líceum                    Kovászna             Székely Márta                                                        
+52    Ágoston Zsanett                4       72      1       93      Általános Iskola                              Köpec                Kovács Ilona - Éva                                                        
+53    Barabás Tas György             4       72      5       98      Székely Mikó Kollégium                        Sepsiszentgyörgy     Szakács Zsuzsa                                                        
+54    Oláh István László             4       71      6       118     Konsza Samu Általános Iskola                  Nagybacon            Baló Judit-Lili                                                        
+55    Jakab Künde                    4       71      6       109     Mikes Kelemen Líceum                          Sepsiszentgyörgy     Kató Zsuzsanna                                                        
+56    Ágszin Zsanett                 4       71      10      118     Kelemen Didák Általános Iskola                Kézdialmás           Gál Olga                                                        
+57    Szabó Rajmond                  4       71      10      117     Váradi József Általános Iskola                Sepsiszentgyörgy     Tankó Blanka                                                        
+58    Vitos Gréta                    4       70      7       104     Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+59    Baki-Jákó András               4       70      7       93      Váradi József Általános Iskola                Sepsiszentgyörgy     Gyerõ Zsuzsánna-Orsolya                                                        
+60    Finta- Deregus Attila          4       70      11      135     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+61    Nagy Áron                      4       70      11      132     Nagy Mózes Líceum                             Kézdivásárhely       Kisgyörgy Katalin                                                        
+61    Rákosi Máté                    4       70      11      132     Petõfi Sándor Általános Iskola                Kézdivásárhely       Nyircsa Klára                                                        
+63    Bihari István                  4       70      11      131     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+64    Gáspár Luca                    4       69      8       103     Gaál Mózes Általános Iskola                   Barót                Csiki Réka Magdolna                                                        
+65    Mikes Sára                     4       68      9       119     Székely Mikó Kollégium                        Sepsiszentgyörgy     Váta Lívia                                                        
+66    Fejér Antal                    4       67      10      123     Váradi József Általános Iskola                Sepsiszentgyörgy     Tankó Blanka                                                        
+67    Német Hanna                    4       67      10      111     Váradi József Általános Iskola                Sepsiszentgyörgy     Tankó Blanka                                                        
+68    Heldsdörfer Erik               4       66      3       97      Mikes Kelemen Líceum                          Sepsiszentgyörgy     Kató Zsuzsanna                                                        
+69    Karacsi Csongor                4       66      3       73      Trefán Leonárd Általános Iskola               Kézdiszentkereszt    Gábor Judit                                                        
+70    Zólyomi Kata                   4       66      11      139     Konsza Samu Általános Iskola                  Nagybacon            Baló Judit-Lili                                                        

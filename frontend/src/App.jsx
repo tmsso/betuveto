@@ -41,6 +41,8 @@ function App() {
   const [highScores, setHighScores] = useState([])
   const [showFailedWords, setShowFailedWords] = useState(false)
   const [failedWordsHistory, setFailedWordsHistory] = useState([])
+  const [possibleWordsCount, setPossibleWordsCount] = useState(0)
+  const [allPossibleWordsFound, setAllPossibleWordsFound] = useState(false)
 
   // Confetti ref
   const confettiRef = useRef(null);
@@ -94,7 +96,7 @@ function App() {
   }, []);
 
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
-  const displayScore = isTimeUp ? scoreAtExpiry : totalScore
+  const displayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
 
   // End of game score tracking
   useEffect(() => {
@@ -102,6 +104,37 @@ function App() {
       updateHighScores(scoreAtExpiry);
     }
   }, [isTimeUp, scoreAtExpiry, updateHighScores]);
+
+  // Main countdown timer
+  useEffect(() => {
+    let interval;
+    if (isTimerActive && timeLeft > 0 && !isTimeUp) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsTimeUp(true);
+            setScoreAtExpiry(totalScore);
+            setIsTimerActive(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, timeLeft, isTimeUp, totalScore]);
+
+  // Check if all words found
+  useEffect(() => {
+    if (possibleWordsCount > 0 && foundWords.length === possibleWordsCount && !allPossibleWordsFound) {
+      setAllPossibleWordsFound(true);
+      setIsTimerActive(false);
+      // Add remaining seconds to score
+      setScoreAtExpiry(totalScore + timeLeft);
+      setIsTimeUp(true);
+    }
+  }, [foundWords, possibleWordsCount, totalScore, timeLeft, allPossibleWordsFound]);
 
   // Letter reveal animation effect
   useEffect(() => {
@@ -134,10 +167,15 @@ function App() {
       setTimeLeft(180)
       setIsTimerActive(false)
       setIsAnimatingLetters(true)
+      setAllPossibleWordsFound(false)
       setCurrentAnimatingIndex(-1)
       setIsTimeUp(false)
       setScoreAtExpiry(0)
       
+      // Fetch possible words count
+      const possibleWords = await betuAPI.getPossibleWords()
+      setPossibleWordsCount(possibleWords.length)
+
       // Check if this word was failed before
       const wordRecord = failedWordsHistory.find(f => f.word === response.target_word);
       setIsFailedWord(!!wordRecord && !wordRecord.learned);
@@ -348,6 +386,11 @@ function App() {
             <div className="text-md text-gray-500">
               {foundWords.length} talált szó • {guessCount} tipp
             </div>
+            {possibleWordsCount > 0 && (
+              <div className={`text-xs mt-1 transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : 'text-gray-400'}`}>
+                {foundWords.length} / {possibleWordsCount} talált szó {allPossibleWordsFound && '✨'}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-center space-x-2">
             <div className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}>

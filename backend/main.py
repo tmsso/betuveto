@@ -63,6 +63,18 @@ class GameState:
         except FileNotFoundError:
             raise FileNotFoundError(f"Word list not found: {WORDLIST_PATH}")
     
+    def get_possible_words(self) -> List[str]:
+        """Find all words that can be formed from current letters."""
+        if not self.game_active or not self.current_word:
+            return []
+        
+        possible = []
+        for word in self.word_set:
+            if 3 <= len(word) <= len(self.current_word):
+                if self._can_form_word(word, self.current_word):
+                    possible.append(word)
+        return possible
+
     def start_new_game(self, target_length: int = 7) -> Dict:
         """Start a new game with a random word."""
         self.total_games_played += 1
@@ -295,6 +307,11 @@ async def get_current_state():
 async def rescramble_letters():
     """Rescramble current word letters"""
     return game_state.rescramble_letters()
+
+@app.get("/api/game/possible_words")
+async def get_possible_words():
+    """Get all possible words for the current game"""
+    return {"possible_words": game_state.get_possible_words()}
 
 @app.post("/api/game/reset")
 async def reset_game():

@@ -1,0 +1,63 @@
+
+Megye/körzet: Veszprém
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Erdélyi Boróka                 4       115     2       279     Györgyi Dénes Általános Iskola                Balatonalmádi        Glöckl Eszter                                                        
+2     Fekete Bendegúz                4       110     3       273     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Horváthné Berta Éva                                                        
+3     Hargitai Gergely               4       110     3       259     Balatonfüredi Radnóti Miklós Általános Iskola Balatonfüred         Patyi Sándor Józsefné                                                        
+4     Vajai Laura                    4       108     1       232     Hriszto Botev Német Nemz. Nyelvoktató ÁI.     Veszprém             Schmidmajerné Róka Krisztina                                                        
+5     Kósa Eszter                    4       106     3       246     Balatonfüredi Református Ált. Isk. és Óvoda   Balatonfüred         Vincze Ágnes, Csonka Mónika                                                        
+6     Lakatos Bernát                 4       102     3       226     Györgyi Dénes Általános Iskola                Balatonalmádi        Glöckl Eszter                                                        
+7     Tóth Dániel                    4       101     4       210     Balatonfüredi Radnóti Miklós Általános Iskola Balatonfüred         Patyi Sándor Józsefné                                                        
+8     Pék Boldizsár                  4       100     1       190     Györgyi Dénes Általános Iskola                Balatonalmádi        Glöckl Eszter                                                        
+9     Németh Natasa Nóra             4       98      3       204     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Szalai Szilvia                                                        
+10    Schalbert Blanka               4       95      6       201     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Horváthné Berta Éva                                                        
+11    Tyukodi Fruzsina               4       95      6       200     Rózsa Úti Általános Iskola                    Veszprém             Mészáros Tamásné                                                        
+12    Maczkó Lõrinc                  4       95      6       195     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Horváthné Berta Éva                                                        
+13    Sárvári Teréz                  4       94      3       186     Padányi Katolikus Iskola                      Veszprém             Hencz Viktória                                                        
+14    Szöllõsi Zselyke               4       94      3       171     BVÖ Irinyi János Ált. Isk. és AMI             Balatonfûzfõ         Karkerné Mari Bernadett                                                        
+15    Balázs Zalán                   4       92      5       198     Vörösberényi Általános Iskola                 Balatonalmádi        Zanathy László                                                        
+16    Véghelyi Míra Hanna            4       91      6       189     Simonyi Zsigmond Általános Iskola             Veszprém             Gõgös Beáta                                                        
+17    Budai Milán                    4       90      3       163     Litéri Református Általános Iskola            Litér                Cziráki Miklósné                                                        
+18    Nagy Gellért                   4       90      7       218     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Horváthné Berta Éva                                                        
+19    Tóth Máté                      4       90      7       191     Csopaki Református Általános Iskola           Csopak               Fekete-Sófalvi Tímea                                                        
+20    Deli Tamara                    4       89      4       167     Szentgáli Lõrincze Lajos Általános Iskola     Szentgál             Deésné Somogyi Edina                                                        
+21    Pankár Dóra                    4       85      4       148     Vörösberényi Általános Iskola                 Balatonalmádi        Zanathy László                                                        
+22    Király Bulcsú                  4       85      8       164     Rózsa Úti Általános Iskola                    Veszprém             Mészáros Tamásné                                                        
+23    Sárfy Olivér István            4       84      5       147     Révfülöpi Általános Iskola                    Révfülöp             Burgyán Rita                                                        
+24    Pátkai Elza                    4       83      2       134     Munkácsy Mihály Német Nemz. Nyelvoktató ÁI.   Pápa                 Ruzsás Mihály Péterné                                                        
+25    László Arnold                  4       83      2       127     Balatonfüredi Radnóti Miklós Általános Iskola Balatonfüred         Patyi Sándor Józsefné                                                        
+26    Tóth Eliza                     4       83      6       168     Hriszto Botev Német Nemz. Nyelvoktató ÁI.     Veszprém             Kungli Klaudia                                                        
+27    Balogh Alma Anna               4       83      6       152     Tatay Sándor Általános Iskola                 Badacsonytomaj       Megyeri Krisztina                                                        
+28    Benis-Morvai Marcell           4       83      6       145     Hriszto Botev Német Nemz. Nyelvoktató ÁI.     Veszprém             Kungli Klaudia                                                        
+29    Gángó Hanna                    4       81      4       139     Szentgáli Lõrincze Lajos Általános Iskola     Szentgál             Deésné Somogyi Edina                                                        
+30    Likó Emma                      4       81      4       126     Vörösberényi Általános Iskola                 Balatonalmádi        Zanathy László                                                        
+31    Balogh Ádám                    4       80      5       129     Vörösberényi Általános Iskola                 Balatonalmádi        Zanathy László                                                        
+32    Kulisity Hanna                 4       80      9       170     Rózsa Úti Általános Iskola                    Veszprém             Mészáros Tamásné                                                        
+33    Tulipánt Lõrinc                4       80      9       165     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Horváthné Berta Éva                                                        
+34    Jancsek Marcell                4       80      9       162     Simonyi Zsigmond Általános Iskola             Veszprém             Gõgös Beáta                                                        
+35    Steinbach Dóra                 4       80      9       157     Csopaki Református Általános Iskola           Csopak               Fekete-Sófalvi Tímea                                                        
+36    Jánosik Dániel Erik            4       80      9       140     Padányi Katolikus Iskola                      Veszprém             Pásztor Margit                                                        
+37    Albert Máté                    4       79      2       124     Kinizsi Pál Német Nemzetiségi Nyelvoktató ÁltaNagyvázsony          Kardos Beáta                                                        
+38    Riz Emma                       4       79      6       143     Padányi Katolikus Iskola                      Veszprém             Hencz Viktória                                                        
+39    Kaposi Panni                   4       78      7       157     BVÖ Irinyi János Ált. Isk. és AMI             Balatonfûzfõ         Tóth Erika                                                        
+40    Halász Liza                    4       78      7       133     Révfülöpi Általános Iskola                    Révfülöp             Burgyán Rita                                                        
+41    Kovács Luca                    4       77      8       131     Györgyi Dénes Általános Iskola                Balatonalmádi        Glöckl Eszter                                                        
+42    Biró Gábor                     4       76      5       135     Bozzay Pál Általános Iskola                   Zánka                Flugyik-Katona Emese                                                        
+43    Majlik Barnabás                4       76      5       122     Hriszto Botev Német Nemz. Nyelvoktató ÁI.     Veszprém             Kungli Klaudia                                                        
+44    Imreh Géza                     4       75      6       146     Dózsa György Általános Iskola                 Veszprém             Szöllõskeiné Eisenbeck Dóra                                                        
+45    Lanczmann Léna                 4       75      10      145     Várkerti Általános Iskola                     Várpalota            Szmulai Ervinné                                                        
+46    Marits Márk János              4       75      10      137     Balatonfüredi Eötvös Loránd Általános Iskola  Balatonfüred         Mészáros Éva Katalin                                                        
+47    Kovács Gergõ                   4       75      10      132     Ányos Pál Német Nemz. Nyelvokt. ÁI.           Nagyesztergár        Bácsiné Nyiri Éva                                                        
+48    Mohos Mihály                   4       75      10      128     Veszprémi Kossuth Lajos Általános Iskola      Veszprém             Horváthné Berta Éva                                                        
+49    Hegedûs Mátyás                 4       74      7       117     BVÖ Irinyi János Ált. Isk. és AMI             Balatonfûzfõ         Karkerné Mari Bernadett                                                        
+50    Pásztori Regõ                  4       73      8       115     Veszprémi Báthory István Sportiskolai ÁltalánoVeszprém             Nagy-Németh Franciska Ilka                                                        
+51    Könnyid Richárd                4       72      9       121     Herendi Német Nemzetiségi Nyelvoktató ÁI.     Herend               Szzakács Veronika                                                        
+52    Borza Zsófia                   4       71      6       104     Szent István Római Katolikus Ált. Isk.        Pápa                 Birkás Ilona                                                        
+53    Ancsák Nándor                  4       71      10      126     Hriszto Botev Német Nemz. Nyelvoktató ÁI.     Veszprém             Kungli Klaudia                                                        
+54    Séllei Botond                  4       70      7       97      Litéri Református Általános Iskola            Litér                Cziráki Miklósné                                                        
+55    Hári Zsófia                    4       70      11      126     Várkerti Általános Iskola                     Várpalota            Szmulai Ervinné                                                        
+56    Gróf Róbert Károly             4       70      11      119     Ajkai Szakképzõ - Csodavár Intézményegység    Ajka                 Tóth Zsoltné                                                        
+57    Raffai Lilien                  4       68      5       98      Vörösberényi Általános Iskola                 Balatonalmádi        Zanathy László                                                        

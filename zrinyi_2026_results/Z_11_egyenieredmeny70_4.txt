@@ -1,0 +1,40 @@
+
+Megye/körzet: Budapest I.
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Wei Enzhi                      4       125     0       325     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Temesvári Miklós                                                        
+2     Nemcsok Márton                 4       120     1       300     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+3     Zhu Yuan Jing                  4       115     2       281     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+4     Déri Dávid Ajándok             4       110     3       279     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Temesvári Miklós                                                        
+5     Takács András                  4       110     3       269     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Temesvári Miklós                                                        
+6     Csomor László                  4       110     3       261     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+7     Hargitai Botond                4       110     3       259     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+8     Szabó Milán                    4       105     4       255     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+9     Molnár Milos                   4       103     2       218     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+10    Komáromi Szabolcs              4       101     4       219     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+11    Szepesvári Janka               4       100     5       225     BP-FRK Julianna Református Ált. Isk.          Budapest VII.        Tatárné Kunya Marianna                                                        
+12    Lukács Tamás                   4       100     5       222     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+13    Scheidl Nimród                 4       100     5       212     Budapest V. Kerületi Hild József Ált. Isk.    Budapest V.          Márton Katalin                                                        
+14    Varga Bao Dominik              4       97      4       213     Budapest V. ker. Váci Utcai Ének-Zenei ÁI.    Budapest V.          Dr Péliné Németh Andrea                                                        
+15    Emericzy Espinosa Azton Patric 4       97      4       200     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+16    Budai András                   4       97      4       196     Budapest V. Kerületi Hild József Ált. Isk.    Budapest V.          Takács Katalin                                                        
+17    Bõtös Nina                     4       97      4       190     BP-FRK Julianna Református Ált. Isk.          Budapest VII.        Csongovainé Pankotai Beáta                                                        
+18    Balaton Nadin Sára             4       95      6       219     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Temesvári Miklós                                                        
+19    Deák Ágoston                   4       95      6       202     Derkovits Gyula Általános Iskola              Budapest VI.         Katonáné Burián Marianna                                                        
+20    Kacherla Nilay Noel            4       95      6       200     Terézvárosi Magyar-Angol, Magyar-Német KTNy ÁlBudapest VI.         Vaszil Viktória                                                        
+21    Kiss Mihály                    4       94      3       171     Budapest V. Kerületi Hild József Ált. Isk.    Budapest V.          Márton Katalin                                                        
+22    Maloschik Vencel Tivadar       4       93      4       174     BP-FRK Julianna Református Ált. Isk.          Budapest VII.        Csongovainé Pankotai Beáta                                                        
+23    Buday Blanka                   4       91      2       162     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+24    Kati Júlia                     4       88      5       174     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+25    Nagy-Prekáczka Péter           4       88      5       167     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Temesvári Miklós                                                        
+26    Horváth Dóra Anna              4       87      6       181     Molnár Ferenc Általános Iskola                Budapest VIII.       Báder József                                                        
+27    Kaszab-Guida Olivér            4       86      7       186     Molnár Ferenc Általános Iskola                Budapest VIII.       Ambruzsné Budaházi Gyöngyi                                                        
+28    Járási Áron                    4       85      8       174     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Temesvári Miklós                                                        
+29    Szilágyi Márton                4       84      1       120     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+30    Mihalkó-Nagy Boldizsár         4       82      3       131     Derkovits Gyula Általános Iskola              Budapest VI.         Katonáné Burián Marianna                                                        
+31    Hajdu Lénárt                   4       82      7       136     Budapesti Fazekas Mihály Gyakorló Ált. Isk. ésBudapest VIII.       Budácsik Éva                                                        
+32    Lavro Mária                    4       81      8       167     Budapest V. ker. Váci Utcai Ének-Zenei ÁI.    Budapest V.          Dr Péliné Németh Andrea                                                        
+33    Igrinyi Miksa                  4       80      9       168     Bajza Utcai Általános Iskola                  Budapest VI.         Fónainé Fischer Judit                                                        
+34    Laczka Sándor                  4       80      9       158     Diákszempont Ált. Isk. és Gimn.               Budapest VI.         Szabó Richárd                                                        

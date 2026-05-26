@@ -1,0 +1,14 @@
+
+Megye/körzet: Közép-Szlovákia
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Acél Kristóf                   4       72      9       135     Magyar Tannyelvû Alapiskola                   Losonc               Kovács Gabriella                                                        
+2     Ádám Dániel                    4       70      7       95      Tompa Mihály Alapiskola                       Rimaszombat          Mgr. Orosz Judit                                                        
+3     Molnár Eliza                   4       68      5       93      Magyar Tannyelvû Alapiskola                   Losonc               Kovács Gabriella                                                        
+4     Pócsik Alex                    4       64      5       80      Tompa Mihály Alapiskola                       Rimaszombat          Mgr. Orosz Judit                                                        
+5     Mano Zalán                     4       61      4       76      Tompa Mihály Alapiskola                       Rimaszombat          Mgr. Orosz Judit                                                        
+6     Varga Csaba                    4       61      4       72      Tompa Mihály Alapiskola                       Rimaszombat          Mgr. Orosz Judit                                                        
+7     Nagy Máté                      4       61      12      102     II. Koháry István Alapiskola                  Fülek                Gecso Diana                                                        
+8     Machala Dóra                   4       56      1       45      II. Koháry István Alapiskola                  Fülek                Gecso Diana                                                        

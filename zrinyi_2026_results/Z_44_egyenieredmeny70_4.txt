@@ -1,0 +1,35 @@
+
+Megye/körzet: Bihar
+Kategória   : Zrínyi
+
+Hely  Név                            Oszt.   Pont    Rossz   Prior   Iskola név                                    Helység              Tanarok                                                        
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1     Lakatos Nándor                 4       111     2       263     Szacsvay Imre Általános Iskola                Nagyvárad            Rusz Csilla Mária                                                        
+2     Nosz Adél                      4       107     2       236     Szacsvay Imre Általános Iskola                Nagyvárad            Rusz Csilla Mária                                                        
+3     Nosz András                    4       103     2       213     Szacsvay Imre Általános Iskola                Nagyvárad            Rusz Csilla Mária                                                        
+4     Iakab Jázmin                   4       97      0       177     16.Sz. Általános Iskola                       Nagyvárad            Calapis-Halász Tünde                                                        
+5     Mátyás Endre                   4       95      6       202     Szacsvay Imre Általános Iskola                Nagyvárad            Rusz Csilla Mária                                                        
+6     Birta Emma                     4       93      4       184     16.Sz. Általános Iskola                       Nagyvárad            Calapis-Halász Tünde                                                        
+7     Szõnyi Bence-Máté              4       91      6       188     Lorántffy Zsuzsanna Református Gimn.          Nagyvárad            Veszprémi Emõke                                                        
+8     Szekely Henriett               4       90      3       157     11. Sz. Általános Iskola                      Nagyvárad            Semendi Ibolya Monika                                                        
+9     Totfalusi Dániel-Richard       4       89      4       154     Általános Iskola                              Bihardiószeg         Szûcs Zita                                                        
+10    Fazekas Zsolt                  4       88      5       159     Arany János Elméleti Líceum                   Nagyszalonta         Veselac Tünde Margareta                                                        
+11    Scheck Patrik Dániel           4       86      3       148     Horváth János Elméleti Líceum                 Margitta             Fügedy Anikó                                                        
+12    Bruncsák Nóra                  4       85      4       160     Szacsvay Imre Általános Iskola                Nagyvárad            Rusz Csilla Mária                                                        
+13    Gere Botond                    4       84      1       127     Lorántffy Zsuzsanna Református Gimn.          Nagyvárad            Veszprémi Emõke                                                        
+14    Hasas Brigitta Kinga           4       83      6       139     Szent László Római Kat. Gimnázium             Nagyvárad            Bakaity Beáta                                                        
+15    Kamenszki Imola                4       82      3       146     16.Sz. Általános Iskola                       Nagyvárad            Calapis-Halász Tünde                                                        
+16    Horvát Ádám                    4       82      3       120     Arany János Elméleti Líceum                   Nagyszalonta         Takó Csilla                                                        
+17    Boross Mátyás                  4       82      7       154     Szacsvay Imre Általános Iskola                Nagyvárad            Rusz Csilla Mária                                                        
+18    Balla Anna                     4       80      5       137     Szent László Római Kat. Gimnázium             Nagyvárad            Modi Apolka-Blanka                                                        
+19    Pop Kristóf                    4       79      2       107     Általános Iskola                              Biharszentjános      Retek Emilia                                                        
+20    Csordás Zselyke                4       78      3       129     Lorántffy Zsuzsanna Református Gimn.          Nagyvárad            Veszprémi Emõke                                                        
+21    Ursache Diána Lara             4       78      3       121     11. Sz. Általános Iskola                      Nagyvárad            Semendi Ibolya Monika                                                        
+22    Isai Leo                       4       78      3       115     16.Sz. Általános Iskola                       Nagyvárad            Calapis-Halász Tünde                                                        
+23    Mohácsi Szofia                 4       78      3       113     Általános Iskola                              Paptamási            Nagy Ágota                                                        
+24    Tóth Erik                      4       77      8       135     Szent László Római Kat. Gimnázium             Nagyvárad            Bakaity Beáta                                                        
+25    Pipis Bence                    4       75      6       137     Arany János Elméleti Líceum                   Nagyszalonta         Takó Csilla                                                        
+26    Lakatos Márk                   4       75      6       119     11. Sz. Általános Iskola                      Nagyvárad            Semendi Ibolya Monika                                                        
+27    Majoros Botond                 4       74      3       120     Általános Iskola                              Biharszentjános      Retek Emilia                                                        
+28    Kállai Kevin                   4       72      5       100     Általános Iskola                              Szalárd              Petrila Hortenzia                                                        
+29    Tripó Nóra                     4       69      8       116     Általános Iskola                              Tóti                 Nagy Renáta Erika                                                        
