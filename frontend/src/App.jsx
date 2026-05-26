@@ -218,25 +218,54 @@ function App() {
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!currentGuess.trim()) return
+    const guess = currentGuess.trim().toUpperCase()
+    if (guess.length < 2) return
+
+    // Pre-check if letters are valid
+    const available = scrambledLetters.join('')
+    let tempAvailable = [...available]
+    let canFormClientSide = true
+    for (const char of guess) {
+      const idx = tempAvailable.indexOf(char)
+      if (idx === -1) {
+        canFormClientSide = false
+        break
+      }
+      tempAvailable.splice(idx, 1)
+    }
+
+    if (!canFormClientSide) {
+      showTemporaryError('Csak a megadott betűket használd!')
+      return
+    }
 
     try {
-      const response = await betuAPI.makeGuess(currentGuess)
+      const response = await betuAPI.makeGuess(guess)
       
       setGuessCount((prevCount) => prevCount + 1);
+
+      if (response.game_ended) {
+        setIsTimeUp(true)
+        setScoreAtExpiry(totalScore)
+        setIsTimerActive(false)
+        if (response.message) {
+          setError(response.message)
+        }
+        return
+      }
 
       if (response.valid && response.can_form) {
         if (!response.already_guessed) {
           if (!isTimeUp) {
-            setFoundWords((prevWords) => [...prevWords, currentGuess])
-            setJustFoundWord(currentGuess)
+            setFoundWords((prevWords) => [...prevWords, guess])
+            setJustFoundWord(guess)
             
             // If the target word is guessed, mark as learned
             if (response.is_target) {
-                recordFailedWord(currentGuess, true);
+                recordFailedWord(guess, true);
             }
 
-            if (response.is_seven_letter || currentGuess.length === scrambledLetters.filter(l => l !== ' ').length) {
+            if (response.is_seven_letter || guess.length === scrambledLetters.filter(l => l !== ' ').length) {
               fireExplosion()
             } else {
               fireConfetti()
@@ -247,18 +276,15 @@ function App() {
           }
           setCurrentGuess('')
         } else {
-          showTemporaryError(`Ezt a szót már kitaláltad: ${currentGuess}`)
+          showTemporaryError(`Ezt a szót már kitaláltad: ${guess}`)
           setCurrentGuess('')
         }
-      } else {
-        showTemporaryError(`Nincs ilyen szó: ${currentGuess}`)
+      } else if (!response.can_form) {
+        showTemporaryError('Csak a megadott betűket használd!')
         setCurrentGuess('')
-      }
-      
-      // Update logic for specific hint/fail cases if backend returns target info
-      if (response.game_ended && !response.valid) {
-          // If ended via hint (length 1), record as failed
-          // Note: Backend needs to return the target word here
+      } else {
+        showTemporaryError(`Nincs ilyen szó: ${guess}`)
+        setCurrentGuess('')
       }
 
       if (window.innerWidth >= 640) {
@@ -268,7 +294,13 @@ function App() {
       }
     } catch (err) {
       console.error('Error submitting guess:', err)
-      showTemporaryError('Hiba történt a tipp küldésekor.')
+      // Check if it's a 400 error (game ended)
+      if (err.message?.includes('400') || err.toString()?.includes('400')) {
+        showTemporaryError('A játék véget ért. Indíts újat!')
+        setIsTimeUp(true)
+      } else {
+        showTemporaryError('Hiba történt a tipp küldésekor.')
+      }
       setCurrentGuess('') 
       if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus()
@@ -276,7 +308,7 @@ function App() {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore])
 
   useEffect(() => {
     startNewGame()
