@@ -77,3 +77,27 @@ frontend/node_modules/
 # Local config
 config.toml
 secrets.toml
+
+# Openclaw / agent runtime (never commit these)
+.clawhub/
+.openclaw/
+skills/
+subagents/
+memory/
+proactivity/
+tech-news/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+
+# Virtual environments (word-game-env)
+word-game-env/
+
+# Camera snapshots and unrelated data files
+cam_*.jpg
+*.pdf
+*_results*.csv
+zrinyi_*/

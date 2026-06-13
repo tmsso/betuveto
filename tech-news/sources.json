@@ -1,8 +1,0 @@
-[
-  {"name": "TechCrunch", "url": "https://techcrunch.com/feed/"},
-  {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
-  {"name": "Wired", "url": "https://www.wired.com/feed/rss"},
-  {"name": "MIT Tech Review", "url": "https://www.technologyreview.com/feed/"},
-  {"name": "AI Weekly", "url": "https://www.artificialintelligence-news.com/feed/"},
-  {"name": "OpenAI Blog", "url": "https://openai.com/blog/rss/"}
-]
