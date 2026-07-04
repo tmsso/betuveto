@@ -9,6 +9,11 @@
 > scope, acceptance criteria, files to touch, and known gotchas. Batches are ordered by
 > dependency — do not skip Batch 0 and 1; almost everything else builds on them.
 >
+> **Revision (2026-07, PR #7 discussion):** target architecture changed from
+> "HF Space + SQLite" to **Vercel + Supabase**. The architectural-decisions section and
+> Batches 1, 2, 7 and 8 were rewritten accordingly; Batch 0 still targets the current
+> FastAPI app (it closes live security holes and defines the contract for the port).
+>
 > **Status legend:** `[ ]` not started · `[~]` in progress · `[x]` done
 
 ---
@@ -21,7 +26,7 @@
 | Frontend | `frontend/` | React 19 + Vite 7 + Tailwind 3, PWA plugin configured. All persistence in `localStorage`. Timer, high scores and "failed words" learning live **client-side only**. |
 | Word list | `data/magyar-szavak.txt` **and** `backend/data/magyar-szavak.txt` | ~161k Hungarian words, duplicated in two places. |
 | Legacy app | `streamlit_app.py`, `game_logic.py`, root `requirements.txt` | Old Streamlit version; logic duplicated from `backend/main.py` and already drifted. |
-| Deploy | `.github/workflows/hf_sync.yml`, `backend/Dockerfile` | Push-to-main syncs backend to a Hugging Face Space (port 7860). Frontend deployment not in repo. |
+| Deploy | `.github/workflows/hf_sync.yml`, `backend/Dockerfile` | Push-to-main syncs backend to a Hugging Face Space (port 7860). Frontend deploys via Vercel's GitHub integration (config not in repo). **The target architecture below retires the HF Space in Batch 1.** |
 
 **Core loop today:** backend picks a random word of length 7, sends the scrambled letters
 (*and the solution, and the full list of findable words*) to the client; client submits
@@ -35,30 +40,54 @@ every restart.
 
 These are decided once, here, so individual batches don't re-litigate them:
 
-1. **Database: SQLite via SQLAlchemy 2.x + Alembic migrations.** Zero-ops, fits the
-   HF-Space/single-container deployment, and the SQLAlchemy layer makes a later move to
-   Postgres a connection-string change. Store the DB file at a path from `DATABASE_URL`
-   env var (default `sqlite:///./betuveto.db`). *Do not* introduce Postgres/Redis until
-   multiplayer (Batch 7) forces the question — and even then, probably not.
-2. **Backend structure:** break `backend/main.py` into a package
-   (`backend/app/{main,config,models,schemas,game,routers/,services/}.py`) in Batch 1.
-   All later batches assume this layout.
-3. **Identity: anonymous-first.** A signed, HTTP-only player cookie is the primary
-   identity (Batch 2). Google OAuth is a later, optional *upgrade* that links to the same
-   player record (Batch 8) — not a login wall. Nobody should ever be forced to sign in to play.
-4. **Server-authoritative game state.** After Batch 1, the client never receives the
+1. **Hosting: Vercel + Supabase (both free tier).** The frontend (static build) and the
+   game API (TypeScript serverless functions) live on Vercel — the frontend already
+   deploys there. Postgres, Auth and Realtime come from one Supabase free-tier project.
+   The Hugging Face Space and `hf_sync.yml` are retired at the end of Batch 1.
+   *Rationale:* free HF Spaces have ephemeral disks (no local DB), sleep after ~48 h with
+   slow cold starts, and offer no custom domain (needed for the Android TWA in Batch 9);
+   once the database is external anyway, HF is just a slow free Python host.
+2. **Backend language: TypeScript.** Batch 1 ports the ~320-line FastAPI app to Vercel
+   API routes (`api/` directory). One-time cost, paid exactly when the backend was due a
+   restructure anyway; afterwards the whole stack speaks one language and the platform's
+   Auth/Realtime SDKs are first-class. The Python backend (`backend/`) is deleted once
+   the port is verified against the Batch 0 contract tests.
+3. **Database: Supabase Postgres.** Schema managed as SQL migrations via the Supabase CLI
+   (`supabase/migrations/`). Serverless functions connect through the pooled connection
+   (Supavisor) or `supabase-js` — never direct per-invocation Postgres connections.
+   Row Level Security is enabled deny-all on every table; all game logic runs in Vercel
+   functions holding the service-role key, so no table containing answers is ever
+   client-readable. Direct client reads can be opened table-by-table later if profitable.
+4. **Identity: anonymous-first via Supabase Auth.** Anonymous sign-in (built into
+   Supabase) is the primary identity (Batch 2). Google OAuth arrives later (Batch 8) as
+   an *identity link* on the same user — an upgrade for cross-device continuity, never a
+   login wall. Nobody should ever be forced to sign in to play.
+5. **Server-authoritative game state.** After Batch 1, the client never receives the
    target word or the solution list during an active game, and the server enforces the
-   timer and computes all scores. The client-side timer becomes cosmetic.
-5. **Language/wordlist model:** every game row references a `wordlist_id`; word data
-   lives in a `words` table (`id, wordlist_id, word, length, active, source`), not in flat
-   files at runtime. Flat files remain the *import* format (Batch 6 builds the importer;
-   Batch 1 may keep file loading as a stopgap).
-6. **Multiplayer transport: WebSockets** (FastAPI native), room-based, co-op. No
-   third-party realtime service.
-7. **Android: PWA → Trusted Web Activity (Bubblewrap)**, not a native rewrite. See the
+   timer and computes all scores. Serverless statelessness makes this structural: there
+   is no process memory to lean on — all game state lives in Postgres.
+6. **Language/wordlist model:** every game row references a `wordlist_id`; word data
+   lives in a `words` table, not in flat files at runtime. Flat files remain the *import*
+   format. Each word row stores a `signature` (its letters sorted alphabetically,
+   indexed): the findable words for a board are exactly those whose signature is a
+   multiset-subset of the board's letters — enumerable as ~100 signature combinations for
+   a 7-letter board — so possible-words is one indexed `WHERE signature IN (...)` query
+   instead of a 161k-row scan per game start (which would eat the serverless time budget).
+7. **Multiplayer transport: Supabase Realtime** (broadcast + presence channels), room-based,
+   co-op. Vercel functions cannot host WebSocket servers; Realtime fills that gap —
+   guesses still go over REST, and the API route broadcasts progress to the room channel.
+8. **Android: PWA → Trusted Web Activity (Bubblewrap)**, not a native rewrite. See the
    challenge notes in Batch 9.
-8. **API versioning:** all new endpoints under `/api/v1/`; keep old paths as thin aliases
+9. **API versioning:** all new endpoints under `/api/v1/`; keep old paths as thin aliases
    until the frontend is migrated, then delete them.
+10. **Free-tier operating notes (know these, don't fight them):**
+    - Supabase free projects **pause after 7 days of inactivity** — Batch 1 adds a weekly
+      keep-alive cron (GitHub Actions or Vercel cron) that pings the DB.
+    - Vercel Hobby is **non-commercial** — fine for a free game; revisit on monetisation.
+    - The function timeout (10 s default) is the compute budget — hence the signature
+      design in (6); no endpoint may scan the full wordlist per request.
+    - Supabase Realtime free tier: 200 concurrent connections, 2M messages/month — ample
+      at hobby scale, but keep messages coarse (progress updates, never keystrokes).
 
 ---
 
@@ -66,6 +95,11 @@ These are decided once, here, so individual batches don't re-litigate them:
 
 *Goal: the existing single-player game becomes correct, honest and safe to expose
 publicly — without changing its feature set. Everything here is independently shippable.*
+
+*Note: these fixes target the current FastAPI app even though Batch 1 ports it to
+TypeScript — they close live security holes now and, together with 0.10's tests, define
+the behavioural contract the port must preserve. Keep each fix minimal accordingly; skip
+container/infra polish that the migration makes moot (flagged per item).*
 
 ### 0.1 `[ ]` Stop leaking the solution to the client
 - `POST /api/game/start` returns `target_word` in its response (`backend/main.py`,
@@ -95,7 +129,7 @@ publicly — without changing its feature set. Everything here is independently 
 
 ### 0.3 `[ ]` CORS misconfiguration
 - `allow_origins=["*"]` together with `allow_credentials=True` is an invalid and unsafe
-  combination (and will actively break cookie auth in Batch 2).
+  combination (browsers reject it the moment credentials actually matter).
 - **Fix:** read allowed origins from env (`CORS_ORIGINS`, comma-separated; default
   `http://localhost:5173`). Keep `allow_credentials=True`.
 - **Accept:** requests from unlisted origins are rejected; local dev still works.
@@ -156,8 +190,8 @@ publicly — without changing its feature set. Everything here is independently 
 - Rewrite `README.md`: it currently claims "React 22", "OpenClaw AI integration" and cuts
   off mid-sentence at "## Development Setup". Document: what the game is, how to run dev
   (`run_dev.sh`), how deploy works, where the wordlist comes from (and its licence — verify!).
-- Dockerfile: add a non-root user (`USER app`), pin the Python minor version, add a
-  `HEALTHCHECK` hitting `/`.
+- Dockerfile hardening: **skip** — the HF Space and its Dockerfile are retired in
+  Batch 1 (see architecture decisions); don't invest in the container.
 - Add `LICENSE` file (decide: MIT for code; document wordlist licence separately).
 
 ### 0.10 `[ ]` Minimal test harness + CI
@@ -166,63 +200,79 @@ publicly — without changing its feature set. Everything here is independently 
   can-form logic (including Hungarian accented letters ÁÉÍÓÖŐÚÜŰ and double letters),
   timer expiry, invalid `target_length`, unknown `game_id`. A GitHub Actions workflow
   (`ci.yml`) running `pytest` + `npm run lint` + `npm run build` on every PR.
+- Write the tests against the **HTTP surface** (requests/responses), not Python
+  internals: they double as the behavioural contract for the Batch 1 TypeScript port,
+  where they get translated to Vitest and must pass against the new API unchanged in meaning.
 - **Accept:** CI is green and required; every later batch adds tests to this harness.
 
 ---
 
-## Batch 1 — Foundations: sessions, database, restructure
+## Batch 1 — Foundations: port to Vercel + Supabase
 
-*Goal: the load-bearing refactor everything else depends on. No user-visible features,
-but after this batch the app has real persistence and per-player state.*
+*Goal: the load-bearing migration everything else depends on. No user-visible features,
+but after this batch the app runs on the target architecture with real persistence, and
+the HF Space is gone. Requires Batch 0 (especially 0.10's contract tests) to be done first.*
 
-### 1.1 `[ ]` Backend package restructure
-- Split `backend/main.py` into `backend/app/` per the architecture section. Pure
-  mechanical move + `config.py` reading all env vars in one place
-  (pydantic-settings). Keep endpoints byte-compatible.
-
-### 1.2 `[ ]` Introduce SQLite + SQLAlchemy + Alembic
-- Tables (initial migration):
-  - `players(id UUID pk, created_at, display_name nullable, cookie_token_hash, google_sub nullable unique, is_admin bool default false)`
+### 1.1 `[ ]` Supabase project + schema
+- Create the Supabase project; commit SQL migrations (`supabase/migrations/`) for:
+  - `players(id UUID pk references auth.users, created_at, display_name nullable, is_admin bool default false, preferred_length int nullable)`
   - `games(id UUID pk, player_id fk nullable, wordlist_id fk, target_word, target_length, started_at, ends_at, ended_at nullable, final_score, found_count, possible_count, status enum[active,finished,abandoned,given_up])`
   - `game_guesses(id, game_id fk, word, correct bool, score, created_at)` — needed later for review/anti-cheat and "words found" history.
   - `word_stats(player_id, word, times_failed, times_solved, last_failed_game_seq)` — replaces the in-memory `failed_words` dict, per player.
-  - `wordlists(id, code e.g. 'hu', name, active)` and `words(id, wordlist_id, word, length, active bool default true, source enum[original,suggested], created_at)`.
-- Importer script `backend/scripts/import_wordlist.py` loading `data/magyar-szavak.txt`
-  into `words` (idempotent). Runtime keeps an in-memory `set` per wordlist for guess
-  checks (161k words is fine in RAM) but *hydrated from the DB*, refreshable without restart.
-- **Gotcha for the implementer:** normalise words `NFC` + uppercase on import and on
-  guess; Hungarian `.upper()` is safe in Python but be explicit about Unicode
-  normalisation so `Á` composed vs decomposed compare equal.
+  - `wordlists(id, code e.g. 'hu', name, active)` and `words(id, wordlist_id, word, length, signature, active bool default true, source enum[original,suggested], created_at)` — index on `(wordlist_id, signature)` and `(wordlist_id, length, active)`.
+- **RLS enabled deny-all on every table** — the API routes use the service-role key and
+  bypass it; the client gets no direct table access in this batch.
+- Importer script `scripts/import-wordlist.ts` loading `data/magyar-szavak.txt` into
+  `words` (idempotent batch upserts), computing `signature` (sorted letters) per word.
+- **Gotcha for the implementer:** normalise words to `NFC` + uppercase on import **and**
+  on every guess (`word.normalize('NFC').toUpperCase()`), so composed vs decomposed `Á`
+  compare equal; Hungarian uppercasing is locale-safe in JS but be explicit about NFC.
 
-### 1.3 `[ ]` Persist games server-side
-- Replace the Batch-0 in-memory game dict with the `games` table (+ small in-process
-  cache for the hot set of active games). Restart no longer loses running games.
-- The failed-word reappearance weighting moves to `word_stats` (per player once Batch 2
-  lands; keyed to the anonymous cookie player).
-- **Accept:** restart the backend mid-game; the client's next guess still works.
+### 1.2 `[ ]` Port the API to TypeScript Vercel functions
+- Recreate the FastAPI endpoints as Vercel API routes under `/api/v1/` (thin aliases at
+  the old paths until 1.3 lands). Same behaviour as the post-Batch-0 app; game state
+  lives in the `games` table — there is no in-process state at all.
+- Possible-words is computed **once at game start** via the signature-subset query
+  (enumerate multiset subsets of the board's letters, length ≥ 3, one `WHERE signature
+  IN (...)`) and stored on the game row (`possible_count`; the word list itself can be
+  recomputed at game end — do not send it to the client while active, per 0.1).
+- Guess check = single indexed lookup in `words` (active only), then the can-form check
+  against the game's letters, then insert into `game_guesses` — all in the function.
+- Port the Batch 0 pytest contract tests to Vitest; they must pass unchanged in meaning.
+- **Accept:** full game flow works against a Vercel preview deployment; a redeploy
+  mid-game loses nothing.
 
-### 1.4 `[ ]` Deployment persistence check
-- HF Spaces containers have ephemeral disks unless persistent storage is enabled.
-  Document (README + `.env.example`) that `DATABASE_URL` must point at the Space's
-  persistent `/data` mount, or migrate hosting (Fly.io/Railway/small VPS are all fine for
-  this footprint). **Decide and document — a DB that vanishes on redeploy invalidates
-  Batches 2–8.**
+### 1.3 `[ ]` Frontend cutover + retire the Python stack
+- Frontend and API are now same-origin: drop `VITE_API_BASE_URL` plumbing and the Vite
+  dev proxy in favour of `vercel dev` (update `run_dev.sh` accordingly); delete the
+  `/api/game/start/body` fallback if 0.8 hasn't already.
+- Delete `backend/`, `hf_sync.yml` and the HF Space itself once the Vercel deployment is
+  verified. Update README/`.env.example` for the new stack (Supabase URL + anon key +
+  service-role key as Vercel env vars — **service-role key is server-only, never in
+  `VITE_*`**).
+
+### 1.4 `[ ]` Free-tier keep-alive + ops
+- Weekly cron (GitHub Actions or Vercel cron) hitting a tiny `/api/v1/health` route that
+  performs one DB read — prevents the Supabase 7-day inactivity pause.
+- Document the restore path: Supabase free tier keeps limited backups; add a monthly
+  `pg_dump` via GitHub Actions to a private artifact if the score data starts mattering.
 
 ---
 
-## Batch 2 — Player identity (cookie), server high scores, word-length option
+## Batch 2 — Player identity (anonymous), server high scores, word-length option
 
-### 2.1 `[ ]` Anonymous cookie identity
-- On first API contact, backend mints a `player` row and sets a signed, `HttpOnly`,
-  `SameSite=Lax`, `Secure` cookie (`itsdangerous` or JWT with a server secret from env).
-  All game endpoints resolve the player from it. No UI, no consent friction — it's a
-  device identity, like a save file.
+### 2.1 `[ ]` Anonymous identity via Supabase Auth
+- On first visit the frontend calls `supabase.auth.signInAnonymously()` (enable it in the
+  Supabase dashboard); `supabase-js` persists and refreshes the session automatically.
+  API routes verify the JWT (sent as a `Authorization: Bearer` header) and resolve or
+  create the matching `players` row from the user id. No UI, no consent friction — it's
+  a device identity, like a save file.
 - Optional display name: small "name yourself" input (stored on `players.display_name`,
   max 20 chars, strip/validate; profanity filtering is out of scope — admin can edit in Batch 5).
 - **Challenge to the original idea:** *don't start with Google OAuth.* It adds a consent
-  screen, GCP project, redirect-URI config per environment, and token handling — for zero
-  gameplay value at this stage. Cookie identity delivers per-player scores/stats
-  immediately; OAuth arrives in Batch 8 purely as "keep my progress across devices".
+  screen, GCP project and redirect-URI config for zero gameplay value at this stage.
+  Anonymous identity delivers per-player scores/stats immediately; OAuth arrives in
+  Batch 8 as a ~10-line *identity link* on the same user ("keep my progress across devices").
 
 ### 2.2 `[ ]` Server-side high scores
 - `GET /api/v1/scores/top?length=7&wordlist=hu&period=all|week|day` → top N
@@ -232,8 +282,9 @@ but after this batch the app has real persistence and per-player state.*
   show global top 10 + "your best". Keep the existing localStorage scores as a fallback
   display until this ships, then delete that code.
 - **Anti-cheat baseline (cheap, do now):** scores only from server-recorded guesses;
-  rate-limit `/guess` (e.g. 3/s per player, `slowapi`) so dictionary-dump bots don't own
-  the board. Perfect anti-cheat is explicitly out of scope.
+  rate-limit `/guess` (e.g. 3/s per player — cheapest implementation: count the player's
+  `game_guesses` rows from the last few seconds before accepting) so dictionary-dump
+  bots don't own the board. Perfect anti-cheat is explicitly out of scope.
 
 ### 2.3 `[ ]` Word length option (5–10)
 - Backend already parametrised after 0.7. Frontend: a length selector on the
@@ -308,10 +359,11 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 ## Batch 5 — Admin interface
 
 ### 5.1 `[ ]` Admin auth & shell
-- `players.is_admin` flag (set manually in DB for the first admin). Admin endpoints under
-  `/api/v1/admin/*` guarded by a dependency checking the flag; **admins must log in via
-  Google OAuth once Batch 8 lands — until then, a long random admin token in env
-  (`ADMIN_TOKEN`) sent as a header is acceptable and simple.**
+- `players.is_admin` flag (set manually in DB for the first admin — the Supabase
+  dashboard's table editor also covers emergency data fixes until this batch ships).
+  Admin endpoints under `/api/v1/admin/*` guarded by a check on the flag; **admins must
+  log in via Google OAuth once Batch 8 lands — until then, a long random admin token in
+  env (`ADMIN_TOKEN`) sent as a header is acceptable and simple.**
 - UI: a separate route in the existing React app (`/admin`), not a separate deployment.
   Plain tables and forms; do not add a component library for this.
 
@@ -323,7 +375,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    limits) move to a `config` table with typed defaults; admin edits take effect without
    redeploy.
 3. **Score/player maintenance:** view players, edit/delete suspicious leaderboard
-   entries, rename inappropriate display names, merge duplicate players (cookie + OAuth).
+   entries, rename inappropriate display names, merge duplicate players (anonymous + OAuth).
 4. **Dashboard:** games/day, DAU, most-failed words, report queue size.
 - **Audit:** every admin mutation writes to `admin_audit_log(admin_id, action, payload, created_at)`.
 
@@ -380,17 +432,18 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 - Tables: `rooms(id, code 6-char join code, host_player_id, game_id, status, created_at)`,
   `room_players(room_id, player_id, joined_at, score, found_count)`.
 - REST: create room → get join code; join by code; start (host only).
-- WebSocket `/ws/room/{code}`: server pushes `player_joined`, `game_started`
-  (scrambled letters + ends_at), `progress_update {player, found_count, score}` on every
-  correct guess, `game_over {full reveal: per-player word lists, remaining words}`.
-  Guesses still go over the existing REST endpoint (simpler; WS is push-only) — the
-  guess handler just also broadcasts.
+- **Supabase Realtime** channel `room:{code}` (private channel, membership-authorised):
+  clients subscribe with `supabase-js`; **presence** tracks who's in the lobby; the guess
+  API route broadcasts (via the service-role Realtime client) `game_started` (scrambled
+  letters + ends_at), `progress_update {player, found_count, score}` on every correct
+  guess, and `game_over {full reveal: per-player word lists, remaining words}`. Guesses
+  still go over REST (Realtime is push-only here) — the guess handler just also broadcasts.
 - Frontend: lobby screen (create/join with code), in-game opponent progress sidebar,
   end-of-game comparison view.
-- **Gotchas to write into the task:** reconnection (client rejoins WS with room code and
-  player cookie; server resends full room snapshot); room TTL/cleanup; cap room size
-  (e.g. 8); single-process WS is fine — do **not** add Redis pub/sub unless the app
-  outgrows one instance.
+- **Gotchas to write into the task:** reconnection (client re-subscribes to the channel
+  and GETs a room-snapshot endpoint to resync); room TTL/cleanup; cap room size (e.g. 8);
+  keep broadcasts coarse — the free tier is 2M messages/month; authorise channel access
+  so only room members can subscribe (Realtime authorisation policies).
 - **Suggested cheap precursor (consider shipping as 7.0):** a **daily puzzle** — same
   word for everyone each day, with a daily leaderboard. ~10% of the effort, delivers much
   of the social value, and creates a retention loop. Reuses everything from Batch 2.
@@ -399,16 +452,19 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 ## Batch 8 — Google OAuth (identity upgrade) 
 
-### 8.1 `[ ]` OAuth linking
-- "Sign in with Google" (Authorization Code + PKCE via backend; store only `google_sub`,
-  email optional). On login, **link to the current cookie player** (set `google_sub` on
-  the existing row) so history/scores are kept. On a new device, logging in resolves to
-  the linked player — cross-device continuity is the entire point of this batch.
-- Merge rule: if the current device's anonymous player has games *and* the Google
-  account already maps to another player, merge stats into the OAuth player (keep both
-  game histories; `word_stats` rows merge additively) — write this as an explicit,
-  tested service function; it's the fiddliest part.
-- Admin login switches from `ADMIN_TOKEN` header to OAuth (`is_admin` on the linked player).
+### 8.1 `[ ]` Google sign-in via Supabase identity linking
+- "Keep my progress" button calls `supabase.auth.linkIdentity({provider: 'google'})` on
+  the current anonymous user — history and scores are kept automatically because the user
+  id doesn't change. On a new device, `signInWithOAuth({provider: 'google'})` resolves to
+  the already-linked user — cross-device continuity is the entire point of this batch.
+  (One-time setup: GCP OAuth client + enabling the Google provider in Supabase.)
+- Merge rule — the only real code in this batch: if the *new device* accumulated
+  anonymous games before signing in, linking fails (the Google identity already belongs
+  to another user); instead sign in and merge the orphaned anonymous player's stats into
+  the Google-linked player (keep both game histories; `word_stats` rows merge
+  additively), then delete the orphan. Write this as an explicit, tested service
+  function; it's the fiddliest part.
+- Admin login switches from `ADMIN_TOKEN` header to `is_admin` on the Google-linked player.
 - Keep anonymous play fully functional forever.
 
 ---
@@ -422,6 +478,8 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   add install prompt UX.
 
 ### 9.2 `[ ]` Play Store via Trusted Web Activity
+- Attach a custom domain to the Vercel project first (free on Hobby) so the TWA is bound
+  to a domain you control, not `*.vercel.app`.
 - Use **Bubblewrap** to wrap the (HTTPS-hosted) PWA as a TWA; add
   `assetlinks.json` to the frontend host; produce a signed AAB.
 - **Challenge to the original idea:** a *stand-alone native* Android version means a
@@ -472,7 +530,8 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 | Original idea | Verdict | Reasoning |
 |---|---|---|
-| Google OAuth as primary identity | **Deferred to Batch 8** | Cookie identity delivers per-player features with zero friction; OAuth is a cross-device *upgrade*, not a gate. |
+| Backend on HF Space | **Replaced with Vercel + Supabase (Batch 1)** | Free HF has ephemeral disk (no DB), ~48 h sleep with slow cold starts, no custom domain (blocks the Batch 9 TWA). Once the DB is external anyway, HF is just a slow Python host; the port cost is one small file, paid during a batch that was restructuring it anyway. |
+| Google OAuth as primary identity | **Deferred to Batch 8** | Anonymous identity delivers per-player features with zero friction; OAuth is a cross-device *upgrade*, not a gate — and Supabase identity linking makes it ~10 lines. |
 | Auto-email for reported words | **Rejected in favour of DB + admin queue** | Email infra is disproportionate overhead; the Batch 5 queue with badge count covers the need. Weekly digest is a cheap later add-on if wanted. |
 | Stand-alone native Android app | **Replaced with PWA→TWA** | Second codebase for a text-input game; TWA gets Play Store presence reusing everything. Revisit only for offline-first requirement. |
 | Multiplayer early | **Kept, but sequenced late (Batch 7)** | It's the largest feature and depends on sessions, server-authoritative scoring, and identity. The daily puzzle (7.0/Batch 10) delivers social value years earlier in effort-terms. |
@@ -486,14 +545,14 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 | Batch | Rough size | Depends on |
 |---|---|---|
 | 0 — Bugs & security | S–M (each item ≤ ½ day) | — |
-| 1 — Foundations | M–L | 0 |
+| 1 — Foundations (Vercel + Supabase port) | M–L | 0 |
 | 2 — Identity + scores + length | M | 1 |
 | 3 — Hints + bonus + stats | S–M | 2 |
 | 4 — Word curation | M | 2 |
 | 5 — Admin | M | 4 |
 | 6 — English / i18n | M | 1 (2 for prefs) |
 | 7 — Multiplayer | L–XL | 0–3 |
-| 8 — Google OAuth | M | 2 |
+| 8 — Google OAuth | S | 2 |
 | 9 — Android (TWA) | S–M | stable deploy |
 | 10 — Backlog | à la carte | varies |
 
