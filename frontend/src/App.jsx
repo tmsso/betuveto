@@ -119,13 +119,30 @@ function App() {
   }, [isTimeUp, scoreAtExpiry, updateHighScores]);
 
   // Once the game has ended, fetch the full solution list for the reveal.
-  // (The server only serves it after the game is over.)
+  // The server only serves it once it agrees the game is over; right at the
+  // deadline (rounding or minor clock skew) it may still return 403, so retry
+  // a few times before giving up.
   useEffect(() => {
-    if (isTimeUp) {
-      betuAPI.getPossibleWords()
-        .then(setAllPossibleWords)
-        .catch((err) => console.error('Error fetching possible words:', err));
-    }
+    if (!isTimeUp) return;
+    let cancelled = false;
+    const MAX_ATTEMPTS = 6;
+    const fetchReveal = async () => {
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS && !cancelled; attempt++) {
+        try {
+          const words = await betuAPI.getPossibleWords();
+          if (!cancelled) setAllPossibleWords(words);
+          return;
+        } catch (err) {
+          if (attempt >= MAX_ATTEMPTS) {
+            console.error('Error fetching possible words:', err);
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    };
+    fetchReveal();
+    return () => { cancelled = true; };
   }, [isTimeUp]);
 
   // Main countdown timer. The server owns the deadline (`endsAt`, epoch
@@ -134,7 +151,10 @@ function App() {
   useEffect(() => {
     if (!isTimerActive || isTimeUp || !endsAt) return;
     const tick = () => {
-      const remaining = Math.max(0, Math.round(endsAt - Date.now() / 1000));
+      // Ceil so the countdown only reaches 0 once the server deadline has
+      // actually passed — rounding down would end the game up to half a second
+      // early, before the server agrees it is over.
+      const remaining = Math.max(0, Math.ceil(endsAt - Date.now() / 1000));
       setTimeLeft(remaining);
       if (remaining <= 0) {
         setIsTimeUp(true);
