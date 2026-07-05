@@ -1,323 +1,451 @@
 """
-Betűvetó - Hungarian Word Game Backend
-FastAPI application for serving word game logic
+Betűvető - Hungarian Word Game Backend
+FastAPI application for serving word game logic.
+
+Game state is keyed by a server-generated ``game_id`` so concurrent players do
+not clobber each other, and the target word / full solution list are never sent
+to the client while a game is active.
 """
 
-from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Set, Optional
-from pathlib import Path
-import random
-import uvicorn
 import os
+import random
+import threading
+import time
+import uuid
+from pathlib import Path
+from typing import Dict, List, Optional, Set
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Path as PathParam, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent
-# Wordlist should be in the same folder as main.py (or a subfolder)
-WORDLIST_PATH = Path(os.getenv("WORDLIST_PATH", str(BASE_DIR / "data" / "magyar-szavak.txt")))
-
-app = FastAPI(
-    title="Betűvetó API",
-    description="Hungarian word puzzle game backend",
-    version="1.0.0"
+# The wordlist lives once, at the repository root (``data/``). The HF/Docker
+# deployment sets WORDLIST_PATH explicitly.
+WORDLIST_PATH = Path(
+    os.getenv("WORDLIST_PATH", str(BASE_DIR.parent / "data" / "magyar-szavak.txt"))
 )
 
-# Enable CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# --- Tunable constants -----------------------------------------------------
+MIN_WORD_LENGTH = 3          # shortest accepted / counted guess
+MAX_WORD_LENGTH = 15         # longest word loaded from the dictionary
+MIN_TARGET_LENGTH = 5        # shortest board length a game may request
+MAX_TARGET_LENGTH = 10       # longest board length a game may request
+DEFAULT_TARGET_LENGTH = 7
+GAME_DURATION_SECONDS = 180  # server-enforced countdown
+GAME_TTL_SECONDS = 30 * 60   # abandoned games are swept this long after start
 
-# Adjustable constants
+# Failed-word reappearance weighting (process-global for now; Batch 1 moves it
+# per-player into the database).
 FAIL_PROB_INITIAL_MULTIPLIER = 100.0
 FAIL_RETRY_MULTIPLIER = 2.0
 SUCCESS_MULTIPLIER = 0.5
 MIN_REAPPEAR_THRESHOLD = 5
 
-# Global game state
-class GameState:
-    def __init__(self):
-        self.word_set: Set[str] = set()
-        self.current_word: str = ""
-        self.scrambled_letters: str = ""
+app = FastAPI(
+    title="Betűvető API",
+    description="Hungarian word puzzle game backend",
+    version="1.1.0",
+)
+
+# CORS: an explicit allowlist is required because we send credentials.
+# ``allow_origins=["*"]`` together with ``allow_credentials=True`` is rejected
+# by browsers, so read a comma-separated allowlist from the environment.
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class Game:
+    """A single in-progress (or finished) game, identified by ``id``."""
+
+    def __init__(
+        self,
+        target_word: str,
+        scrambled_letters: str,
+        possible_words: List[str],
+        target_length: int,
+        is_previously_failed: bool,
+    ):
+        self.id: str = str(uuid.uuid4())
+        self.target_word: str = target_word
+        self.scrambled_letters: str = scrambled_letters
+        self.possible_words: Set[str] = set(possible_words)
+        self.possible_count: int = len(possible_words)
+        self.target_length: int = target_length
+        self.is_previously_failed: bool = is_previously_failed
+
         self.correct_guesses: Set[str] = set()
         self.total_score: int = 0
         self.guess_count: int = 0
-        self.game_active: bool = False
-        
-        # New tracking for probability
-        self.failed_words: Dict[str, Dict] = {} # word -> {multiplier, last_game_failed}
+
+        self.started_at: float = time.time()
+        self.ends_at: float = self.started_at + GAME_DURATION_SECONDS
+        # active | finished | given_up | expired
+        self.status: str = "active"
+        self.lock = threading.Lock()
+
+    def is_expired(self) -> bool:
+        return time.time() > self.ends_at
+
+
+class GameManager:
+    """Owns the dictionary and the set of live games."""
+
+    def __init__(self):
+        self.word_set: Set[str] = set()
+        self.words_by_length: Dict[int, List[str]] = {}
+        self.games: Dict[str, Game] = {}
+        self.failed_words: Dict[str, Dict] = {}
         self.total_games_played: int = 0
-        
+        self._lock = threading.Lock()
         self._load_words()
-    
-    def _load_words(self):
-        """Load Hungarian words from file."""
+
+    # -- dictionary ---------------------------------------------------------
+    def _load_words(self) -> None:
         try:
             with WORDLIST_PATH.open("r", encoding="utf-8") as file:
-                # Limit word length to 15 characters
-                self.word_set = {line.strip().upper() for line in file if line.strip() and len(line.strip()) <= 15}
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Word list not found: {WORDLIST_PATH}")
-    
-    def get_possible_words(self) -> List[str]:
-        """Find all words that can be formed from current letters."""
-        if not self.game_active or not self.current_word:
-            return []
-        
-        possible = []
+                for line in file:
+                    word = line.strip().upper()
+                    if word and len(word) <= MAX_WORD_LENGTH:
+                        self.word_set.add(word)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"Word list not found: {WORDLIST_PATH}") from exc
+
         for word in self.word_set:
-            if 3 <= len(word) <= len(self.current_word):
-                if self._can_form_word(word, self.current_word):
-                    possible.append(word)
-        return possible
+            self.words_by_length.setdefault(len(word), []).append(word)
 
-    def start_new_game(self, target_length: int = 7) -> Dict:
-        """Start a new game with a random word."""
-        self.total_games_played += 1
-        
-        valid_words = [w for w in self.word_set if len(w) == target_length]
-        if not valid_words:
-            raise HTTPException(status_code=404, detail=f"No words found with length {target_length}")
-        
-        # Calculate weights
-        weights = []
-        for w in valid_words:
-            weight = 1.0
-            if w in self.failed_words:
-                stats = self.failed_words[w]
-                # Reappear only after MIN_REAPPEAR_THRESHOLD games
-                if self.total_games_played - stats['last_game_failed'] >= MIN_REAPPEAR_THRESHOLD:
-                    weight = stats['multiplier']
-                else:
-                    weight = 0.0 # Do not reappear earlier
-            weights.append(weight)
-        
-        # If all weights are 0 (unlikely but possible), fallback to uniform
-        if sum(weights) == 0:
-            self.current_word = random.choice(valid_words)
-        else:
-            self.current_word = random.choices(valid_words, weights=weights, k=1)[0]
-
-        self.scrambled_letters = self._scramble_word(self.current_word)
-        self.correct_guesses.clear()
-        self.total_score = 0
-        self.guess_count = 0
-        self.game_active = True
-        
-        return {
-            "scrambled_letters": self.scrambled_letters,
-            "target_length": target_length,
-            "game_active": True,
-            "target_word": self.current_word, # Need this for frontend tracking
-            "is_previously_failed": self.current_word in self.failed_words
-        }
-    
-    def guess_word(self, word: str) -> Dict:
-        """Process a word guess."""
-        if not self.game_active:
-            raise HTTPException(status_code=400, detail="Game not active. Start a new game first.")
-        
-        word = word.strip().upper()
-        
-        # Handle reveal hint
-        if len(word) == 1:
-            # Mark as failed if user didn't guess it
-            if self.current_word not in self.correct_guesses:
-                if self.current_word in self.failed_words:
-                    self.failed_words[self.current_word]['multiplier'] *= FAIL_RETRY_MULTIPLIER
-                else:
-                    self.failed_words[self.current_word] = {
-                        'multiplier': FAIL_PROB_INITIAL_MULTIPLIER,
-                        'last_game_failed': self.total_games_played
-                    }
-                self.failed_words[self.current_word]['last_game_failed'] = self.total_games_played
-
-            self.game_active = False
-            return {
-                "valid": True,
-                "can_form": True,
-                "already_guessed": False,
-                "score": 0,
-                "message": f"A teljes szó: {self.current_word}",
-                "game_ended": True,
-                "target_word": self.current_word
-            }
-        
-        # Check if word exists in dictionary
-        if word not in self.word_set:
-            return {
-                "valid": False,
-                "can_form": False,
-                "already_guessed": False,
-                "score": 0,
-                "message": f"Nem ismerek ilyen szót: {word}",
-                "game_ended": False
-            }
-        
-        # Check if word can be formed from available letters
-        can_form = self._can_form_word(word, self.current_word)
-        
-        if not can_form:
-            return {
-                "valid": True,
-                "can_form": False,
-                "already_guessed": False,
-                "score": 0,
-                "message": f"Ezekből a betűkből nem rakható ki: {word}",
-                "game_ended": False
-            }
-        
-        # Check if already guessed
-        if word in self.correct_guesses:
-            return {
-                "valid": True,
-                "can_form": True,
-                "already_guessed": True,
-                "score": 0,
-                "message": f'Ezért a szóért már kaptál pontot. Pontszámod továbbra is {self.total_score}.',
-                "game_ended": False
-            }
-        
-        # Valid guess - add score
-        score = len(word) ** 2
-        self.correct_guesses.add(word)
-        self.total_score += score
-        self.guess_count += 1
-        
-        is_target = (word == self.current_word)
-        if is_target:
-            # Halve probability if guessed right
-            if word in self.failed_words:
-                self.failed_words[word]['multiplier'] *= SUCCESS_MULTIPLIER
-                # Optional: if multiplier gets too low, remove?
-                # if self.failed_words[word]['multiplier'] <= 1.0:
-                #     del self.failed_words[word]
-
-        return {
-            "valid": True,
-            "can_form": True,
-            "already_guessed": False,
-            "score": score,
-            "message": f"Helyes! {score} pont, összesen eddig {self.total_score}.",
-            "game_ended": False,
-            "is_seven_letter": len(word) == 7,
-            "is_target": is_target
-        }
-    
-    def _can_form_word(self, this_word: str, from_word: str) -> bool:
-        """Check if this_word can be formed from letters in from_word."""
-        for char in this_word:
+    @staticmethod
+    def _can_form_word(this_word: str, from_word: str) -> bool:
+        """True if ``this_word`` can be built from the letters of ``from_word``."""
+        for char in set(this_word):
             if from_word.count(char) < this_word.count(char):
                 return False
         return True
-    
-    def get_game_state(self) -> Dict:
-        """Get current game state."""
-        return {
-            "active": self.game_active,
-            "current_word": self.current_word,
-            "scrambled_letters": self.scrambled_letters,
-            "correct_guesses": len(self.correct_guesses),
-            "total_score": self.total_score,
-            "guess_count": self.guess_count,
-            "target_length": 7
-        }
 
-    def _scramble_word(self, word: str) -> str:
-        """Shuffle letters and avoid returning the original order when possible."""
+    def _possible_words(self, target: str) -> List[str]:
+        return [
+            word
+            for word in self.word_set
+            if MIN_WORD_LENGTH <= len(word) <= len(target)
+            and self._can_form_word(word, target)
+        ]
+
+    @staticmethod
+    def _scramble_word(word: str) -> str:
+        """Shuffle letters, avoiding the original order when possible."""
         if len(word) < 2:
             return word
-
         letters = list(word)
-        scrambled = word
-
-        # Try a few times to avoid returning the same sequence as the source word.
         for _ in range(10):
             random.shuffle(letters)
-            candidate = ''.join(letters)
+            candidate = "".join(letters)
             if candidate != word:
-                scrambled = candidate
-                break
+                return " ".join(candidate)
+        return " ".join(letters)
 
-        return ' '.join(scrambled)
-    
-    def rescramble_letters(self) -> Dict:
-        """Rescramble the current word letters."""
-        if not self.game_active:
-            raise HTTPException(status_code=400, detail="Game not active")
-        
-        self.scrambled_letters = self._scramble_word(self.current_word)
+    def _sweep_expired(self) -> None:
+        """Drop games whose TTL has elapsed (called under ``self._lock``)."""
+        cutoff = time.time() - GAME_TTL_SECONDS
+        stale = [gid for gid, game in self.games.items() if game.started_at < cutoff]
+        for gid in stale:
+            self.games.pop(gid, None)
+
+    def _get_game(self, game_id: str) -> Game:
+        game = self.games.get(game_id)
+        if game is None:
+            raise HTTPException(
+                status_code=404, detail="Game not found or expired. Start a new game."
+            )
+        return game
+
+    # -- game lifecycle -----------------------------------------------------
+    def start_new_game(self, target_length: int) -> Dict:
+        with self._lock:
+            self.total_games_played += 1
+            self._sweep_expired()
+
+            valid_words = self.words_by_length.get(target_length, [])
+            if not valid_words:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No words found with length {target_length}",
+                )
+
+            weights = []
+            for word in valid_words:
+                weight = 1.0
+                stats = self.failed_words.get(word)
+                if stats:
+                    if (
+                        self.total_games_played - stats["last_game_failed"]
+                        >= MIN_REAPPEAR_THRESHOLD
+                    ):
+                        weight = stats["multiplier"]
+                    else:
+                        weight = 0.0  # do not let it reappear too soon
+                weights.append(weight)
+
+            if sum(weights) == 0:
+                target_word = random.choice(valid_words)
+            else:
+                target_word = random.choices(valid_words, weights=weights, k=1)[0]
+
+            game = Game(
+                target_word=target_word,
+                scrambled_letters=self._scramble_word(target_word),
+                possible_words=self._possible_words(target_word),
+                target_length=target_length,
+                is_previously_failed=target_word in self.failed_words,
+            )
+            self.games[game.id] = game
+
         return {
-            "scrambled_letters": self.scrambled_letters,
-            "message": "Betűk újrakeverve!"
+            "game_id": game.id,
+            "scrambled_letters": game.scrambled_letters,
+            "target_length": target_length,
+            "game_active": True,
+            "ends_at": game.ends_at,
+            "duration_seconds": GAME_DURATION_SECONDS,
+            "possible_count": game.possible_count,
+            "is_previously_failed": game.is_previously_failed,
         }
 
-# Global game instance
-game_state = GameState()
+    def _mark_failed(self, word: str) -> None:
+        stats = self.failed_words.get(word)
+        if stats:
+            stats["multiplier"] *= FAIL_RETRY_MULTIPLIER
+            stats["last_game_failed"] = self.total_games_played
+        else:
+            self.failed_words[word] = {
+                "multiplier": FAIL_PROB_INITIAL_MULTIPLIER,
+                "last_game_failed": self.total_games_played,
+            }
 
-# API Endpoints
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {"message": "Betűvetó API - Hungarian Word Game Backend"}
+    def guess_word(self, game_id: str, word: str) -> Dict:
+        game = self._get_game(game_id)
+        with game.lock:
+            if game.status != "active":
+                raise HTTPException(
+                    status_code=400, detail="Game is not active. Start a new game."
+                )
+            if game.is_expired():
+                game.status = "expired"
+                return {
+                    "valid": False,
+                    "can_form": False,
+                    "already_guessed": False,
+                    "score": 0,
+                    "message": "Lejárt az idő.",
+                    "game_ended": True,
+                    "total_score": game.total_score,
+                    "found_count": len(game.correct_guesses),
+                }
 
-@app.get("/api/words/count")
-async def get_word_count():
-    """Get total number of words in dictionary"""
-    return {"total_words": len(game_state.word_set)}
+            word = word.strip().upper()
 
-@app.get("/api/words/lengths")
-async def get_available_lengths():
-    """Get available word lengths in dictionary"""
-    lengths = set(len(word) for word in game_state.word_set)
-    return {"available_lengths": sorted(list(lengths))}
+            if len(word) < MIN_WORD_LENGTH:
+                return {
+                    "valid": False,
+                    "can_form": False,
+                    "already_guessed": False,
+                    "score": 0,
+                    "message": f"Legalább {MIN_WORD_LENGTH} betűs szót adj meg.",
+                    "game_ended": False,
+                }
 
-@app.post("/api/game/start")
-async def start_game(target_length: int = 7):
-    """Start a new game"""
-    return game_state.start_new_game(target_length)
+            if word not in self.word_set:
+                return {
+                    "valid": False,
+                    "can_form": False,
+                    "already_guessed": False,
+                    "score": 0,
+                    "message": f"Nem ismerek ilyen szót: {word}",
+                    "game_ended": False,
+                }
 
-class StartGameRequest(BaseModel):
-    target_length: Optional[int] = None
+            if not self._can_form_word(word, game.target_word):
+                return {
+                    "valid": True,
+                    "can_form": False,
+                    "already_guessed": False,
+                    "score": 0,
+                    "message": f"Ezekből a betűkből nem rakható ki: {word}",
+                    "game_ended": False,
+                }
 
+            if word in game.correct_guesses:
+                return {
+                    "valid": True,
+                    "can_form": True,
+                    "already_guessed": True,
+                    "score": 0,
+                    "message": (
+                        "Ezért a szóért már kaptál pontot. "
+                        f"Pontszámod továbbra is {game.total_score}."
+                    ),
+                    "game_ended": False,
+                }
+
+            # Valid, new, formable guess.
+            score = len(word) ** 2
+            game.correct_guesses.add(word)
+            game.total_score += score
+            game.guess_count += 1
+
+            is_target = word == game.target_word
+            if is_target and word in self.failed_words:
+                self.failed_words[word]["multiplier"] *= SUCCESS_MULTIPLIER
+
+            game_ended = len(game.correct_guesses) >= game.possible_count
+            if game_ended:
+                game.status = "finished"
+
+            return {
+                "valid": True,
+                "can_form": True,
+                "already_guessed": False,
+                "score": score,
+                "message": f"Helyes! {score} pont, összesen eddig {game.total_score}.",
+                "game_ended": game_ended,
+                "is_full_length": len(word) == game.target_length,
+                "is_target": is_target,
+                "total_score": game.total_score,
+                "found_count": len(game.correct_guesses),
+            }
+
+    def give_up(self, game_id: str) -> Dict:
+        game = self._get_game(game_id)
+        with game.lock:
+            if game.status == "active" and game.target_word not in game.correct_guesses:
+                self._mark_failed(game.target_word)
+            game.status = "given_up"
+            return {
+                "target_word": game.target_word,
+                "possible_words": sorted(game.possible_words),
+                "message": f"A teljes szó: {game.target_word}",
+            }
+
+    def rescramble(self, game_id: str) -> Dict:
+        game = self._get_game(game_id)
+        with game.lock:
+            if game.status != "active":
+                raise HTTPException(status_code=400, detail="Game is not active.")
+            game.scrambled_letters = self._scramble_word(game.target_word)
+            return {
+                "scrambled_letters": game.scrambled_letters,
+                "message": "Betűk újrakeverve!",
+            }
+
+    def get_state(self, game_id: str) -> Dict:
+        game = self._get_game(game_id)
+        # An expired game reports itself as finished so the client can react.
+        status = game.status
+        if status == "active" and game.is_expired():
+            status = "expired"
+        return {
+            "game_id": game.id,
+            "active": status == "active",
+            "status": status,
+            "scrambled_letters": game.scrambled_letters,
+            "found_count": len(game.correct_guesses),
+            "possible_count": game.possible_count,
+            "total_score": game.total_score,
+            "guess_count": game.guess_count,
+            "target_length": game.target_length,
+            "ends_at": game.ends_at,
+        }
+
+    def get_possible_words(self, game_id: str) -> Dict:
+        """The full solution list — only once the game is no longer active."""
+        game = self._get_game(game_id)
+        is_active = game.status == "active" and not game.is_expired()
+        if is_active:
+            raise HTTPException(
+                status_code=403,
+                detail="Possible words are only available after the game ends.",
+            )
+        return {"possible_words": sorted(game.possible_words)}
+
+    def get_possible_count(self, game_id: str) -> Dict:
+        game = self._get_game(game_id)
+        return {"possible_count": game.possible_count}
+
+
+# Global manager instance (dictionary is loaded once at startup).
+manager = GameManager()
+
+
+# --- Request models --------------------------------------------------------
 class GuessRequest(BaseModel):
     word: str
 
-@app.post("/api/game/start/body")
-async def start_game_with_body(request: StartGameRequest):
-    """Start a new game using JSON body payload (compatibility endpoint)."""
-    target_length = request.target_length if request.target_length is not None else 7
-    return game_state.start_new_game(target_length)
 
-@app.post("/api/game/guess")
-async def make_guess(request: GuessRequest):
-    """Make a word guess"""
-    return game_state.guess_word(request.word)
+# --- API endpoints ---------------------------------------------------------
+@app.get("/")
+async def root():
+    return {"message": "Betűvető API - Hungarian Word Game Backend"}
 
-@app.get("/api/game/state")
-async def get_current_state():
-    """Get current game state"""
-    return game_state.get_game_state()
 
-@app.post("/api/game/rescramble")
-async def rescramble_letters():
-    """Rescramble current word letters"""
-    return game_state.rescramble_letters()
+@app.get("/api/words/count")
+async def get_word_count():
+    return {"total_words": len(manager.word_set)}
 
-@app.get("/api/game/possible_words")
-async def get_possible_words():
-    """Get all possible words for the current game"""
-    return {"possible_words": game_state.get_possible_words()}
 
-@app.post("/api/game/reset")
-async def reset_game():
-    """Reset the current game"""
-    game_state.game_active = False
-    return {"message": "Game reset"}
+@app.get("/api/words/lengths")
+async def get_available_lengths():
+    lengths = sorted(manager.words_by_length.keys())
+    return {"available_lengths": lengths}
+
+
+@app.post("/api/game/start")
+async def start_game(
+    target_length: int = Query(
+        DEFAULT_TARGET_LENGTH, ge=MIN_TARGET_LENGTH, le=MAX_TARGET_LENGTH
+    ),
+):
+    return manager.start_new_game(target_length)
+
+
+@app.post("/api/game/{game_id}/guess")
+async def make_guess(request: GuessRequest, game_id: str = PathParam(...)):
+    return manager.guess_word(game_id, request.word)
+
+
+@app.post("/api/game/{game_id}/give_up")
+async def give_up(game_id: str = PathParam(...)):
+    return manager.give_up(game_id)
+
+
+@app.post("/api/game/{game_id}/rescramble")
+async def rescramble(game_id: str = PathParam(...)):
+    return manager.rescramble(game_id)
+
+
+@app.get("/api/game/{game_id}")
+async def get_game_state(game_id: str = PathParam(...)):
+    return manager.get_state(game_id)
+
+
+@app.get("/api/game/{game_id}/possible_words")
+async def get_possible_words(game_id: str = PathParam(...)):
+    return manager.get_possible_words(game_id)
+
+
+@app.get("/api/game/{game_id}/possible_words/count")
+async def get_possible_count(game_id: str = PathParam(...)):
+    return manager.get_possible_count(game_id)
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
