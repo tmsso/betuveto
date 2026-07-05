@@ -101,7 +101,7 @@ TypeScript — they close live security holes now and, together with 0.10's test
 the behavioural contract the port must preserve. Keep each fix minimal accordingly; skip
 container/infra polish that the migration makes moot (flagged per item).*
 
-### 0.1 `[ ]` Stop leaking the solution to the client
+### 0.1 `[x]` Stop leaking the solution to the client
 - `POST /api/game/start` returns `target_word` in its response (`backend/main.py`,
   `start_new_game`) — anyone with DevTools sees the answer instantly.
 - `GET /api/game/state` returns `current_word`.
@@ -115,7 +115,7 @@ container/infra polish that the migration makes moot (flagged per item).*
 - **Accept:** with a game in progress, no API response contains the target word or any
   unfound word.
 
-### 0.2 `[ ]` Fix the shared-global-state hazard (interim mitigation)
+### 0.2 `[x]` Fix the shared-global-state hazard (interim mitigation)
 - One `GameState()` instance serves all clients: two simultaneous visitors overwrite each
   other's word, and `POST /api/game/reset` lets anyone kill anyone's game. The real fix
   (per-session games) is Batch 1; the *interim* fix is to key game state by a
@@ -127,14 +127,14 @@ container/infra polish that the migration makes moot (flagged per item).*
 - **Accept:** two browsers can play different games at the same time without interfering;
   a `guess` with an unknown/expired `game_id` returns 404.
 
-### 0.3 `[ ]` CORS misconfiguration
+### 0.3 `[x]` CORS misconfiguration
 - `allow_origins=["*"]` together with `allow_credentials=True` is an invalid and unsafe
   combination (browsers reject it the moment credentials actually matter).
 - **Fix:** read allowed origins from env (`CORS_ORIGINS`, comma-separated; default
   `http://localhost:5173`). Keep `allow_credentials=True`.
 - **Accept:** requests from unlisted origins are rejected; local dev still works.
 
-### 0.4 `[ ]` Enforce the timer server-side
+### 0.4 `[x]` Enforce the timer server-side
 - The 180 s countdown exists only in React state; the API happily scores guesses forever.
 - **Fix:** store `started_at` and `duration_seconds` per game; `/guess` rejects (with a
   clear `game_ended: true` payload) once expired. Return `ends_at` (epoch seconds) from
@@ -142,7 +142,7 @@ container/infra polish that the migration makes moot (flagged per item).*
 - **Accept:** a guess sent 181 s after start scores 0 and reports the game ended,
   regardless of client behaviour.
 
-### 0.5 `[ ]` Replace the "1-letter guess = reveal" hack
+### 0.5 `[x]` Replace the "1-letter guess = reveal" hack
 - `guess_word` treats any single-character guess as "give up and reveal" — an accidental
   single letter + Enter silently ends the game and marks the word as failed.
 - **Fix:** dedicated `POST /api/game/give_up` endpoint; single-character guesses become a
@@ -150,7 +150,7 @@ container/infra polish that the migration makes moot (flagged per item).*
   "Feladom" (give up) button behind a confirm.
 - **Accept:** no guess input can end the game; give-up works via its own endpoint.
 
-### 0.6 `[ ]` Minimum word length inconsistency (2 vs 3)
+### 0.6 `[x]` Minimum word length inconsistency (2 vs 3)
 - `get_possible_words` counts words of length ≥ 3, but `/guess` accepts and scores any
   dictionary word ≥ 2 (frontend blocks only length < 2). Finding a valid 2-letter word
   breaks the found/total counter and the "all words found" bonus logic.
@@ -159,12 +159,12 @@ container/infra polish that the migration makes moot (flagged per item).*
 - **Accept:** 2-letter guesses are rejected; `foundWords.length` can never exceed
   `possibleWordsCount`.
 
-### 0.7 `[ ]` Validate `target_length` input
+### 0.7 `[x]` Validate `target_length` input
 - `POST /api/game/start?target_length=...` accepts any int (also unbounded via the JSON
   body variant). **Fix:** FastAPI `Query(ge=5, le=10, default=7)` / pydantic
   `Field(ge=5, le=10)` — this also pre-builds the contract for Batch 2's length option.
 
-### 0.8 `[ ]` Frontend robustness fixes
+### 0.8 `[x]` Frontend robustness fixes
 - `JSON.parse(localStorage.getItem(...))` in `App.jsx` (mount effect) has no try/catch —
   one corrupted value white-screens the app. Wrap in try/catch, fall back to `[]`.
 - `startGame()` fallback in `api/client.ts` fires a *second* `/start` if the first
@@ -179,7 +179,7 @@ container/infra polish that the migration makes moot (flagged per item).*
 - **Accept:** `npm run lint` passes with react-hooks rules satisfied; corrupted
   localStorage does not crash the app.
 
-### 0.9 `[ ]` Repository hygiene
+### 0.9 `[x]` Repository hygiene
 - Delete the duplicated wordlist: keep `data/magyar-szavak.txt` as the single source; the
   Dockerfile/HF workflow already copy `data/` in — make `backend/data/` go away (adjust
   `WORDLIST_PATH` default and `hf_sync.yml` if needed).
@@ -194,7 +194,7 @@ container/infra polish that the migration makes moot (flagged per item).*
   Batch 1 (see architecture decisions); don't invest in the container.
 - Add `LICENSE` file (decide: MIT for code; document wordlist licence separately).
 
-### 0.10 `[ ]` Minimal test harness + CI
+### 0.10 `[x]` Minimal test harness + CI
 - pytest is already in `backend/requirements.txt` but there are zero tests.
 - **Add:** `backend/tests/` with FastAPI `TestClient` covering: start→guess→score flow,
   can-form logic (including Hungarian accented letters ÁÉÍÓÖŐÚÜŰ and double letters),
