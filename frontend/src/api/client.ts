@@ -1,18 +1,22 @@
 /**
- * Betűvetó API Client
- * Hungarian word puzzle game API utilities
+ * Betűvető API Client
+ * Hungarian word puzzle game API utilities.
+ *
+ * Game state is keyed server-side by a ``game_id`` returned from ``startGame``;
+ * the client stores it and threads it through every subsequent call.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-export interface GameState {
-  active: boolean;
-  current_word: string;
+export interface StartGameResult {
+  game_id: string;
   scrambled_letters: string;
-  correct_guesses: number;
-  total_score: number;
-  guess_count: number;
   target_length: number;
+  game_active: boolean;
+  ends_at: number;
+  duration_seconds: number;
+  possible_count: number;
+  is_previously_failed: boolean;
 }
 
 export interface GameResult {
@@ -22,23 +26,50 @@ export interface GameResult {
   score: number;
   message: string;
   game_ended?: boolean;
-  is_seven_letter?: boolean;
+  is_full_length?: boolean;
+  is_target?: boolean;
+  total_score?: number;
+  found_count?: number;
 }
 
-export interface WordStats {
-  total_words: number;
-  available_lengths: number[];
+export interface GameState {
+  game_id: string;
+  active: boolean;
+  status: string;
+  scrambled_letters: string;
+  found_count: number;
+  possible_count: number;
+  total_score: number;
+  guess_count: number;
+  target_length: number;
+  ends_at: number;
+}
+
+export interface GiveUpResult {
+  target_word: string;
+  possible_words: string[];
+  message: string;
 }
 
 class BetuAPIClient {
   private baseUrl: string;
+  private gameId: string | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
   }
 
+  get currentGameId(): string | null {
+    return this.gameId;
+  }
+
+  private requireGameId(): string {
+    if (!this.gameId) throw new Error('No active game. Start a game first.');
+    return this.gameId;
+  }
+
   // Word statistics
-  async getWordStats(): Promise<WordStats> {
+  async getWordStats(): Promise<{ total_words: number }> {
     const response = await fetch(`${this.baseUrl}/words/count`);
     if (!response.ok) throw new Error('Failed to fetch word stats');
     return response.json();
@@ -52,61 +83,59 @@ class BetuAPIClient {
   }
 
   // Game management
-  async startGame(targetLength: number = 7): Promise<{ scrambled_letters: string; target_length: number; game_active: boolean }> {
+  async startGame(targetLength: number = 7): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });
-    let response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
+    const response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
       method: 'POST',
     });
-
-    // Compatibility fallback for deployments expecting JSON body payload
-    if (!response.ok) {
-      response = await fetch(`${this.baseUrl}/game/start/body`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target_length: targetLength })
-      });
-    }
-
     if (!response.ok) throw new Error('Failed to start game');
-    return response.json();
+    const data: StartGameResult = await response.json();
+    this.gameId = data.game_id;
+    return data;
   }
 
   async makeGuess(word: string): Promise<GameResult> {
-    const response = await fetch(`${this.baseUrl}/game/guess`, {
+    const gameId = this.requireGameId();
+    const response = await fetch(`${this.baseUrl}/game/${gameId}/guess`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word })
+      body: JSON.stringify({ word }),
     });
-    if (!response.ok) throw new Error('Failed to make guess');
+    if (!response.ok) throw new Error(`Failed to make guess (${response.status})`);
+    return response.json();
+  }
+
+  async giveUp(): Promise<GiveUpResult> {
+    const gameId = this.requireGameId();
+    const response = await fetch(`${this.baseUrl}/game/${gameId}/give_up`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to give up');
     return response.json();
   }
 
   async getGameState(): Promise<GameState> {
-    const response = await fetch(`${this.baseUrl}/game/state`);
+    const gameId = this.requireGameId();
+    const response = await fetch(`${this.baseUrl}/game/${gameId}`);
     if (!response.ok) throw new Error('Failed to fetch game state');
     return response.json();
   }
 
+  /** Full solution list — only valid once the game has ended. */
   async getPossibleWords(): Promise<string[]> {
-    const response = await fetch(`${this.baseUrl}/game/possible_words`);
+    const gameId = this.requireGameId();
+    const response = await fetch(`${this.baseUrl}/game/${gameId}/possible_words`);
     if (!response.ok) throw new Error('Failed to fetch possible words');
     const data = await response.json();
     return data.possible_words;
   }
 
   async rescrambleLetters(): Promise<{ scrambled_letters: string; message: string }> {
-    const response = await fetch(`${this.baseUrl}/game/rescramble`, {
-      method: 'POST'
+    const gameId = this.requireGameId();
+    const response = await fetch(`${this.baseUrl}/game/${gameId}/rescramble`, {
+      method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to rescramble letters');
-    return response.json();
-  }
-
-  async resetGame(): Promise<{ message: string }> {
-    const response = await fetch(`${this.baseUrl}/game/reset`, {
-      method: 'POST'
-    });
-    if (!response.ok) throw new Error('Failed to reset game');
     return response.json();
   }
 }

@@ -15,6 +15,8 @@ const canvasStyles = {
 
 // Adjustable constants
 const TOP_SCORES_COUNT = 3;
+const MIN_GUESS_LENGTH = 3;
+const GAME_DURATION_SECONDS = 180;
 
 function App() {
   // Game state
@@ -24,7 +26,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [guessCount, setGuessCount] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(180)
+  const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS)
+  const [endsAt, setEndsAt] = useState(null)
   const [isTimerActive, setIsTimerActive] = useState(false)
   const [isTimeUp, setIsTimeUp] = useState(false)
   const [scoreAtExpiry, setScoreAtExpiry] = useState(0)
@@ -38,7 +41,10 @@ function App() {
   const [currentAnimatingIndex, setCurrentAnimatingIndex] = useState(-1)
   const [isScoreFlashing, setIsScoreFlashing] = useState(false)
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false)
-  const [highScores, setHighScores] = useState([])
+  // High scores are persisted to localStorage and merged via the setter's
+  // `prev`; the value itself is not rendered yet (server high scores land in a
+  // later batch), so only the setter is bound.
+  const [, setHighScores] = useState([])
   const [showFailedWords, setShowFailedWords] = useState(false)
   const [failedWordsHistory, setFailedWordsHistory] = useState([])
   const [possibleWordsCount, setPossibleWordsCount] = useState(0)
@@ -77,13 +83,18 @@ function App() {
     }, 2000);
   }, []);
 
-  // Load high scores and failed words from localStorage on mount
+  // Load high scores and failed words from localStorage on mount.
+  // Wrapped defensively: a single corrupted value must not white-screen the app.
   useEffect(() => {
-    const storedScores = JSON.parse(localStorage.getItem('betuveto_high_scores') || '[]');
-    setHighScores(storedScores);
-
-    const storedFailed = JSON.parse(localStorage.getItem('betuveto_failed_words') || '[]');
-    setFailedWordsHistory(storedFailed);
+    const readJson = (key) => {
+      try {
+        return JSON.parse(localStorage.getItem(key) || '[]');
+      } catch {
+        return [];
+      }
+    };
+    setHighScores(readJson('betuveto_high_scores'));
+    setFailedWordsHistory(readJson('betuveto_failed_words'));
   }, []);
 
   const updateHighScores = useCallback((finalScore) => {
@@ -107,25 +118,54 @@ function App() {
     }
   }, [isTimeUp, scoreAtExpiry, updateHighScores]);
 
-  // Main countdown timer
+  // Once the game has ended, fetch the full solution list for the reveal.
+  // The server only serves it once it agrees the game is over; right at the
+  // deadline (rounding or minor clock skew) it may still return 403, so retry
+  // a few times before giving up.
   useEffect(() => {
-    let interval;
-    if (isTimerActive && timeLeft > 0 && !isTimeUp) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            setIsTimeUp(true);
-            setScoreAtExpiry(totalScore);
-            setIsTimerActive(false);
-            return 0;
+    if (!isTimeUp) return;
+    let cancelled = false;
+    const MAX_ATTEMPTS = 6;
+    const fetchReveal = async () => {
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS && !cancelled; attempt++) {
+        try {
+          const words = await betuAPI.getPossibleWords();
+          if (!cancelled) setAllPossibleWords(words);
+          return;
+        } catch (err) {
+          if (attempt >= MAX_ATTEMPTS) {
+            console.error('Error fetching possible words:', err);
+            return;
           }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    };
+    fetchReveal();
+    return () => { cancelled = true; };
+  }, [isTimeUp]);
+
+  // Main countdown timer. The server owns the deadline (`endsAt`, epoch
+  // seconds); the client just renders the remaining time, so a slept/backgrounded
+  // tab resyncs instead of drifting.
+  useEffect(() => {
+    if (!isTimerActive || isTimeUp || !endsAt) return;
+    const tick = () => {
+      // Ceil so the countdown only reaches 0 once the server deadline has
+      // actually passed — rounding down would end the game up to half a second
+      // early, before the server agrees it is over.
+      const remaining = Math.max(0, Math.ceil(endsAt - Date.now() / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        setIsTimeUp(true);
+        setScoreAtExpiry(totalScore);
+        setIsTimerActive(false);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 500);
     return () => clearInterval(interval);
-  }, [isTimerActive, timeLeft, isTimeUp, totalScore]);
+  }, [isTimerActive, isTimeUp, endsAt, totalScore]);
 
   // Check if all words found
   useEffect(() => {
@@ -166,7 +206,8 @@ function App() {
       setCurrentGuess('')
       setGuessCount(0)
       setJustFoundWord(null)
-      setTimeLeft(180)
+      setTimeLeft(response.duration_seconds ?? GAME_DURATION_SECONDS)
+      setEndsAt(response.ends_at)
       setIsTimerActive(false)
       setIsAnimatingLetters(true)
       setAllPossibleWordsFound(false)
@@ -174,15 +215,15 @@ function App() {
       setCurrentAnimatingIndex(-1)
       setIsTimeUp(false)
       setScoreAtExpiry(0)
-      
-      // Fetch possible words count
-      const possibleWords = await betuAPI.getPossibleWords()
-      setAllPossibleWords(possibleWords)
-      setPossibleWordsCount(possibleWords.length)
 
-      // Check if this word was failed before
-      const wordRecord = failedWordsHistory.find(f => f.word === response.target_word);
-      setIsFailedWord(!!wordRecord && !wordRecord.learned);
+      // The full solution list is no longer served while a game is active
+      // (it would leak the answers). Only the count is known up front; the
+      // list is fetched at game end for the reveal.
+      setAllPossibleWords([])
+      setPossibleWordsCount(response.possible_count)
+
+      // The server tells us whether this target was previously failed.
+      setIsFailedWord(!!response.is_previously_failed)
 
       if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus();
@@ -193,7 +234,7 @@ function App() {
     } finally {
       setIsLoading(false)
     }
-  }, [failedWordsHistory])
+  }, [])
 
   const handleNewGameClick = () => {
     if (foundWords.length > 0 && !isTimeUp) {
@@ -203,7 +244,7 @@ function App() {
     }
   };
 
-  const recordFailedWord = (word, learned = false) => {
+  const recordFailedWord = useCallback((word, learned = false) => {
     setFailedWordsHistory(prev => {
       const existing = prev.find(p => p.word === word);
       let next;
@@ -215,11 +256,14 @@ function App() {
       localStorage.setItem('betuveto_failed_words', JSON.stringify(next));
       return next;
     });
-  };
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const guess = currentGuess.trim().toUpperCase()
-    if (guess.length < 2) return
+    if (guess.length < MIN_GUESS_LENGTH) {
+      if (guess.length > 0) showTemporaryError(`Legalább ${MIN_GUESS_LENGTH} betűs szót adj meg!`)
+      return
+    }
 
     // Pre-check if letters are valid
     const available = scrambledLetters.join('')
@@ -244,12 +288,17 @@ function App() {
       
       setGuessCount((prevCount) => prevCount + 1);
 
-      if (response.game_ended) {
+      // The game ended for a reason other than scoring the final word
+      // (e.g. the server-enforced timer expired). A successful all-words-found
+      // guess also reports game_ended, but is handled below as a normal find so
+      // the "all found" celebration effect can run.
+      const isScoringGuess = response.valid && response.can_form && !response.already_guessed
+      if (response.game_ended && !isScoringGuess) {
         setIsTimeUp(true)
         setScoreAtExpiry(totalScore)
         setIsTimerActive(false)
         if (response.message) {
-          setError(response.message)
+          showTemporaryError(response.message)
         }
         return
       }
@@ -265,7 +314,7 @@ function App() {
                 recordFailedWord(guess, true);
             }
 
-            if (response.is_seven_letter || guess.length === scrambledLetters.filter(l => l !== ' ').length) {
+            if (response.is_full_length || guess.length === scrambledLetters.filter(l => l !== ' ').length) {
               fireExplosion()
             } else {
               fireConfetti()
@@ -294,8 +343,10 @@ function App() {
       }
     } catch (err) {
       console.error('Error submitting guess:', err)
-      // Check if it's a 400 error (game ended)
-      if (err.message?.includes('400') || err.toString()?.includes('400')) {
+      // A 400 (game not active) or 404 (game expired/unknown) means the game
+      // is over on the server — reflect that in the UI.
+      const msg = err.message || err.toString() || ''
+      if (msg.includes('400') || msg.includes('404')) {
         showTemporaryError('A játék véget ért. Indíts újat!')
         setIsTimeUp(true)
       } else {
@@ -308,11 +359,13 @@ function App() {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, recordFailedWord, showTemporaryError])
 
+  // Start one game on mount. startNewGame is a stable useCallback ([] deps), so
+  // listing it here satisfies exhaustive-deps without causing repeated restarts.
   useEffect(() => {
     startNewGame()
-  }, []) // Remove startNewGame from deps to prevent infinite loops after adding state deps 
+  }, [startNewGame])
 
 
   const handleLetterClick = useCallback((letter) => {
@@ -331,7 +384,24 @@ function App() {
       console.error('Error scrambling letters:', err)
       showTemporaryError('Hiba történt a betűk keverésekor.')
     }
-  }, [])
+  }, [showTemporaryError])
+
+  const handleGiveUp = useCallback(async () => {
+    if (isTimeUp) return
+    if (!window.confirm('Biztosan feladod? Felfedjük a megoldást.')) return
+    try {
+      const result = await betuAPI.giveUp()
+      recordFailedWord(result.target_word, false)
+      setAllPossibleWords(result.possible_words)
+      setScoreAtExpiry(totalScore)
+      setIsTimerActive(false)
+      setIsTimeUp(true)
+      showTemporaryError(result.message)
+    } catch (err) {
+      console.error('Error giving up:', err)
+      showTemporaryError('Hiba történt a feladáskor.')
+    }
+  }, [isTimeUp, totalScore, recordFailedWord, showTemporaryError])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -545,9 +615,21 @@ function App() {
           </button>
         </div>
 
+        {/* Give up */}
+        {!isTimeUp && (
+          <div className="mb-4 flex justify-center">
+            <button
+              onClick={handleGiveUp}
+              className="text-xs text-gray-500 underline hover:text-red-600"
+            >
+              🏳️ Feladom (megoldás felfedése)
+            </button>
+          </div>
+        )}
+
         {/* Failed Words History Button */}
         <div className="mb-6 flex justify-center">
-            <button 
+            <button
                 onClick={() => setShowFailedWords(!showFailedWords)}
                 className="text-xs text-game-secondary underline hover:text-blue-700"
             >
