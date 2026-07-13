@@ -49,6 +49,28 @@ See [`.env.example`](./.env.example). Key variables:
 - `WORDLIST_PATH` — path to the word list (defaults to `data/magyar-szavak.txt`).
 - `VITE_API_BASE_URL` — API base for the frontend (defaults to `/api`).
 
+## Database (Supabase)
+
+The target architecture (ROADMAP Batch 1) moves persistence to Supabase Postgres.
+Schema lives as SQL migrations under [`supabase/migrations/`](./supabase/migrations);
+the dictionary is loaded into the `words` table (each row stores a `signature` — its
+letters sorted — so possible-words is one indexed query rather than a full scan).
+
+```bash
+npm install                       # repo-root tooling (Supabase CLI, importer)
+
+# Validate the importer's parsing/normalisation without any database:
+npm run db:import -- --dry-run
+
+# Apply migrations + import the wordlist to the CLOUD project (set DATABASE_URL to
+# the Supabase connection string first — see .env.example):
+npm run supabase -- db push
+npm run db:import
+```
+
+> **Do not run a local Supabase stack** (`supabase start`) on a resource-constrained
+> machine — it launches ~10 containers. Apply and validate against the hosted project.
+
 ## Tests
 
 ```bash
