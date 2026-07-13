@@ -140,7 +140,10 @@ async function runImport(file: string, code: string, name: string): Promise<void
   }
 
   console.log(`Importing "${file}" into wordlist '${code}' (${name})`);
-  const sql = postgres(databaseUrl, { onnotice: () => {} });
+  // `prepare: false` keeps this working through Supabase's transaction pooler
+  // (pgBouncer transaction mode can't hold named prepared statements). Negligible
+  // cost for a one-shot bulk import, and robust to whichever connection string is used.
+  const sql = postgres(databaseUrl, { onnotice: () => {}, prepare: false });
 
   try {
     // Upsert the wordlist row and get its id.
