@@ -66,6 +66,10 @@ npm run db:import -- --dry-run
 # the Supabase connection string first — see .env.example):
 npm run supabase -- db push
 npm run db:import
+
+# Check the deployed database: schema, RLS, row counts, and that the signature
+# lookup returns the right words via the index rather than a 155k-row scan.
+npm run db:verify
 ```
 
 > **Use the pooler connection string**, not the direct one. Supabase's direct host

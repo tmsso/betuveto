@@ -6,10 +6,8 @@
   "description": "Betűvető — Hungarian word game: repo-root tooling (Supabase migrations + data import). The React frontend lives in frontend/.",
   "scripts": {
     "supabase": "supabase",
-    "db:start": "supabase start",
-    "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
-    "db:import": "tsx scripts/import-wordlist.ts"
+    "db:import": "tsx scripts/import-wordlist.ts",
+    "db:verify": "tsx scripts/verify-db.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5"
