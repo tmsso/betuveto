@@ -49,6 +49,39 @@ See [`.env.example`](./.env.example). Key variables:
 - `WORDLIST_PATH` — path to the word list (defaults to `data/magyar-szavak.txt`).
 - `VITE_API_BASE_URL` — API base for the frontend (defaults to `/api`).
 
+## Database (Supabase)
+
+The target architecture (ROADMAP Batch 1) moves persistence to Supabase Postgres.
+Schema lives as SQL migrations under [`supabase/migrations/`](./supabase/migrations);
+the dictionary is loaded into the `words` table (each row stores a `signature` — its
+letters sorted — so possible-words is one indexed query rather than a full scan).
+
+```bash
+npm install                       # repo-root tooling (Supabase CLI, importer)
+
+# Validate the importer's parsing/normalisation without any database:
+npm run db:import -- --dry-run
+
+# Apply migrations + import the wordlist to the CLOUD project (set DATABASE_URL to
+# the Supabase connection string first — see .env.example):
+npm run supabase -- db push
+npm run db:import
+
+# Check the deployed database: schema, RLS, row counts, and that the signature
+# lookup returns the right words via the index rather than a 155k-row scan.
+npm run db:verify
+```
+
+> **Use the pooler connection string**, not the direct one. Supabase's direct host
+> (`db.<ref>.supabase.co`) resolves to an IPv6 address only, so it is unreachable from an
+> IPv4-only network and connections just time out. The transaction pooler
+> (`aws-0-<region>.pooler.supabase.com:6543`) is dual-stack; the importer sets
+> `prepare: false` so it works through pgBouncer. If the CLI cannot reach the direct host
+> either, apply the migration by pasting it into the dashboard's SQL Editor.
+
+> **Do not run a local Supabase stack** (`supabase start`) on a resource-constrained
+> machine — it launches ~10 containers. Apply and validate against the hosted project.
+
 ## Tests
 
 ```bash
