@@ -22,8 +22,7 @@
  *
  * Defaults: file = data/magyar-szavak.txt, code = hu, name = Magyar.
  */
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
@@ -83,19 +82,23 @@ export interface WordRow {
 }
 
 /**
- * Stream a wordlist file, yielding one normalised, de-duplicated row per accepted
- * word. Shared by the real import and the --dry-run path so the two never drift.
+ * Read a wordlist file, returning one normalised, de-duplicated row per accepted word.
+ * Shared by the real import and the --dry-run path so the two never drift.
+ *
+ * The file is read whole rather than streamed: at ~2 MB that costs nothing, and a
+ * readline stream cannot be iterated safely while the loop body awaits a database
+ * round-trip (readline closes itself at EOF, and the still-queued lines then blow up
+ * with ERR_USE_AFTER_CLOSE).
  */
-export async function* streamWords(
+export async function readWords(
   file: string,
   stats: { read: number; skipped: number },
-): AsyncGenerator<WordRow> {
-  const rl = createInterface({
-    input: createReadStream(file, { encoding: "utf-8" }),
-    crlfDelay: Infinity,
-  });
+): Promise<WordRow[]> {
+  const lines = (await readFile(file, "utf-8")).split(/\r?\n/);
   const seen = new Set<string>();
-  for await (const line of rl) {
+  const rows: WordRow[] = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
     stats.read++;
     const word = normalizeWord(line);
     if (!word || seen.has(word)) {
@@ -103,8 +106,9 @@ export async function* streamWords(
       continue;
     }
     seen.add(word);
-    yield { word, length: Array.from(word).length, signature: signatureOf(word) };
+    rows.push({ word, length: Array.from(word).length, signature: signatureOf(word) });
   }
+  return rows;
 }
 
 async function runDryRun(file: string, code: string): Promise<void> {
@@ -112,7 +116,7 @@ async function runDryRun(file: string, code: string): Promise<void> {
   let kept = 0;
   const byLength = new Map<number, number>();
   const samples: WordRow[] = [];
-  for await (const row of streamWords(file, stats)) {
+  for (const row of await readWords(file, stats)) {
     kept++;
     byLength.set(row.length, (byLength.get(row.length) ?? 0) + 1);
     if (samples.length < 8) samples.push(row);
@@ -172,7 +176,7 @@ async function runImport(file: string, code: string, name: string): Promise<void
       process.stdout.write(`\r  upserted ${upserted} words...`);
     };
 
-    for await (const row of streamWords(file, stats)) {
+    for (const row of await readWords(file, stats)) {
       batch.push({ wordlist_id: wordlistId, ...row });
       if (batch.length >= BATCH_SIZE) await flush();
     }
