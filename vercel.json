@@ -3,7 +3,7 @@
   "framework": null,
   "installCommand": "npm install",
   "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/game/:path*", "destination": "/api/v1/game/:path*" },
     { "source": "/api/words/:path*", "destination": "/api/v1/words/:path*" },
