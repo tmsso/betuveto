@@ -228,7 +228,7 @@ the HF Space is gone. Requires Batch 0 (especially 0.10's contract tests) to be 
   on every guess (`word.normalize('NFC').toUpperCase()`), so composed vs decomposed `Á`
   compare equal; Hungarian uppercasing is locale-safe in JS but be explicit about NFC.
 
-### 1.2 `[ ]` Port the API to TypeScript Vercel functions
+### 1.2 `[x]` Port the API to TypeScript Vercel functions
 - Recreate the FastAPI endpoints as Vercel API routes under `/api/v1/` (thin aliases at
   the old paths until 1.3 lands). Same behaviour as the post-Batch-0 app; game state
   lives in the `games` table — there is no in-process state at all.

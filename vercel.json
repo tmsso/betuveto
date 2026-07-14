@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/game/:path*", "destination": "/api/v1/game/:path*" },
+    { "source": "/api/words/:path*", "destination": "/api/v1/words/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
