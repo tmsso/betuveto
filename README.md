@@ -68,6 +68,13 @@ npm run supabase -- db push
 npm run db:import
 ```
 
+> **Use the pooler connection string**, not the direct one. Supabase's direct host
+> (`db.<ref>.supabase.co`) resolves to an IPv6 address only, so it is unreachable from an
+> IPv4-only network and connections just time out. The transaction pooler
+> (`aws-0-<region>.pooler.supabase.com:6543`) is dual-stack; the importer sets
+> `prepare: false` so it works through pgBouncer. If the CLI cannot reach the direct host
+> either, apply the migration by pasting it into the dashboard's SQL Editor.
+
 > **Do not run a local Supabase stack** (`supabase start`) on a resource-constrained
 > machine — it launches ~10 containers. Apply and validate against the hosted project.
 

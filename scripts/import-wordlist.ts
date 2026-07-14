@@ -10,10 +10,11 @@
  * letters sorted by code point — matching the letter-by-letter, digraph-agnostic
  * matching the game has always used (ROADMAP decision 6.3).
  *
- * Usage (point DATABASE_URL at the CLOUD Supabase project — its pooled/direct
- * connection string from the Supabase dashboard; never a locally-hosted stack):
+ * Usage (point DATABASE_URL at the CLOUD Supabase project — never a locally-hosted
+ * stack). Prefer the *pooler* connection string from the Supabase dashboard: the direct
+ * host (db.<ref>.supabase.co) is IPv6-only, so it is unreachable from IPv4-only networks.
  *
- *   DATABASE_URL='postgresql://postgres:...@db.<ref>.supabase.co:5432/postgres' \
+ *   DATABASE_URL='postgresql://postgres.<ref>:...@aws-0-<region>.pooler.supabase.com:6543/postgres' \
  *     npm run db:import -- [path/to/wordlist.txt] [--code hu] [--name "Magyar"]
  *
  *   # Validate parsing/normalisation without any database:
@@ -196,10 +197,28 @@ async function main() {
   else await runImport(file, code, name);
 }
 
+/**
+ * The direct database host (db.<ref>.supabase.co) publishes an AAAA record only, so on an
+ * IPv4-only network the connection silently hangs until it times out. Point the user at the
+ * pooler rather than making them dig through a stack trace.
+ */
+function explain(err: unknown): void {
+  const { code, address } = (err ?? {}) as { code?: string; address?: string };
+  if (code !== "CONNECT_TIMEOUT" || !address?.startsWith("db.")) return;
+  console.error(
+    `\nCould not reach ${address} — that is Supabase's *direct* host, which is IPv6-only.\n` +
+      "If your network has no public IPv6 route, use the pooler connection string instead\n" +
+      "(Supabase dashboard -> Project Settings -> Database -> Connection string -> Transaction\n" +
+      "pooler). It looks like:\n\n" +
+      "  postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres\n",
+  );
+}
+
 // Only run when executed directly (so the pure helpers can be imported for tests).
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => {
     console.error(err);
+    explain(err);
     process.exit(1);
   });
 }
