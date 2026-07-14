@@ -1,4 +1,4 @@
-import { getWordCount } from "../../../lib/game.ts";
-import { handler } from "../../../lib/http.ts";
+import { getWordCount } from "../../../lib/game.js";
+import { handler } from "../../../lib/http.js";
 
 export default handler("GET", () => getWordCount());

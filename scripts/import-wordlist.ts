@@ -28,7 +28,7 @@ import path from "node:path";
 import postgres from "postgres";
 // The API scores guesses against the same rules the importer stores rows by, so both
 // read them from one place — a divergence here would silently make words unfindable.
-import { letterCount, normalizeWord, signatureOf } from "../lib/words.ts";
+import { letterCount, normalizeWord, signatureOf } from "../lib/words.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

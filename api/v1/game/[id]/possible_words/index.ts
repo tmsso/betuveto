@@ -1,4 +1,4 @@
-import { getPossibleWords } from "../../../../../lib/game.ts";
-import { gameId, handler } from "../../../../../lib/http.ts";
+import { getPossibleWords } from "../../../../../lib/game.js";
+import { gameId, handler } from "../../../../../lib/http.js";
 
 export default handler("GET", (req) => getPossibleWords(gameId(req)));

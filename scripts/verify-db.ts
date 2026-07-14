@@ -10,7 +10,7 @@
  * Read-only: this script never writes.
  */
 import postgres from "postgres";
-import { MIN_WORD_LENGTH, canFormWord, normalizeWord, signatureOf, subSignatures } from "../lib/words.ts";
+import { MIN_WORD_LENGTH, canFormWord, normalizeWord, signatureOf, subSignatures } from "../lib/words.js";
 
 const TABLES = ["players", "wordlists", "words", "games", "game_guesses", "word_stats"];
 const EXPECTED_WORDS = 155107;

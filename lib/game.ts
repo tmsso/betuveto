@@ -11,7 +11,7 @@
  * adapters in api/ stay trivial and the contract can be tested without a server.
  */
 import type { Sql } from "postgres";
-import { db, wordlistId } from "./db.ts";
+import { db, wordlistId } from "./db.js";
 import {
   GAME_DURATION_SECONDS,
   MAX_TARGET_LENGTH,
@@ -24,7 +24,7 @@ import {
   scrambleWord,
   signatureOf,
   subSignatures,
-} from "./words.ts";
+} from "./words.js";
 
 export interface Reply {
   status: number;

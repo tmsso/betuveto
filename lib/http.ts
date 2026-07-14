@@ -4,7 +4,7 @@
  * logic worth testing and lib/game.ts can be tested without a server.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { Reply } from "./game.ts";
+import type { Reply } from "./game.js";
 
 type Logic = (req: VercelRequest) => Promise<Reply>;
 

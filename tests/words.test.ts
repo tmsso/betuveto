@@ -11,7 +11,7 @@ import {
   scrambleWord,
   signatureOf,
   subSignatures,
-} from "../lib/words.ts";
+} from "../lib/words.js";
 
 describe("canFormWord — accents and double letters", () => {
   // Ported from backend/tests/test_api.py::test_can_form_word_accents_and_doubles.

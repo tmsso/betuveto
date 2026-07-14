@@ -1,4 +1,4 @@
-import { getPossibleCount } from "../../../../../lib/game.ts";
-import { gameId, handler } from "../../../../../lib/http.ts";
+import { getPossibleCount } from "../../../../../lib/game.js";
+import { gameId, handler } from "../../../../../lib/http.js";
 
 export default handler("GET", (req) => getPossibleCount(gameId(req)));

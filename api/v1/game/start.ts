@@ -1,6 +1,6 @@
-import { startGame } from "../../../lib/game.ts";
-import { handler, intQuery } from "../../../lib/http.ts";
-import { DEFAULT_TARGET_LENGTH, GAME_DURATION_SECONDS } from "../../../lib/words.ts";
+import { startGame } from "../../../lib/game.js";
+import { handler, intQuery } from "../../../lib/http.js";
+import { DEFAULT_TARGET_LENGTH, GAME_DURATION_SECONDS } from "../../../lib/words.js";
 
 export default handler("POST", (req) =>
   startGame(

@@ -24,7 +24,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { canFormWord, letterCount, normalizeWord, signatureOf } from "../lib/words.ts";
+import { canFormWord, letterCount, normalizeWord, signatureOf } from "../lib/words.js";
 
 const BASE_URL = process.env.BASE_URL?.replace(/\/$/, "");
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;

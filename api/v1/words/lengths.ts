@@ -1,4 +1,4 @@
-import { getAvailableLengths } from "../../../lib/game.ts";
-import { handler } from "../../../lib/http.ts";
+import { getAvailableLengths } from "../../../lib/game.js";
+import { handler } from "../../../lib/http.js";
 
 export default handler("GET", () => getAvailableLengths());
