@@ -78,9 +78,9 @@ npm test          # unit tests (board/letter rules) — no database needed
 npm run typecheck
 
 # The full HTTP contract suite against a deployment (ports backend/tests/test_api.py):
-BASE_URL=https://<preview>.vercel.app npm test
+API_BASE_URL=https://<preview>.vercel.app npm test
 # ...and if Vercel deployment protection is on:
-BASE_URL=… VERCEL_AUTOMATION_BYPASS_SECRET=… npm test
+API_BASE_URL=… VERCEL_AUTOMATION_BYPASS_SECRET=… npm test
 ```
 
 ## Database (Supabase)

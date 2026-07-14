@@ -11,13 +11,13 @@
  *
  * Point them at any deployment:
  *
- *   BASE_URL=https://<preview>.vercel.app npm test
+ *   API_BASE_URL=https://<preview>.vercel.app npm test
  *
  * With Vercel deployment protection on, also pass the automation bypass secret:
  *
- *   BASE_URL=... VERCEL_AUTOMATION_BYPASS_SECRET=... npm test
+ *   API_BASE_URL=... VERCEL_AUTOMATION_BYPASS_SECRET=... npm test
  *
- * Without BASE_URL the suite is skipped, so `npm test` still runs the unit tests
+ * Without API_BASE_URL the suite is skipped, so `npm test` still runs the unit tests
  * anywhere (including CI, which has no database).
  */
 import { readFile } from "node:fs/promises";
@@ -26,7 +26,9 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { canFormWord, letterCount, normalizeWord, signatureOf } from "../lib/words.js";
 
-const BASE_URL = process.env.BASE_URL?.replace(/\/$/, "");
+// Not BASE_URL: that is a Vite/Vitest reserved variable (the app's public base path), so
+// Vitest would overwrite whatever the shell set with "/".
+const BASE_URL = process.env.API_BASE_URL?.replace(/\/$/, "");
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -72,9 +74,13 @@ let bySignature = new Map<string, string[]>();
 beforeAll(async () => {
   if (!BASE_URL) return;
   const raw = await readFile(path.join(REPO_ROOT, "data", "magyar-szavak.txt"), "utf-8");
+  // De-duplicate exactly as the importer does: the file has repeated lines, and the API's
+  // count and solution lists reflect the de-duplicated table, not the raw file.
+  const seen = new Set<string>();
   for (const line of raw.split(/\r?\n/)) {
     const word = normalizeWord(line);
-    if (!word) continue;
+    if (!word || seen.has(word)) continue;
+    seen.add(word);
     dictionary.push(word);
     const signature = signatureOf(word);
     const bucket = bySignature.get(signature);
