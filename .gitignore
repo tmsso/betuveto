@@ -83,6 +83,11 @@ secrets.toml
 !supabase/config.toml
 !supabase/.gitignore
 
+# The `lib/` rule above targets Python build output. Our shared TypeScript game logic
+# also lives in lib/ and must be committed — the API functions import it.
+!lib/
+!lib/**
+
 # Openclaw / agent runtime (never commit these)
 .clawhub/
 .openclaw/
@@ -106,3 +111,7 @@ cam_*.jpg
 *.pdf
 *_results*.csv
 zrinyi_*/
+# Vercel CLI project link and the secrets it pulls. `.env*` (as the CLI writes it) would
+# also swallow the committed .env.example, so be specific.
+.vercel/
+.env.local
