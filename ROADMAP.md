@@ -213,7 +213,7 @@ container/infra polish that the migration makes moot (flagged per item).*
 but after this batch the app runs on the target architecture with real persistence, and
 the HF Space is gone. Requires Batch 0 (especially 0.10's contract tests) to be done first.*
 
-### 1.1 `[ ]` Supabase project + schema
+### 1.1 `[x]` Supabase project + schema
 - Create the Supabase project; commit SQL migrations (`supabase/migrations/`) for:
   - `players(id UUID pk references auth.users, created_at, display_name nullable, is_admin bool default false, preferred_length int nullable)`
   - `games(id UUID pk, player_id fk nullable, wordlist_id fk, target_word, target_length, started_at, ends_at, ended_at nullable, final_score, found_count, possible_count, status enum[active,finished,abandoned,given_up])`

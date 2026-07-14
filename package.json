@@ -1,0 +1,19 @@
+{
+  "name": "betuveto",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Betűvető — Hungarian word game: repo-root tooling (Supabase migrations + data import). The React frontend lives in frontend/.",
+  "scripts": {
+    "supabase": "supabase",
+    "db:import": "tsx scripts/import-wordlist.ts",
+    "db:verify": "tsx scripts/verify-db.ts"
+  },
+  "dependencies": {
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "supabase": "^2.20.5",
+    "tsx": "^4.19.2"
+  }
+}
