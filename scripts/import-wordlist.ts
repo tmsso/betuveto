@@ -26,14 +26,12 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import postgres from "postgres";
+// The API scores guesses against the same rules the importer stores rows by, so both
+// read them from one place — a divergence here would silently make words unfindable.
+import { letterCount, normalizeWord, signatureOf } from "../lib/words.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// Match the backend contract: guesses must be >= 3 letters, and the dictionary is
-// loaded up to 15 letters (backend MAX_WORD_LENGTH). Words outside this range can
-// never be a valid guess for a 5–10 letter board, so we skip them.
-export const MIN_WORD_LENGTH = 3;
-export const MAX_WORD_LENGTH = 15;
 const BATCH_SIZE = 2000;
 
 export interface Args {
@@ -58,21 +56,6 @@ export function parseArgs(argv: string[]): Args {
   }
   if (positional[0]) file = path.resolve(positional[0]);
   return { file, code, name, dryRun };
-}
-
-/** Trim, NFC-normalise, uppercase. Returns null if the word is out of range. */
-export function normalizeWord(raw: string): string | null {
-  const word = raw.trim().normalize("NFC").toUpperCase();
-  if (!word) return null;
-  const length = Array.from(word).length; // count code points, not UTF-16 units
-  if (length < MIN_WORD_LENGTH || length > MAX_WORD_LENGTH) return null;
-  return word;
-}
-
-/** Letters sorted by code point — a board can form exactly the words whose
- *  signature is a multiset-subset of the board's own signature. */
-export function signatureOf(word: string): string {
-  return Array.from(word).sort().join("");
 }
 
 export interface WordRow {
@@ -106,7 +89,7 @@ export async function readWords(
       continue;
     }
     seen.add(word);
-    rows.push({ word, length: Array.from(word).length, signature: signatureOf(word) });
+    rows.push({ word, length: letterCount(word), signature: signatureOf(word) });
   }
   return rows;
 }

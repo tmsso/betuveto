@@ -10,27 +10,11 @@
  * Read-only: this script never writes.
  */
 import postgres from "postgres";
-import { normalizeWord, signatureOf } from "./import-wordlist.ts";
+import { MIN_WORD_LENGTH, canFormWord, normalizeWord, signatureOf, subSignatures } from "../lib/words.js";
 
 const TABLES = ["players", "wordlists", "words", "games", "game_guesses", "word_stats"];
 const EXPECTED_WORDS = 155107;
 const BOARD = "HANGKÖZ"; // a 7-letter target with no repeated letters
-
-/** Every distinct sub-multiset of the board's letters, as sorted signatures. */
-export function subSignatures(board: string, minLength: number): string[] {
-  const letters = Array.from(board).sort();
-  const out = new Set<string>();
-  const walk = (i: number, picked: string[]) => {
-    if (i === letters.length) {
-      if (picked.length >= minLength) out.add(picked.join(""));
-      return;
-    }
-    walk(i + 1, [...picked, letters[i]]);
-    walk(i + 1, picked);
-  };
-  walk(0, []);
-  return [...out];
-}
 
 let failures = 0;
 function check(label: string, actual: unknown, expected: unknown): void {
@@ -80,7 +64,7 @@ async function main(): Promise<void> {
 
     console.log(`\nSignature-subset query (board '${BOARD}' — the Batch 1.2 hot path)`);
     const board = normalizeWord(BOARD)!;
-    const signatures = subSignatures(signatureOf(board), 3);
+    const signatures = subSignatures(signatureOf(board), MIN_WORD_LENGTH);
     console.log(`  board signature ${signatureOf(board)} -> ${signatures.length} sub-signatures`);
 
     const started = Date.now();
@@ -94,21 +78,10 @@ async function main(): Promise<void> {
 
     // Cross-check against the brute-force definition the Python backend uses: a word is
     // playable iff every letter fits in the board's letter budget.
-    const budget = new Map<string, number>();
-    for (const ch of board) budget.set(ch, (budget.get(ch) ?? 0) + 1);
-    const canForm = (word: string): boolean => {
-      const left = new Map(budget);
-      for (const ch of word) {
-        const n = left.get(ch) ?? 0;
-        if (n === 0) return false;
-        left.set(ch, n - 1);
-      }
-      return true;
-    };
     const all = await sql<{ word: string }[]>`
       select word from words where wordlist_id = ${list.id} and active order by word
     `;
-    const brute = all.map((r) => r.word).filter(canForm);
+    const brute = all.map((r) => r.word).filter((word) => canFormWord(word, board));
     check("signature-subset count == brute-force count", found.length, brute.length);
     check(
       "same words",
