@@ -111,3 +111,7 @@ cam_*.jpg
 *.pdf
 *_results*.csv
 zrinyi_*/
+# Vercel CLI project link and the secrets it pulls. `.env*` (as the CLI writes it) would
+# also swallow the committed .env.example, so be specific.
+.vercel/
+.env.local
