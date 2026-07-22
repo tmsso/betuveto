@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Betűvető — Hungarian word game: Vercel API functions (api/), shared game logic (lib/), and Supabase tooling (scripts/). The React frontend lives in frontend/.",
+  "description": "Betűvető — Hungarian word game: Vercel API functions (api/), shared game logic (lib/), and Neon DB tooling (scripts/, migrations/). The React frontend lives in frontend/.",
   "scripts": {
-    "supabase": "supabase",
     "build": "npm --prefix frontend ci && npm --prefix frontend run build -- --outDir ../dist --emptyOutDir",
+    "db:migrate": "tsx scripts/migrate.ts",
     "db:import": "tsx scripts/import-wordlist.ts",
     "db:verify": "tsx scripts/verify-db.ts",
     "test": "vitest run",
@@ -19,7 +19,6 @@
   "devDependencies": {
     "@types/node": "^26.1.1",
     "@vercel/node": "^5.1.14",
-    "supabase": "^2.20.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"

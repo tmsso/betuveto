@@ -1,12 +1,12 @@
 /**
- * Postgres access for the Vercel functions.
+ * Postgres access for the Vercel functions (Neon).
  *
- * The Vercel–Supabase connector injects POSTGRES_URL (the pooled connection); we fall
- * back to DATABASE_URL so the same code runs from a local shell and from the tests.
+ * The Vercel–Neon integration injects POSTGRES_URL (the pooled connection); we fall back
+ * to DATABASE_URL so the same code runs from a local shell and from the tests.
  *
  * Two settings matter and are not defaults:
- *   - `prepare: false` — Supabase's pooler runs pgBouncer in transaction mode, which
- *     cannot hold named prepared statements across statements in a pool.
+ *   - `prepare: false` — use Neon's *pooled* endpoint, which runs PgBouncer in transaction
+ *     mode; it cannot hold named prepared statements across statements in a pool.
  *   - a small `max` — every concurrent serverless invocation opens its own pool, so a
  *     large per-instance pool multiplies into the connection limit under load.
  */

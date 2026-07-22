@@ -86,15 +86,16 @@ API_BASE_URL=… VERCEL_AUTOMATION_BYPASS_SECRET=… npm test
 ## Database (Neon)
 
 The target architecture (ROADMAP Batch 1) puts persistence on **Neon** serverless Postgres
-(Neon also provides the auth in Batch 2). Schema lives as SQL migrations; the dictionary is
-loaded into the `words` table (each row stores a `signature` — its letters sorted — so
-possible-words is one indexed query rather than a full scan).
+(Neon also provides the auth in Batch 2). Schema lives as SQL migrations in
+[`migrations/`](./migrations); the dictionary is loaded into the `words` table (each row
+stores a `signature` — its letters sorted — so possible-words is one indexed query rather
+than a full scan).
 
-> **Migration status:** the schema, importer and API were first built on **Supabase**
-> (#9, #10). Re-pointing them to Neon is ROADMAP **Batch 1.5** (separate session). Until it
-> lands, the scripts and `.env.example` are still Supabase-named (`npm run supabase -- db
-> push`, `SUPABASE_*` vars); 1.5 swaps them for a `pg`-based `npm run db:migrate` and a
-> single Neon `DATABASE_URL`.
+> **Status:** the schema, importer and API were first built on Supabase (#9, #10) and the
+> code has been re-pointed to Neon (ROADMAP Batch 1.5): plain-SQL migrations in
+> `migrations/`, a `db:migrate` runner, and a single `DATABASE_URL` (no Supabase CLI or
+> `SUPABASE_*` vars). What remains is the live apply — it needs a Neon project, so run the
+> commands below once you have one. Not yet run against a live Neon database.
 
 ```bash
 npm install                       # repo-root tooling (importer, migration runner)
@@ -104,7 +105,7 @@ npm run db:import -- --dry-run
 
 # Apply migrations + import the wordlist to the CLOUD database (set DATABASE_URL to the
 # Neon pooled connection string first — see .env.example):
-npm run db:migrate                # Batch 1.5 (currently `npm run supabase -- db push`)
+npm run db:migrate                # apply migrations/*.sql (tracked in schema_migrations)
 npm run db:import
 
 # Check the deployed database: schema, row counts, and that the signature lookup returns

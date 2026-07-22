@@ -1,5 +1,5 @@
 /**
- * Import a flat wordlist file into the Supabase `words` table (ROADMAP Batch 1.1).
+ * Import a flat wordlist file into the Neon `words` table (ROADMAP Batch 1.1 / 1.5).
  *
  * Idempotent: safe to re-run. Existing words are updated in place (length/signature
  * recomputed); their `active`/`source` are left untouched so curation (Batch 4/5) is
@@ -10,11 +10,10 @@
  * letters sorted by code point — matching the letter-by-letter, digraph-agnostic
  * matching the game has always used (ROADMAP decision 6.3).
  *
- * Usage (point DATABASE_URL at the CLOUD Supabase project — never a locally-hosted
- * stack). Prefer the *pooler* connection string from the Supabase dashboard: the direct
- * host (db.<ref>.supabase.co) is IPv6-only, so it is unreachable from IPv4-only networks.
+ * Usage (point DATABASE_URL at the Neon database). Prefer the *pooled* connection string
+ * so serverless/one-shot connections go through Neon's pooler:
  *
- *   DATABASE_URL='postgresql://postgres.<ref>:...@aws-0-<region>.pooler.supabase.com:6543/postgres' \
+ *   DATABASE_URL='<neon pooled connection string>' \
  *     npm run db:import -- [path/to/wordlist.txt] [--code hu] [--name "Magyar"]
  *
  *   # Validate parsing/normalisation without any database:
@@ -120,17 +119,17 @@ async function runImport(file: string, code: string, name: string): Promise<void
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     console.error(
-      "ERROR: set DATABASE_URL to the CLOUD Supabase connection string, e.g.\n" +
-        "  DATABASE_URL='postgresql://postgres:...@db.<ref>.supabase.co:5432/postgres' npm run db:import\n" +
+      "ERROR: set DATABASE_URL to the Neon connection string, e.g.\n" +
+        "  DATABASE_URL='<neon pooled connection string>' npm run db:import\n" +
         "(Use --dry-run to validate parsing without a database.)",
     );
     process.exit(1);
   }
 
   console.log(`Importing "${file}" into wordlist '${code}' (${name})`);
-  // `prepare: false` keeps this working through Supabase's transaction pooler
-  // (pgBouncer transaction mode can't hold named prepared statements). Negligible
-  // cost for a one-shot bulk import, and robust to whichever connection string is used.
+  // `prepare: false` keeps this working through Neon's transaction pooler (pgBouncer
+  // transaction mode can't hold named prepared statements). Negligible cost for a one-shot
+  // bulk import, and robust to whichever connection string is used.
   const sql = postgres(databaseUrl, { onnotice: () => {}, prepare: false });
 
   try {
@@ -185,19 +184,16 @@ async function main() {
 }
 
 /**
- * The direct database host (db.<ref>.supabase.co) publishes an AAAA record only, so on an
- * IPv4-only network the connection silently hangs until it times out. Point the user at the
- * pooler rather than making them dig through a stack trace.
+ * A connection timeout usually means DATABASE_URL points at an unreachable host. Nudge the
+ * user toward Neon's pooled connection string rather than making them read a stack trace.
  */
 function explain(err: unknown): void {
-  const { code, address } = (err ?? {}) as { code?: string; address?: string };
-  if (code !== "CONNECT_TIMEOUT" || !address?.startsWith("db.")) return;
+  const { code } = (err ?? {}) as { code?: string };
+  if (code !== "CONNECT_TIMEOUT") return;
   console.error(
-    `\nCould not reach ${address} — that is Supabase's *direct* host, which is IPv6-only.\n` +
-      "If your network has no public IPv6 route, use the pooler connection string instead\n" +
-      "(Supabase dashboard -> Project Settings -> Database -> Connection string -> Transaction\n" +
-      "pooler). It looks like:\n\n" +
-      "  postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres\n",
+    "\nConnection timed out. Use Neon's *pooled* connection string in DATABASE_URL\n" +
+      "(Neon dashboard -> Connection Details -> Pooled connection). It looks like:\n\n" +
+      "  postgresql://<user>:<password>@<endpoint>-pooler.<region>.aws.neon.tech/<db>?sslmode=require\n",
   );
 }
 

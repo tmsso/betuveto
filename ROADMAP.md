@@ -69,14 +69,15 @@ These are decided once, here, so individual batches don't re-litigate them:
    Auth/Realtime SDKs are first-class. The Python backend (`backend/`) is deleted once
    the port is verified against the Batch 0 contract tests.
 3. **Database: Neon Postgres.** Schema lives as plain SQL migrations in `migrations/`,
-   applied by a small `pg`-based runner (`npm run db:migrate`) — there is no Supabase CLI.
-   Serverless functions query through the **`@neondatabase/serverless`** driver (HTTP/WS),
-   which needs no connection pool and sidesteps the IPv4/IPv6 direct-host issues Supabase
-   had; migrations/scripts use the pooled connection string. **The security boundary is that
-   the client never receives DB credentials at all** — every query runs in a Vercel function
-   holding `DATABASE_URL`, so no table of answers is ever client-readable. (Postgres RLS is
-   therefore optional here — defense-in-depth, not load-bearing as it was under Supabase's
-   anon key.)
+   applied by a small postgres.js runner (`npm run db:migrate`) — there is no Supabase CLI.
+   Serverless functions query through **postgres.js** against Neon's pooled connection
+   string (`prepare:false`, since the pooler is PgBouncer transaction-mode) — no driver swap
+   was needed from the Supabase build, which already used postgres.js. (Neon's
+   `@neondatabase/serverless` HTTP driver is an option if per-invocation connection setup
+   ever becomes a bottleneck.) **The security boundary is that the client never receives DB
+   credentials at all** — every query runs in a Vercel function holding `DATABASE_URL`, so no
+   table of answers is ever client-readable. (Postgres RLS is therefore optional here —
+   defense-in-depth, not load-bearing as it was under Supabase's anon key.)
 4. **Identity: anonymous-first via Neon Auth.** Neon Auth (managed Better Auth) is the
    primary identity (Batch 2); Google OAuth arrives later (Batch 8) as an *identity link*
    on the same user — an upgrade for cross-device continuity, never a login wall. Nobody is
@@ -287,21 +288,28 @@ runner, auth wiring and env vars change.*
 - Backups: Neon's free tier keeps limited history, so add a monthly `pg_dump` via GitHub
   Actions to a private artifact once score data starts mattering.
 
-### 1.5 `[ ]` Re-point persistence from Supabase to Neon
-- Create the Neon project; copy the **pooled** connection string into `DATABASE_URL`
-  (server-only). Neon's driver is HTTP/WS, so there is no IPv4/IPv6 direct-host caveat.
-- Move `supabase/migrations/*.sql` → `migrations/`; strip Supabase-isms: the
-  `players.id references auth.users` FK (Neon Auth stores users separately — make
-  `players.id` a standalone UUID for now, re-link in Batch 2), any `auth.*`/`storage.*`
-  grants, and the RLS policies (optional on Neon — see decision 3). Apply via a `pg`-based
-  `npm run db:migrate` runner.
-- Swap the DB layer in `lib/db.ts` from `@supabase/*`/pooler wiring to
-  `@neondatabase/serverless`; keep the query surface identical so the API code is untouched.
-- Re-point the importer/verify scripts (`npm run db:import`, `db:verify`) at Neon.
-- Delete `supabase/`, the `@supabase/supabase-js` dependency, the Vercel↔Supabase connector,
-  and all `SUPABASE_*` env vars; update `.env.example` + README.
-- **Accept:** the Batch 0 HTTP contract suite passes against a Vercel preview backed by Neon;
-  no `supabase` references remain in code or config.
+### 1.5 `[~]` Re-point persistence from Supabase to Neon
+*Prep is done without a live DB; the apply waits on a Neon project (the old Supabase DB is
+paused and cannot be revived, so the DB is built from scratch on Neon — nothing to migrate
+data-wise).*
+
+**Prep (done — no live DB needed):**
+- From-scratch schema `migrations/0001_init.sql` (consolidates the two Supabase-era
+  migrations), de-Supabased: `players.id` is a standalone UUID (no `auth.users` FK; Batch 2
+  links it to Neon Auth), and RLS is dropped (optional on Neon — see decision 3).
+- `scripts/migrate.ts` + `npm run db:migrate`: a postgres.js runner with a
+  `schema_migrations` tracking table. **No driver swap** — the DB layer already uses
+  `postgres` (postgres.js), which talks to Neon's pooled endpoint directly; `prepare:false`
+  stays correct (Neon's pooler is also PgBouncer transaction-mode).
+- De-Supabased the tooling: removed `supabase/`, the `supabase` CLI dependency and script;
+  re-pointed `import-wordlist.ts` / `verify-db.ts` (dropped the RLS check) and the `lib/db.ts`
+  comments; updated `.env.example` (single `DATABASE_URL`, no `SUPABASE_*`) + README.
+
+**Apply (needs the Neon project — do once registration is possible):**
+- Create the Neon project; put its **pooled** connection string in `DATABASE_URL`.
+- `npm run db:migrate` → `npm run db:import` → `npm run db:verify`.
+- **Accept:** `db:verify` is green and the Batch 0 HTTP contract suite passes against a
+  Vercel preview backed by Neon (`API_BASE_URL=<preview> npm test`).
 
 ---
 
