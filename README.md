@@ -12,8 +12,8 @@ finding every possible word clears the board.
 
 > A batch-by-batch plan for where this project is headed (persistence, accounts,
 > multiplayer, i18n, admin tools, Android) lives in [`ROADMAP.md`](./ROADMAP.md).
-> The target architecture is Vercel + Supabase; the current FastAPI backend is
-> the interim implementation.
+> The target architecture is Vercel + Neon (Postgres + auth), with Ably for realtime
+> once multiplayer lands; the current FastAPI backend is the interim implementation.
 
 ## Development setup
 
@@ -83,38 +83,38 @@ API_BASE_URL=https://<preview>.vercel.app npm test
 API_BASE_URL=… VERCEL_AUTOMATION_BYPASS_SECRET=… npm test
 ```
 
-## Database (Supabase)
+## Database (Neon)
 
-The target architecture (ROADMAP Batch 1) moves persistence to Supabase Postgres.
-Schema lives as SQL migrations under [`supabase/migrations/`](./supabase/migrations);
-the dictionary is loaded into the `words` table (each row stores a `signature` — its
-letters sorted — so possible-words is one indexed query rather than a full scan).
+The target architecture (ROADMAP Batch 1) puts persistence on **Neon** serverless Postgres
+(Neon also provides the auth in Batch 2). Schema lives as SQL migrations; the dictionary is
+loaded into the `words` table (each row stores a `signature` — its letters sorted — so
+possible-words is one indexed query rather than a full scan).
+
+> **Migration status:** the schema, importer and API were first built on **Supabase**
+> (#9, #10). Re-pointing them to Neon is ROADMAP **Batch 1.5** (separate session). Until it
+> lands, the scripts and `.env.example` are still Supabase-named (`npm run supabase -- db
+> push`, `SUPABASE_*` vars); 1.5 swaps them for a `pg`-based `npm run db:migrate` and a
+> single Neon `DATABASE_URL`.
 
 ```bash
-npm install                       # repo-root tooling (Supabase CLI, importer)
+npm install                       # repo-root tooling (importer, migration runner)
 
 # Validate the importer's parsing/normalisation without any database:
 npm run db:import -- --dry-run
 
-# Apply migrations + import the wordlist to the CLOUD project (set DATABASE_URL to
-# the Supabase connection string first — see .env.example):
-npm run supabase -- db push
+# Apply migrations + import the wordlist to the CLOUD database (set DATABASE_URL to the
+# Neon pooled connection string first — see .env.example):
+npm run db:migrate                # Batch 1.5 (currently `npm run supabase -- db push`)
 npm run db:import
 
-# Check the deployed database: schema, RLS, row counts, and that the signature
-# lookup returns the right words via the index rather than a 155k-row scan.
+# Check the deployed database: schema, row counts, and that the signature lookup returns
+# the right words via the index rather than a full scan.
 npm run db:verify
 ```
 
-> **Use the pooler connection string**, not the direct one. Supabase's direct host
-> (`db.<ref>.supabase.co`) resolves to an IPv6 address only, so it is unreachable from an
-> IPv4-only network and connections just time out. The transaction pooler
-> (`aws-0-<region>.pooler.supabase.com:6543`) is dual-stack; the importer sets
-> `prepare: false` so it works through pgBouncer. If the CLI cannot reach the direct host
-> either, apply the migration by pasting it into the dashboard's SQL Editor.
-
-> **Do not run a local Supabase stack** (`supabase start`) on a resource-constrained
-> machine — it launches ~10 containers. Apply and validate against the hosted project.
+> **Connection:** put Neon's **pooled** connection string in `DATABASE_URL`. The
+> `@neondatabase/serverless` driver talks over HTTP/WebSocket, so there's no IPv4/IPv6
+> direct-host problem to work around (that caveat was Supabase-specific).
 
 ## Tests
 
