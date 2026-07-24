@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+}
+
+/* Accessibility: honour the OS "reduce motion" setting. Neutralises the CSS animations
+   (shake, bounce-in, pulse) and transitions for users who are sensitive to motion. The
+   confetti canvas is additionally skipped in JS (see fireConfetti/fireExplosion). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
