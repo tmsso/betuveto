@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "devCommand": "npm --prefix frontend run dev -- --port $PORT --strictPort",
   "rewrites": [
     { "source": "/api/game/:path*", "destination": "/api/v1/game/:path*" },
     { "source": "/api/words/:path*", "destination": "/api/v1/words/:path*" },

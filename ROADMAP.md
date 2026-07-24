@@ -273,20 +273,27 @@ runner, auth wiring and env vars change.*
 - **Accept:** full game flow works against a Vercel preview deployment; a redeploy
   mid-game loses nothing.
 
-### 1.3 `[ ]` Frontend cutover + retire the Python stack
-- Frontend and API are now same-origin: drop `VITE_API_BASE_URL` plumbing and the Vite
-  dev proxy in favour of `vercel dev` (update `run_dev.sh` accordingly); delete the
-  `/api/game/start/body` fallback if 0.8 hasn't already.
-- Delete `backend/`, `hf_sync.yml` and the HF Space itself once the Vercel deployment is
-  verified. Update README/`.env.example` for the new stack (`DATABASE_URL` for the Neon
-  connection, server-only — never in a `VITE_*` var; auth keys land in Batch 2).
+### 1.3 `[x]` Frontend cutover + retire the Python stack
+- Frontend and API are same-origin: dropped `VITE_API_BASE_URL` and the Vite dev proxy in
+  favour of `vercel dev` (`vercel.json` gained a `devCommand` that runs the Vite dev server
+  and lets `vercel dev` proxy to it; `run_dev.sh` is now just `exec npx vercel dev`).
+  Verified locally: `/api/v1/health`, `/api/words/count`, and the frontend all serve
+  correctly from one `vercel dev` origin. The `/api/game/start/body` fallback was already
+  gone (0.8).
+- Deleted `backend/` and `.github/workflows/hf_sync.yml` (CI's backend pytest job dropped
+  too). Updated README/`frontend/README.md`/`.env.example` for the new stack.
+- **Not done by this PR:** the Hugging Face Space itself still exists on HF's side — this
+  repo no longer pushes to it, but deleting the Space is a separate action on that account.
 
-### 1.4 `[ ]` Ops & backups
+### 1.4 `[x]` Ops & backups
 - **No keep-alive needed** — Neon has no inactivity pause; it scales to zero and resumes on
   the next query. (This item existed only for Supabase's 7-day pause; dropped.)
-- A tiny `/api/v1/health` route (one cheap DB read) is still worth having for uptime checks.
-- Backups: Neon's free tier keeps limited history, so add a monthly `pg_dump` via GitHub
-  Actions to a private artifact once score data starts mattering.
+- `/api/v1/health` (one cheap `select 1`) shipped, covered by the contract suite, verified
+  live against a Neon-backed preview.
+- Backups: **intentionally deferred**, per this item's own condition — there's no score
+  data yet (Batch 2 identity hasn't shipped). Revisit the monthly `pg_dump` GitHub Actions
+  backup once real player/game data exists to protect. (The earlier blocker — the push
+  token lacking the `workflow` scope — is resolved; the token now has it.)
 
 ### 1.5 `[x]` Re-point persistence from Supabase to Neon
 *The old Supabase DB was paused and unrecoverable, so this was a from-scratch build on

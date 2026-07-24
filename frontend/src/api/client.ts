@@ -6,7 +6,8 @@
  * the client stores it and threads it through every subsequent call.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Frontend and API are same-origin (Vercel serves both) — no base URL to configure.
+const API_BASE_URL = '/api';
 
 export interface StartGameResult {
   game_id: string;

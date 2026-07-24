@@ -314,4 +314,10 @@ describeApi("Betűvető API contract", () => {
     const lengths = await call("GET", "/api/words/lengths");
     expect(lengths.json.available_lengths).toContain(7);
   });
+
+  it("health route confirms a live DB connection (ROADMAP 1.4)", async () => {
+    const { status, json } = await call("GET", "/api/v1/health");
+    expect(status).toBe(200);
+    expect(json.ok).toBe(true);
+  });
 });
