@@ -39,6 +39,10 @@ function App() {
   const [isTimerActive, setIsTimerActive] = useState(false)
   const [isTimeUp, setIsTimeUp] = useState(false)
   const [scoreAtExpiry, setScoreAtExpiry] = useState(0)
+  // Time-remaining bonus for a full board clear, as computed by the server (ROADMAP
+  // 3.2) — read from the winning guess's response, never recomputed from the client's
+  // own countdown, so a slow network round-trip can't cost (or gain) bonus seconds.
+  const [completionBonus, setCompletionBonus] = useState(0)
   const [isFailedWord, setIsFailedWord] = useState(false)
 
   // UI state
@@ -182,11 +186,12 @@ function App() {
     if (possibleWordsCount > 0 && foundWords.length === possibleWordsCount && !allPossibleWordsFound) {
       setAllPossibleWordsFound(true);
       setIsTimerActive(false);
-      // Add remaining seconds to score
-      setScoreAtExpiry(totalScore + timeLeft);
+      // completionBonus comes from the server's guess response (lib/game.ts), computed
+      // from the actual time remaining when the last word was scored.
+      setScoreAtExpiry(totalScore + completionBonus);
       setIsTimeUp(true);
     }
-  }, [foundWords, possibleWordsCount, totalScore, timeLeft, allPossibleWordsFound]);
+  }, [foundWords, possibleWordsCount, totalScore, completionBonus, allPossibleWordsFound]);
 
   // Letter reveal animation effect
   useEffect(() => {
@@ -225,6 +230,7 @@ function App() {
       setCurrentAnimatingIndex(-1)
       setIsTimeUp(false)
       setScoreAtExpiry(0)
+      setCompletionBonus(0)
 
       // The full solution list is no longer served while a game is active
       // (it would leak the answers). Only the count is known up front; the
@@ -318,7 +324,13 @@ function App() {
           if (!isTimeUp) {
             setFoundWords((prevWords) => [...prevWords, guess])
             setJustFoundWord(guess)
-            
+
+            // The board-clear celebration effect (below) reads this once foundWords
+            // catches up to possibleWordsCount, on the same render.
+            if (response.game_ended) {
+              setCompletionBonus(response.completion_bonus ?? 0)
+            }
+
             // If the target word is guessed, mark as learned
             if (response.is_target) {
                 recordFailedWord(guess, true);

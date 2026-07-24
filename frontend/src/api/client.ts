@@ -31,6 +31,8 @@ export interface GameResult {
   is_target?: boolean;
   total_score?: number;
   found_count?: number;
+  /** Time-remaining bonus folded into total_score once game_ended (ROADMAP 3.2). Server-computed. */
+  completion_bonus?: number;
 }
 
 export interface GameState {
