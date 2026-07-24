@@ -288,12 +288,11 @@ runner, auth wiring and env vars change.*
 - Backups: Neon's free tier keeps limited history, so add a monthly `pg_dump` via GitHub
   Actions to a private artifact once score data starts mattering.
 
-### 1.5 `[~]` Re-point persistence from Supabase to Neon
-*Prep is done without a live DB; the apply waits on a Neon project (the old Supabase DB is
-paused and cannot be revived, so the DB is built from scratch on Neon — nothing to migrate
-data-wise).*
+### 1.5 `[x]` Re-point persistence from Supabase to Neon
+*The old Supabase DB was paused and unrecoverable, so this was a from-scratch build on
+Neon — nothing to migrate data-wise.*
 
-**Prep (done — no live DB needed):**
+**Prep:**
 - From-scratch schema `migrations/0001_init.sql` (consolidates the two Supabase-era
   migrations), de-Supabased: `players.id` is a standalone UUID (no `auth.users` FK; Batch 2
   links it to Neon Auth), and RLS is dropped (optional on Neon — see decision 3).
@@ -305,19 +304,16 @@ data-wise).*
   re-pointed `import-wordlist.ts` / `verify-db.ts` (dropped the RLS check) and the `lib/db.ts`
   comments; updated `.env.example` (single `DATABASE_URL`, no `SUPABASE_*`) + README.
 
-**Apply (needs the Neon project — do once registration is possible):**
-- Create the Neon project; put its **pooled** connection string in `DATABASE_URL`.
-- `npm run db:migrate` → `npm run db:import` → `npm run db:verify`.
-- **Accept:** `db:verify` is green and the Batch 0 HTTP contract suite passes against a
-  Vercel preview backed by Neon (`API_BASE_URL=<preview> npm test`).
-
-> **Handoff note (for a fresh session picking this up):** the prep above —
-> `migrations/`, `scripts/migrate.ts`, the de-Supabased tooling and docs — lives on branch
-> `claude/codebase-roadmap-analysis-n4qbim` (PR #11) and is **not yet merged to `main`**. A
-> new session that clones `main` will not see any of it. Either **merge PR #11 first** and
-> then sync `main`, or check out `claude/codebase-roadmap-analysis-n4qbim` directly. The old
-> Supabase DB is paused and unrecoverable, so there is no data to migrate — build fresh on
-> Neon with the three commands above.
+**Apply — done 2026-07-24:**
+- Neon project created (`eu-central-1`); pooled connection string set as `DATABASE_URL`
+  locally and as `DATABASE_URL` on Vercel (Production + Preview + Development).
+- `npm run db:migrate` → `npm run db:import` (155,107 words, same count as the Supabase
+  build) → `npm run db:verify` (schema, RLS-dropped tables, and the signature-subset index
+  scan all green).
+- **Accept, verified:** `db:verify` passed, and the Batch 0/1.2 HTTP contract suite (37
+  tests) passed against a live Vercel preview backed by Neon
+  (`API_BASE_URL=<preview> VERCEL_AUTOMATION_BYPASS_SECRET=<secret> npm test`) — same
+  deployment-protection-bypass gotcha as the Supabase round applied here too.
 
 ---
 
