@@ -325,7 +325,7 @@ Neon — nothing to migrate data-wise.*
 
 ## Batch 2 — Player identity (anonymous), server high scores, word-length option
 
-### 2.1 `[ ]` Anonymous identity via a signed cookie (Neon Auth reserved for Google, Batch 8)
+### 2.1 `[x]` Anonymous identity via a signed cookie (Neon Auth reserved for Google, Batch 8)
 - **Confirmed 2026-07-24 (see architecture decision 4): Neon's managed Better Auth does not
   support anonymous sessions.** Its documented supported-plugin list (Admin, Email OTP, JWT,
   Magic Link, Organization, Open API, Phone Number) does not include Better Auth's
@@ -336,6 +336,14 @@ Neon — nothing to migrate data-wise.*
 - On first visit, the API mints a signed, HTTP-only anonymous cookie (device identity, like
   a save file) and resolves or creates the matching `players` row from it. No UI, no consent
   friction. Neon Auth is reserved for the Google OAuth upgrade in Batch 8.
+- **Shipped 2026-07-24:** `lib/auth.ts` (UUID + HMAC-SHA256, timing-safe verification) wired
+  into `POST /api/game/start` — resolves an existing `bv_anon` cookie or mints a fresh one,
+  creates the `players` row on first mint, threads `player_id` into the `games` insert, and
+  echoes `player_id` in the response (not the signed token itself). Verified live: a
+  two-request contract test proves the same `player_id` comes back on a repeat visit with
+  the cookie. **Not yet done** — deferred to when it's needed: the optional display-name
+  input below, and reading/creating identity anywhere other than game start (2.2/3.3 will
+  need it there too).
 - Optional display name: small "name yourself" input (stored on `players.display_name`,
   max 20 chars, strip/validate; profanity filtering is out of scope — admin can edit in Batch 5).
 - **Challenge to the original idea:** *don't start with Google OAuth.* It adds a consent
@@ -543,11 +551,18 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 ## Batch 9 — Android app
 
-### 9.1 `[ ]` PWA hardening first
+### 9.1 `[x]` PWA hardening first
 - `vite-plugin-pwa` is configured but the manifest references `pwa-192x192.png` /
   `pwa-512x512.png` that **do not exist in `frontend/public/`** — create real icons
   (+ maskable variants), add offline fallback page, verify Lighthouse PWA pass,
   add install prompt UX.
+- **Shipped 2026-07-24:** real icons (from an earlier PR) plus `navigateFallback:
+  '/index.html'` with an `/api/` denylist in the Workbox config (confirmed present in the
+  built service worker, live in production), an `OfflineNotice` banner, and an
+  `InstallPrompt` component that captures `beforeinstallprompt` at module scope (survives
+  the loading-screen race) with a localStorage-dismissed flag; iOS Safari shows nothing
+  since it never fires that event. **Not yet done:** the actual Lighthouse PWA audit needs
+  a real browser against a live deployment — still pending, do it by hand when convenient.
 
 ### 9.2 `[ ]` Play Store via Trusted Web Activity
 - Attach a custom domain to the Vercel project first (free on Hobby) so the TWA is bound
