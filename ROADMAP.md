@@ -311,6 +311,14 @@ data-wise).*
 - **Accept:** `db:verify` is green and the Batch 0 HTTP contract suite passes against a
   Vercel preview backed by Neon (`API_BASE_URL=<preview> npm test`).
 
+> **Handoff note (for a fresh session picking this up):** the prep above —
+> `migrations/`, `scripts/migrate.ts`, the de-Supabased tooling and docs — lives on branch
+> `claude/codebase-roadmap-analysis-n4qbim` (PR #11) and is **not yet merged to `main`**. A
+> new session that clones `main` will not see any of it. Either **merge PR #11 first** and
+> then sync `main`, or check out `claude/codebase-roadmap-analysis-n4qbim` directly. The old
+> Supabase DB is paused and unrecoverable, so there is no data to migrate — build fresh on
+> Neon with the three commands above.
+
 ---
 
 ## Batch 2 — Player identity (anonymous), server high scores, word-length option

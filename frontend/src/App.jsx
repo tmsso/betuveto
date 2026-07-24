@@ -336,11 +336,13 @@ function App() {
           showTemporaryError(`Ezt a szót már kitaláltad: ${guess}`)
           setCurrentGuess('')
         }
-      } else if (!response.can_form) {
-        showTemporaryError('Csak a megadott betűket használd!')
+      } else if (!response.valid) {
+        // Not a known word (valid:false). Distinct from a real word that can't
+        // be built from the board (valid:true, can_form:false) handled below.
+        showTemporaryError(`Nincs ilyen szó: ${guess}`)
         setCurrentGuess('')
       } else {
-        showTemporaryError(`Nincs ilyen szó: ${guess}`)
+        showTemporaryError('Csak a megadott betűket használd!')
         setCurrentGuess('')
       }
 
