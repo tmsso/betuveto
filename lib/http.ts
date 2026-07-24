@@ -81,3 +81,10 @@ export function bodyField(req: VercelRequest, name: string): unknown {
   const body = req.body as Record<string, unknown> | undefined;
   return body?.[name];
 }
+
+/** A string query parameter, falling back when absent (e.g. `?wordlist=hu`). */
+export function stringQuery(req: VercelRequest, name: string, fallback: string): string {
+  const raw = req.query[name];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === undefined || value === "" ? fallback : value;
+}

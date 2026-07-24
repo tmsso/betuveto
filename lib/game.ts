@@ -52,6 +52,10 @@ const NOT_FOUND: Reply = {
   body: { detail: "Game not found or expired. Start a new game." },
 };
 
+/** Points per second left on the clock when a board is fully cleared (ROADMAP 3.2). A
+ *  plain constant for now — becomes admin-editable config in Batch 5. */
+const COMPLETION_BONUS_MULTIPLIER = 1;
+
 /** Seconds since the epoch, as the frontend's countdown expects (it compares to Date.now()/1000). */
 function epochSeconds(at: Date): number {
   return at.getTime() / 1000;
@@ -273,13 +277,17 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   const totalScore = game.total_score + score;
   const foundCount = game.found_count + 1;
   const gameEnded = foundCount >= game.possible_count;
+  // Floored at 0: the game could theoretically end in the same instant as its last second.
+  const remainingSeconds = Math.max(0, Math.floor((game.ends_at.getTime() - now.getTime()) / 1000));
+  const completionBonus = gameEnded ? remainingSeconds * COMPLETION_BONUS_MULTIPLIER : 0;
+  const finalScore = totalScore + completionBonus;
 
   await sql`
     update games
        set found_count = ${foundCount},
            status      = case when ${gameEnded} then 'finished' else status end,
            ended_at    = case when ${gameEnded} then now() else ended_at end,
-           final_score = case when ${gameEnded} then ${totalScore} else final_score end
+           final_score = case when ${gameEnded} then ${finalScore} else final_score end
      where id = ${game.id}
   `;
 
@@ -294,7 +302,8 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
       game_ended: gameEnded,
       is_full_length: letterCount(word) === game.target_length,
       is_target: word === game.target_word,
-      total_score: totalScore,
+      total_score: gameEnded ? finalScore : totalScore,
+      completion_bonus: completionBonus,
       found_count: foundCount,
     },
   };
