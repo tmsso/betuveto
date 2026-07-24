@@ -22,6 +22,9 @@ export function handler(method: "GET" | "POST", logic: Logic) {
     }
     try {
       const reply = await logic(req);
+      for (const [name, value] of Object.entries(reply.headers ?? {})) {
+        res.setHeader(name, value);
+      }
       res.status(reply.status).json(reply.body);
     } catch (error) {
       console.error(error);
