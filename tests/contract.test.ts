@@ -110,10 +110,17 @@ async function start(targetLength = 7, durationSeconds?: number): Promise<StartR
 }
 
 /** Start games until one satisfies `wanted` — the pytest suite's retry trick, for the
- *  cases that need a board with a particular shape. */
-async function startUntil(wanted: (s: StartResult) => boolean, tries = 12): Promise<StartResult> {
+ *  cases that need a board with a particular shape. `targetLength` defaults to 7 (the
+ *  suite's usual board) but a smaller one finds a small `possible_count` far faster —
+ *  a local sample over the wordlist puts the median possible_count at 5 for length-5
+ *  boards vs. 19 for length-7. */
+async function startUntil(
+  wanted: (s: StartResult) => boolean,
+  tries = 12,
+  targetLength = 7,
+): Promise<StartResult> {
   for (let attempt = 0; attempt < tries; attempt++) {
-    const game = await start();
+    const game = await start(targetLength);
     if (wanted(game)) return game;
   }
   throw new Error(`No board matching the requirement after ${tries} tries.`);
@@ -246,6 +253,39 @@ describeApi("Betűvető API contract", () => {
     const solution = await call("GET", `/api/game/${game.game_id}/possible_words`);
     expect(solution.status).toBe(200);
   }, 30_000);
+
+  // --- Full board clear + completion bonus (ROADMAP 3.2) --------------------
+  it("awards a server-computed time-remaining bonus for fully clearing the board", async () => {
+    // A length-5 board keeps the guess loop short (median possible_count is 5, see the
+    // comment on startUntil), and the default 180s duration leaves plenty of clock left,
+    // so the bonus should always land nonzero.
+    const game = await startUntil((g) => g.possible_count >= 1 && g.possible_count <= 6, 15, 5);
+    const words = findable(game);
+    expect(words).toHaveLength(game.possible_count);
+
+    let last: { json: any } | undefined;
+    let scoreWithoutBonus = 0;
+    for (const word of words) {
+      last = await call("POST", `/api/game/${game.game_id}/guess`, { word });
+      expect(last.json.valid).toBe(true);
+      expect(last.json.can_form).toBe(true);
+      expect(last.json.already_guessed).toBe(false);
+      scoreWithoutBonus += letterCount(word) ** 2;
+    }
+
+    // The last guess clears the board: the server ends the game itself and folds a
+    // remaining_seconds * completion_multiplier bonus into total_score.
+    expect(last!.json.game_ended).toBe(true);
+    expect(last!.json.completion_bonus).toBeGreaterThan(0);
+    expect(last!.json.total_score).toBe(scoreWithoutBonus + last!.json.completion_bonus);
+
+    // The game is over: no further scoring, and the board's earlier guesses
+    // reported the running total, not yet the bonus.
+    const late = await call("POST", `/api/game/${game.game_id}/guess`, { word: words[0] });
+    expect(late.status).toBe(400);
+    // Up to 15 sequential start() retries against a possibly-cold preview, plus the
+    // guess loop — generous headroom over the happy-path (typically 1-2 retries).
+  }, 60_000);
 
   // --- Give up --------------------------------------------------------------
   it("give up reveals the word and unlocks the solution list", async () => {
