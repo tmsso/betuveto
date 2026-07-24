@@ -25,6 +25,7 @@ const prefersReducedMotion = () =>
 const TOP_SCORES_COUNT = 3;
 const MIN_GUESS_LENGTH = 3;
 const GAME_DURATION_SECONDS = 180;
+const DEFAULT_TARGET_LENGTH = 7;
 
 function App() {
   // Game state
@@ -49,10 +50,13 @@ function App() {
   const [currentAnimatingIndex, setCurrentAnimatingIndex] = useState(-1)
   const [isScoreFlashing, setIsScoreFlashing] = useState(false)
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false)
-  // High scores are persisted to localStorage and merged via the setter's
-  // `prev`; the value itself is not rendered yet (server high scores land in a
-  // later batch), so only the setter is bound.
-  const [, setHighScores] = useState([])
+  // Local top-3, kept only as an offline/error fallback now that scores are
+  // server-side (ROADMAP 2.2) — the panel below prefers `serverScores` whenever it loads.
+  const [highScores, setHighScores] = useState([])
+  const [targetLength, setTargetLength] = useState(DEFAULT_TARGET_LENGTH)
+  const [serverScores, setServerScores] = useState(null)
+  const [serverScoresLoading, setServerScoresLoading] = useState(false)
+  const [showHighScores, setShowHighScores] = useState(false)
   const [showFailedWords, setShowFailedWords] = useState(false)
   const [failedWordsHistory, setFailedWordsHistory] = useState([])
   const [possibleWordsCount, setPossibleWordsCount] = useState(0)
@@ -117,6 +121,26 @@ function App() {
       return newScores;
     });
   }, []);
+
+  // Server high scores (ROADMAP 2.2): global top 10 + this player's best, for the
+  // current board length. Refetched whenever a game ends, so a just-finished game's
+  // score (and a fresh "your best") shows up without a page reload.
+  const fetchServerScores = useCallback(async (length) => {
+    setServerScoresLoading(true);
+    try {
+      const result = await betuAPI.getTopScores(length);
+      setServerScores(result);
+    } catch (err) {
+      console.error('Error fetching high scores:', err);
+      setServerScores(null);
+    } finally {
+      setServerScoresLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchServerScores(targetLength);
+  }, [targetLength, isTimeUp, fetchServerScores]);
 
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
   const displayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
@@ -212,6 +236,7 @@ function App() {
       setError(null)
       const response = await betuAPI.startGame()
       setScrambledLetters(response.scrambled_letters.split(' '))
+      setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
       setFoundWords([])
       setCurrentGuess('')
       setGuessCount(0)
@@ -526,17 +551,57 @@ function App() {
           </div>
         </div>
 
-        {/* High Scores (subtle display) - Hidden as per request */}
-        {/*
-        {highScores.length > 0 && (
-          <div className="mb-4 text-xs text-gray-400 flex gap-4 justify-center">
-             <span>Top Scores:</span>
-             {highScores.map((s, i) => (
-                 <span key={i} className="font-bold">#{i+1}: {s.score}</span>
-             ))}
+        {/* High Scores toggle (ROADMAP 2.2: server-side leaderboard) */}
+        <div className="mb-4 flex justify-center">
+          <button
+            onClick={() => setShowHighScores(!showHighScores)}
+            className="text-xs text-game-secondary underline hover:text-blue-700"
+          >
+            {showHighScores ? 'Ranglista elrejtése' : `🏆 Ranglista (${targetLength} betűs)`}
+          </button>
+        </div>
+
+        {showHighScores && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+            <h4 className="text-sm font-bold mb-2 text-center text-gray-500">
+              Legjobbak — {targetLength} betűs szavak
+            </h4>
+            {serverScoresLoading && (
+              <p className="text-xs text-center text-gray-400">Betöltés...</p>
+            )}
+            {!serverScoresLoading && serverScores && serverScores.top.length > 0 && (
+              <ol className="text-sm space-y-1 max-w-xs mx-auto">
+                {serverScores.top.map((entry, i) => (
+                  <li key={i} className="flex justify-between gap-4">
+                    <span className="truncate">{i + 1}. {entry.display_name}</span>
+                    <span className="font-bold">{entry.final_score}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {!serverScoresLoading && serverScores && serverScores.top.length === 0 && (
+              <p className="text-xs text-center text-gray-400">Még nincs rögzített pontszám ezen a hosszon.</p>
+            )}
+            {!serverScoresLoading && serverScores?.your_best && (
+              <p className="text-xs text-center mt-3 text-gray-500">
+                Legjobb pontszámod: <span className="font-bold">{serverScores.your_best.final_score}</span>
+              </p>
+            )}
+            {!serverScoresLoading && !serverScores && highScores.length > 0 && (
+              <>
+                <p className="text-xs text-center text-gray-400 mb-2">Nincs kapcsolat a szerverrel — helyi pontjaid:</p>
+                <div className="flex gap-4 justify-center text-xs text-gray-400">
+                  {highScores.map((s, i) => (
+                    <span key={i} className="font-bold">#{i + 1}: {s.score}</span>
+                  ))}
+                </div>
+              </>
+            )}
+            {!serverScoresLoading && !serverScores && highScores.length === 0 && (
+              <p className="text-xs text-center text-gray-400">Nincs kapcsolat a szerverrel.</p>
+            )}
           </div>
         )}
-        */}
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
