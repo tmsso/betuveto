@@ -54,6 +54,20 @@ export interface GiveUpResult {
   message: string;
 }
 
+export interface TopScoreEntry {
+  display_name: string;
+  final_score: number;
+  ended_at: number;
+}
+
+export interface TopScoresResult {
+  wordlist: string;
+  target_length: number;
+  period: 'all' | 'week' | 'day';
+  top: TopScoreEntry[];
+  your_best: { final_score: number; ended_at: number } | null;
+}
+
 class BetuAPIClient {
   private baseUrl: string;
   private gameId: string | null = null;
@@ -139,6 +153,16 @@ class BetuAPIClient {
       method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to rescramble letters');
+    return response.json();
+  }
+
+  // High scores (ROADMAP Batch 2.2). No game_id needed: "your best" is resolved
+  // server-side from the same anon-identity cookie /game/start already relies on, sent
+  // automatically by the browser on this same-origin request.
+  async getTopScores(targetLength: number = 7): Promise<TopScoresResult> {
+    const params = new URLSearchParams({ length: String(targetLength) });
+    const response = await fetch(`${this.baseUrl}/v1/scores/top?${params.toString()}`);
+    if (!response.ok) throw new Error(`Failed to fetch top scores (${response.status})`);
     return response.json();
   }
 }

@@ -126,6 +126,51 @@ async function startUntil(
   throw new Error(`No board matching the requirement after ${tries} tries.`);
 }
 
+/** Like `start`, but threads (and returns) the anon-identity cookie explicitly — this
+ *  Node-side `call` has no browser cookie jar, so a caller that wants continuity across
+ *  requests (e.g. to complete a game as one identifiable player) must carry it itself. */
+async function startWithCookie(
+  targetLength = 7,
+  cookie?: string,
+): Promise<{ game: StartResult; cookie: string }> {
+  const query = new URLSearchParams({ target_length: String(targetLength) });
+  const { status, json, headers } = await call(
+    "POST",
+    `/api/game/start?${query}`,
+    undefined,
+    cookie ? { Cookie: cookie } : undefined,
+  );
+  expect(status).toBe(200);
+  const setCookie = headers.get("set-cookie");
+  const cookieValue = cookie ?? setCookie?.split(";", 1)[0];
+  if (!cookieValue) throw new Error("No identity cookie minted or supplied.");
+  return { game: json as StartResult, cookie: cookieValue };
+}
+
+/** Starts (small, quick-to-clear) boards as the same identity until one is fully
+ *  guessable in a handful of requests, then clears it — so the resulting `finished`
+ *  game's score is known without depending on any other data in the (shared, persistent)
+ *  preview database. */
+async function completeSmallGame(): Promise<{ cookie: string; totalScore: number }> {
+  let cookie: string | undefined;
+  let game: StartResult | undefined;
+  for (let attempt = 0; attempt < 20 && !game; attempt++) {
+    const result = await startWithCookie(5, cookie);
+    cookie = result.cookie;
+    if (result.game.possible_count <= 10) game = result.game;
+  }
+  if (!game || !cookie) throw new Error("No small-enough 5-letter board found after 20 tries.");
+
+  let totalScore = 0;
+  for (const word of findable(game)) {
+    const { json } = await call("POST", `/api/game/${game.game_id}/guess`, { word }, { Cookie: cookie });
+    expect(json.valid).toBe(true);
+    totalScore = json.total_score;
+  }
+  expect(totalScore).toBeGreaterThan(0);
+  return { cookie, totalScore };
+}
+
 /** A board whose letters spell exactly one full-length word — so that word is provably
  *  the target, without the server ever telling us. */
 function hasUniqueTarget(game: StartResult): boolean {
@@ -379,4 +424,38 @@ describeApi("Betűvető API contract", () => {
     // Same identity recognised: no need to mint (and overwrite) the cookie again.
     expect(second.headers.get("set-cookie")).toBeNull();
   });
+
+  // --- Server-side high scores (ROADMAP 2.2) ---------------------------------
+  it("rejects an out-of-range length and an unknown period", async () => {
+    expect((await call("GET", "/api/v1/scores/top?length=4")).status).toBe(422);
+    expect((await call("GET", "/api/v1/scores/top?length=7&period=month")).status).toBe(422);
+  });
+
+  it("lists top scores ordered best-first", async () => {
+    const { status, json } = await call("GET", "/api/v1/scores/top?length=7");
+    expect(status).toBe(200);
+    expect(Array.isArray(json.top)).toBe(true);
+    for (let i = 1; i < json.top.length; i++) {
+      expect(json.top[i - 1].final_score).toBeGreaterThanOrEqual(json.top[i].final_score);
+    }
+  });
+
+  it("reports your_best: null with no identity cookie", async () => {
+    const { json } = await call("GET", "/api/v1/scores/top?length=7");
+    expect(json.your_best).toBeNull();
+  });
+
+  it("a fully-cleared game's score shows up as your_best on /api/v1/scores/top", async () => {
+    // Anchored on your_best rather than top-10 membership: the preview DB is a shared,
+    // persistent Neon instance, so a fresh score could rank outside the top 10 (or drop
+    // out of it later) without this test being wrong — your_best is this player's alone.
+    const { cookie, totalScore } = await completeSmallGame();
+
+    const { status, json } = await call("GET", "/api/v1/scores/top?length=5", undefined, {
+      Cookie: cookie,
+    });
+    expect(status).toBe(200);
+    expect(json.your_best).not.toBeNull();
+    expect(json.your_best.final_score).toBe(totalScore);
+  }, 30_000);
 });
