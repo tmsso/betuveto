@@ -24,7 +24,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { canFormWord, letterCount, normalizeWord, signatureOf } from "../lib/words.js";
+import {
+  canFormWord,
+  durationForLength,
+  letterCount,
+  normalizeWord,
+  signatureOf,
+} from "../lib/words.js";
 
 // Not BASE_URL: that is a Vite/Vitest reserved variable (the app's public base path), so
 // Vitest would overwrite whatever the shell set with "/".
@@ -41,10 +47,11 @@ interface StartResult {
   target_length: number;
   possible_count: number;
   ends_at: number;
+  duration_seconds: number;
 }
 
 async function call(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   route: string,
   body?: unknown,
   extraHeaders?: Record<string, string>,
@@ -399,6 +406,75 @@ describeApi("Betűvető API contract", () => {
 
     const lengths = await call("GET", "/api/words/lengths");
     expect(lengths.json.available_lengths).toContain(7);
+  });
+
+  // --- Word length option (ROADMAP 2.3) --------------------------------------
+  it("only offers board lengths in the playable 5-10 range (ROADMAP 2.3)", async () => {
+    const { json } = await call("GET", "/api/words/lengths");
+    for (const length of json.available_lengths) {
+      expect(length).toBeGreaterThanOrEqual(5);
+      expect(length).toBeLessThanOrEqual(10);
+    }
+    // The Hungarian list has thousands of words at every length in range (verified
+    // directly against the DB), so all six should clear the >= 500 bar.
+    expect(json.available_lengths).toEqual([5, 6, 7, 8, 9, 10]);
+  });
+
+  it("scales the timer with target length (ROADMAP 2.3: 120 + 15 * (length - 5))", async () => {
+    const short = await start(5);
+    const long = await start(10);
+    expect(short.duration_seconds).toBe(durationForLength(5));
+    expect(long.duration_seconds).toBe(durationForLength(10));
+    expect(long.duration_seconds).toBeGreaterThan(short.duration_seconds);
+  });
+
+  it("still lets a client shorten (never lengthen) its own timer per length", async () => {
+    const game = await start(10, 5);
+    expect(game.duration_seconds).toBe(5);
+  });
+
+  // --- Preferred length persistence (ROADMAP 2.3) ----------------------------
+  it("round-trips a player's preferred length through PATCH/GET (ROADMAP 2.3)", async () => {
+    // A fresh cookie, minted the same way game/start does it.
+    const minted = await call("POST", "/api/game/start?target_length=7");
+    const cookieValue = minted.headers.get("set-cookie")!.split(";", 1)[0];
+    const auth = { Cookie: cookieValue };
+
+    const before = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(before.json.preferred_length).toBeNull();
+
+    const patched = await call(
+      "PATCH",
+      "/api/v1/me/preferences",
+      { preferred_length: 9 },
+      auth,
+    );
+    expect(patched.status).toBe(200);
+    expect(patched.json.preferred_length).toBe(9);
+
+    const after = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(after.json.preferred_length).toBe(9);
+  });
+
+  it("rejects an out-of-range preferred length", async () => {
+    const minted = await call("POST", "/api/game/start?target_length=7");
+    const cookieValue = minted.headers.get("set-cookie")!.split(";", 1)[0];
+    const { status } = await call(
+      "PATCH",
+      "/api/v1/me/preferences",
+      { preferred_length: 4 },
+      { Cookie: cookieValue },
+    );
+    expect(status).toBe(422);
+  });
+
+  it("treats writing a preference with no identity as unauthorized, reading as null", async () => {
+    const get = await call("GET", "/api/v1/me/preferences");
+    expect(get.status).toBe(200);
+    expect(get.json.preferred_length).toBeNull();
+
+    const patch = await call("PATCH", "/api/v1/me/preferences", { preferred_length: 6 });
+    expect(patch.status).toBe(401);
   });
 
   it("health route confirms a live DB connection (ROADMAP 1.4)", async () => {
