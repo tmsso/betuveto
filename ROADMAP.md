@@ -14,6 +14,13 @@
 > Batches 1, 2, 7 and 8 were rewritten accordingly; Batch 0 still targets the current
 > FastAPI app (it closes live security holes and defines the contract for the port).
 >
+> **Revision (2026-07, Neon switch):** the free Supabase allocation is committed to another
+> project, so persistence + auth move from Supabase to **Neon** (serverless Postgres, which
+> now bundles a free managed auth service — 60k MAU, Google OAuth). Realtime (Batch 7) moves
+> to **Ably**, since neither Neon nor Vercel provides it. Batches 1.1–1.2 shipped on Supabase
+> (#9, #10); Batch **1.5** re-points them to Neon. Rationale, free-tier numbers and the
+> anonymous-auth caveat are in the architecture decisions below.
+>
 > **Status legend:** `[ ]` not started · `[~]` in progress · `[x]` done
 
 ---
@@ -34,34 +41,50 @@ guesses; score = length²; 3-minute countdown runs in the browser; a "failed wor
 reappearance system (weight multipliers) lives in backend process memory and is lost on
 every restart.
 
+**Progress since this snapshot:** Batch 0 shipped (#8). Batch 1.1–1.2 (Postgres schema,
+wordlist importer, TypeScript Vercel API) shipped on Supabase (#9, #10) and are being
+re-pointed to Neon in Batch 1.5. The table above describes the *starting* point, kept for
+orientation.
+
 ---
 
 ## Architectural decisions (locked in for all batches)
 
 These are decided once, here, so individual batches don't re-litigate them:
 
-1. **Hosting: Vercel + Supabase (both free tier).** The frontend (static build) and the
-   game API (TypeScript serverless functions) live on Vercel — the frontend already
-   deploys there. Postgres, Auth and Realtime come from one Supabase free-tier project.
+1. **Hosting: Vercel + Neon (both free tier).** The frontend (static build) and the game
+   API (TypeScript serverless functions) live on Vercel — the frontend already deploys
+   there. Postgres **and** auth come from one **Neon** free project (Neon Auth is a managed
+   Better-Auth service, 60k MAU, Google OAuth built in). Realtime — needed only for
+   multiplayer (Batch 7) — comes from **Ably**, because neither Neon nor Vercel provides it.
    The Hugging Face Space and `hf_sync.yml` are retired at the end of Batch 1.
-   *Rationale:* free HF Spaces have ephemeral disks (no local DB), sleep after ~48 h with
-   slow cold starts, and offer no custom domain (needed for the Android TWA in Batch 9);
-   once the database is external anyway, HF is just a slow free Python host.
+   *Why not Supabase (the prior pick):* its free allocation is committed to another project.
+   Neon is a clean swap — same Postgres, keeps the whole relational plan — and actually
+   removes Supabase's 7-day-pause chore (Neon scales to zero and resumes on the next query).
+   *Why not HF for the backend:* free HF Spaces have ephemeral disks (no DB), ~48 h sleep
+   with slow cold starts, and no custom domain (needed for the Android TWA in Batch 9).
 2. **Backend language: TypeScript.** Batch 1 ports the ~320-line FastAPI app to Vercel
    API routes (`api/` directory). One-time cost, paid exactly when the backend was due a
    restructure anyway; afterwards the whole stack speaks one language and the platform's
    Auth/Realtime SDKs are first-class. The Python backend (`backend/`) is deleted once
    the port is verified against the Batch 0 contract tests.
-3. **Database: Supabase Postgres.** Schema managed as SQL migrations via the Supabase CLI
-   (`supabase/migrations/`). Serverless functions connect through the pooled connection
-   (Supavisor) or `supabase-js` — never direct per-invocation Postgres connections.
-   Row Level Security is enabled deny-all on every table; all game logic runs in Vercel
-   functions holding the service-role key, so no table containing answers is ever
-   client-readable. Direct client reads can be opened table-by-table later if profitable.
-4. **Identity: anonymous-first via Supabase Auth.** Anonymous sign-in (built into
-   Supabase) is the primary identity (Batch 2). Google OAuth arrives later (Batch 8) as
-   an *identity link* on the same user — an upgrade for cross-device continuity, never a
-   login wall. Nobody should ever be forced to sign in to play.
+3. **Database: Neon Postgres.** Schema lives as plain SQL migrations in `migrations/`,
+   applied by a small postgres.js runner (`npm run db:migrate`) — there is no Supabase CLI.
+   Serverless functions query through **postgres.js** against Neon's pooled connection
+   string (`prepare:false`, since the pooler is PgBouncer transaction-mode) — no driver swap
+   was needed from the Supabase build, which already used postgres.js. (Neon's
+   `@neondatabase/serverless` HTTP driver is an option if per-invocation connection setup
+   ever becomes a bottleneck.) **The security boundary is that the client never receives DB
+   credentials at all** — every query runs in a Vercel function holding `DATABASE_URL`, so no
+   table of answers is ever client-readable. (Postgres RLS is therefore optional here —
+   defense-in-depth, not load-bearing as it was under Supabase's anon key.)
+4. **Identity: anonymous-first via Neon Auth.** Neon Auth (managed Better Auth) is the
+   primary identity (Batch 2); Google OAuth arrives later (Batch 8) as an *identity link*
+   on the same user — an upgrade for cross-device continuity, never a login wall. Nobody is
+   ever forced to sign in to play. **Caveat to confirm in Batch 2:** it is unverified whether
+   Neon's *managed* Better Auth exposes anonymous sessions. If it does not, the fallback is a
+   signed anonymous cookie for device identity (the original plan), with Neon Auth handling
+   only the Google upgrade — either way the roadmap holds.
 5. **Server-authoritative game state.** After Batch 1, the client never receives the
    target word or the solution list during an active game, and the server enforces the
    timer and computes all scores. Serverless statelessness makes this structural: there
@@ -73,21 +96,23 @@ These are decided once, here, so individual batches don't re-litigate them:
    multiset-subset of the board's letters — enumerable as ~100 signature combinations for
    a 7-letter board — so possible-words is one indexed `WHERE signature IN (...)` query
    instead of a 161k-row scan per game start (which would eat the serverless time budget).
-7. **Multiplayer transport: Supabase Realtime** (broadcast + presence channels), room-based,
-   co-op. Vercel functions cannot host WebSocket servers; Realtime fills that gap —
-   guesses still go over REST, and the API route broadcasts progress to the room channel.
+7. **Multiplayer transport: Ably** (free tier: 6M messages/month, 200 concurrent
+   connections), room-based, co-op. Vercel functions cannot host WebSocket servers and Neon
+   has no realtime, so Ably fills the gap — guesses still go over REST, and the API route
+   publishes progress to the room channel. Only introduced in Batch 7.
 8. **Android: PWA → Trusted Web Activity (Bubblewrap)**, not a native rewrite. See the
    challenge notes in Batch 9.
 9. **API versioning:** all new endpoints under `/api/v1/`; keep old paths as thin aliases
    until the frontend is migrated, then delete them.
 10. **Free-tier operating notes (know these, don't fight them):**
-    - Supabase free projects **pause after 7 days of inactivity** — Batch 1 adds a weekly
-      keep-alive cron (GitHub Actions or Vercel cron) that pings the DB.
+    - Neon free tier: 0.5 GB storage, 100 compute-hours/month, scale-to-zero with near-
+      instant resume, up to 100 projects. **No inactivity pause/delete** — so, unlike
+      Supabase, no keep-alive cron is needed.
     - Vercel Hobby is **non-commercial** — fine for a free game; revisit on monetisation.
     - The function timeout (10 s default) is the compute budget — hence the signature
       design in (6); no endpoint may scan the full wordlist per request.
-    - Supabase Realtime free tier: 200 concurrent connections, 2M messages/month — ample
-      at hobby scale, but keep messages coarse (progress updates, never keystrokes).
+    - Ably free tier (Batch 7): 6M messages/month, 200 concurrent connections — ample at
+      hobby scale, but keep messages coarse (progress updates, never keystrokes).
 
 ---
 
@@ -207,28 +232,34 @@ container/infra polish that the migration makes moot (flagged per item).*
 
 ---
 
-## Batch 1 — Foundations: port to Vercel + Supabase
+## Batch 1 — Foundations: port to Vercel + Neon
 
 *Goal: the load-bearing migration everything else depends on. No user-visible features,
 but after this batch the app runs on the target architecture with real persistence, and
 the HF Space is gone. Requires Batch 0 (especially 0.10's contract tests) to be done first.*
 
-### 1.1 `[x]` Supabase project + schema
-- Create the Supabase project; commit SQL migrations (`supabase/migrations/`) for:
+*Note: 1.1–1.2 were first built on Supabase (#9, #10); 1.5 re-points persistence to Neon.
+The schema and API logic are Postgres-generic and carry over — only the driver, migration
+runner, auth wiring and env vars change.*
+
+### 1.1 `[x]` Postgres schema + wordlist importer  _(built on Supabase in #9; DB re-pointed to Neon in 1.5)_
+- Commit SQL migrations (in `supabase/migrations/` as shipped; moved to `migrations/` in 1.5) for:
   - `players(id UUID pk references auth.users, created_at, display_name nullable, is_admin bool default false, preferred_length int nullable)`
   - `games(id UUID pk, player_id fk nullable, wordlist_id fk, target_word, target_length, started_at, ends_at, ended_at nullable, final_score, found_count, possible_count, status enum[active,finished,abandoned,given_up])`
   - `game_guesses(id, game_id fk, word, correct bool, score, created_at)` — needed later for review/anti-cheat and "words found" history.
   - `word_stats(player_id, word, times_failed, times_solved, last_failed_game_seq)` — replaces the in-memory `failed_words` dict, per player.
   - `wordlists(id, code e.g. 'hu', name, active)` and `words(id, wordlist_id, word, length, signature, active bool default true, source enum[original,suggested], created_at)` — index on `(wordlist_id, signature)` and `(wordlist_id, length, active)`.
-- **RLS enabled deny-all on every table** — the API routes use the service-role key and
-  bypass it; the client gets no direct table access in this batch.
+- **Security boundary: the client never gets DB credentials** — all access is via the API
+  functions holding `DATABASE_URL`. (Under Supabase this was enforced with RLS deny-all +
+  service-role key; on Neon the client simply never connects to Postgres, so RLS is optional
+  hardening.)
 - Importer script `scripts/import-wordlist.ts` loading `data/magyar-szavak.txt` into
   `words` (idempotent batch upserts), computing `signature` (sorted letters) per word.
 - **Gotcha for the implementer:** normalise words to `NFC` + uppercase on import **and**
   on every guess (`word.normalize('NFC').toUpperCase()`), so composed vs decomposed `Á`
   compare equal; Hungarian uppercasing is locale-safe in JS but be explicit about NFC.
 
-### 1.2 `[x]` Port the API to TypeScript Vercel functions
+### 1.2 `[x]` Port the API to TypeScript Vercel functions  _(DB driver swapped to Neon in 1.5)_
 - Recreate the FastAPI endpoints as Vercel API routes under `/api/v1/` (thin aliases at
   the old paths until 1.3 lands). Same behaviour as the post-Batch-0 app; game state
   lives in the `games` table — there is no in-process state at all.
@@ -247,26 +278,60 @@ the HF Space is gone. Requires Batch 0 (especially 0.10's contract tests) to be 
   dev proxy in favour of `vercel dev` (update `run_dev.sh` accordingly); delete the
   `/api/game/start/body` fallback if 0.8 hasn't already.
 - Delete `backend/`, `hf_sync.yml` and the HF Space itself once the Vercel deployment is
-  verified. Update README/`.env.example` for the new stack (Supabase URL + anon key +
-  service-role key as Vercel env vars — **service-role key is server-only, never in
-  `VITE_*`**).
+  verified. Update README/`.env.example` for the new stack (`DATABASE_URL` for the Neon
+  connection, server-only — never in a `VITE_*` var; auth keys land in Batch 2).
 
-### 1.4 `[ ]` Free-tier keep-alive + ops
-- Weekly cron (GitHub Actions or Vercel cron) hitting a tiny `/api/v1/health` route that
-  performs one DB read — prevents the Supabase 7-day inactivity pause.
-- Document the restore path: Supabase free tier keeps limited backups; add a monthly
-  `pg_dump` via GitHub Actions to a private artifact if the score data starts mattering.
+### 1.4 `[ ]` Ops & backups
+- **No keep-alive needed** — Neon has no inactivity pause; it scales to zero and resumes on
+  the next query. (This item existed only for Supabase's 7-day pause; dropped.)
+- A tiny `/api/v1/health` route (one cheap DB read) is still worth having for uptime checks.
+- Backups: Neon's free tier keeps limited history, so add a monthly `pg_dump` via GitHub
+  Actions to a private artifact once score data starts mattering.
+
+### 1.5 `[~]` Re-point persistence from Supabase to Neon
+*Prep is done without a live DB; the apply waits on a Neon project (the old Supabase DB is
+paused and cannot be revived, so the DB is built from scratch on Neon — nothing to migrate
+data-wise).*
+
+**Prep (done — no live DB needed):**
+- From-scratch schema `migrations/0001_init.sql` (consolidates the two Supabase-era
+  migrations), de-Supabased: `players.id` is a standalone UUID (no `auth.users` FK; Batch 2
+  links it to Neon Auth), and RLS is dropped (optional on Neon — see decision 3).
+- `scripts/migrate.ts` + `npm run db:migrate`: a postgres.js runner with a
+  `schema_migrations` tracking table. **No driver swap** — the DB layer already uses
+  `postgres` (postgres.js), which talks to Neon's pooled endpoint directly; `prepare:false`
+  stays correct (Neon's pooler is also PgBouncer transaction-mode).
+- De-Supabased the tooling: removed `supabase/`, the `supabase` CLI dependency and script;
+  re-pointed `import-wordlist.ts` / `verify-db.ts` (dropped the RLS check) and the `lib/db.ts`
+  comments; updated `.env.example` (single `DATABASE_URL`, no `SUPABASE_*`) + README.
+
+**Apply (needs the Neon project — do once registration is possible):**
+- Create the Neon project; put its **pooled** connection string in `DATABASE_URL`.
+- `npm run db:migrate` → `npm run db:import` → `npm run db:verify`.
+- **Accept:** `db:verify` is green and the Batch 0 HTTP contract suite passes against a
+  Vercel preview backed by Neon (`API_BASE_URL=<preview> npm test`).
+
+> **Handoff note (for a fresh session picking this up):** the prep above —
+> `migrations/`, `scripts/migrate.ts`, the de-Supabased tooling and docs — lives on branch
+> `claude/codebase-roadmap-analysis-n4qbim` (PR #11) and is **not yet merged to `main`**. A
+> new session that clones `main` will not see any of it. Either **merge PR #11 first** and
+> then sync `main`, or check out `claude/codebase-roadmap-analysis-n4qbim` directly. The old
+> Supabase DB is paused and unrecoverable, so there is no data to migrate — build fresh on
+> Neon with the three commands above.
 
 ---
 
 ## Batch 2 — Player identity (anonymous), server high scores, word-length option
 
-### 2.1 `[ ]` Anonymous identity via Supabase Auth
-- On first visit the frontend calls `supabase.auth.signInAnonymously()` (enable it in the
-  Supabase dashboard); `supabase-js` persists and refreshes the session automatically.
-  API routes verify the JWT (sent as a `Authorization: Bearer` header) and resolve or
-  create the matching `players` row from the user id. No UI, no consent friction — it's
-  a device identity, like a save file.
+### 2.1 `[ ]` Anonymous identity via Neon Auth
+- On first visit, establish an anonymous identity via **Neon Auth** (managed Better Auth):
+  the client gets a session token it sends as `Authorization: Bearer`; API routes verify it
+  and resolve or create the matching `players` row. No UI, no consent friction — a device
+  identity, like a save file.
+- **Confirm first (see architecture decision 4):** whether Neon's managed Better Auth exposes
+  anonymous sessions. If not, fall back to a signed, HTTP-only anonymous cookie minted by the
+  API (device identity), and reserve Neon Auth for the Google upgrade in Batch 8 — the rest
+  of this batch is unchanged either way.
 - Optional display name: small "name yourself" input (stored on `players.display_name`,
   max 20 chars, strip/validate; profanity filtering is out of scope — admin can edit in Batch 5).
 - **Challenge to the original idea:** *don't start with Google OAuth.* It adds a consent
@@ -359,8 +424,8 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 ## Batch 5 — Admin interface
 
 ### 5.1 `[ ]` Admin auth & shell
-- `players.is_admin` flag (set manually in DB for the first admin — the Supabase
-  dashboard's table editor also covers emergency data fixes until this batch ships).
+- `players.is_admin` flag (set manually in DB for the first admin — Neon's SQL editor / any
+  Postgres GUI covers emergency data fixes until this batch ships).
   Admin endpoints under `/api/v1/admin/*` guarded by a check on the flag; **admins must
   log in via Google OAuth once Batch 8 lands — until then, a long random admin token in
   env (`ADMIN_TOKEN`) sent as a header is acceptable and simple.**
@@ -432,18 +497,18 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 - Tables: `rooms(id, code 6-char join code, host_player_id, game_id, status, created_at)`,
   `room_players(room_id, player_id, joined_at, score, found_count)`.
 - REST: create room → get join code; join by code; start (host only).
-- **Supabase Realtime** channel `room:{code}` (private channel, membership-authorised):
-  clients subscribe with `supabase-js`; **presence** tracks who's in the lobby; the guess
-  API route broadcasts (via the service-role Realtime client) `game_started` (scrambled
-  letters + ends_at), `progress_update {player, found_count, score}` on every correct
-  guess, and `game_over {full reveal: per-player word lists, remaining words}`. Guesses
-  still go over REST (Realtime is push-only here) — the guess handler just also broadcasts.
+- **Ably** channel `room:{code}` (token-authed so only room members can subscribe):
+  clients subscribe with `ably-js`; **presence** tracks who's in the lobby; the guess API
+  route publishes (server-side, with the Ably server key) `game_started` (scrambled letters
+  + ends_at), `progress_update {player, found_count, score}` on every correct guess, and
+  `game_over {full reveal: per-player word lists, remaining words}`. Guesses still go over
+  REST (Ably is push-only here) — the guess handler just also publishes.
 - Frontend: lobby screen (create/join with code), in-game opponent progress sidebar,
   end-of-game comparison view.
 - **Gotchas to write into the task:** reconnection (client re-subscribes to the channel
   and GETs a room-snapshot endpoint to resync); room TTL/cleanup; cap room size (e.g. 8);
-  keep broadcasts coarse — the free tier is 2M messages/month; authorise channel access
-  so only room members can subscribe (Realtime authorisation policies).
+  keep broadcasts coarse — Ably's free tier is 6M messages/month / 200 concurrent; use Ably
+  token auth so only room members can subscribe.
 - **Suggested cheap precursor (consider shipping as 7.0):** a **daily puzzle** — same
   word for everyone each day, with a daily leaderboard. ~10% of the effort, delivers much
   of the social value, and creates a retention loop. Reuses everything from Batch 2.
@@ -452,12 +517,15 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 ## Batch 8 — Google OAuth (identity upgrade) 
 
-### 8.1 `[ ]` Google sign-in via Supabase identity linking
-- "Keep my progress" button calls `supabase.auth.linkIdentity({provider: 'google'})` on
-  the current anonymous user — history and scores are kept automatically because the user
-  id doesn't change. On a new device, `signInWithOAuth({provider: 'google'})` resolves to
-  the already-linked user — cross-device continuity is the entire point of this batch.
-  (One-time setup: GCP OAuth client + enabling the Google provider in Supabase.)
+### 8.1 `[ ]` Google sign-in via Neon Auth identity linking
+- "Keep my progress" links a Google identity to the current user via **Neon Auth** (Better
+  Auth's account-linking) — history and scores are kept because the user id doesn't change.
+  On a new device, signing in with Google resolves to the already-linked user — cross-device
+  continuity is the entire point of this batch. (One-time setup: GCP OAuth client + enabling
+  the Google provider in Neon Auth.)
+- If the cookie fallback from Batch 2 was used instead of Neon Auth anonymous sessions, this
+  batch is where Neon Auth is first introduced: link the Google login to the cookie's
+  `players` row on first sign-in.
 - Merge rule — the only real code in this batch: if the *new device* accumulated
   anonymous games before signing in, linking fails (the Google identity already belongs
   to another user); instead sign in and merge the orphaned anonymous player's stats into
@@ -530,8 +598,9 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 | Original idea | Verdict | Reasoning |
 |---|---|---|
-| Backend on HF Space | **Replaced with Vercel + Supabase (Batch 1)** | Free HF has ephemeral disk (no DB), ~48 h sleep with slow cold starts, no custom domain (blocks the Batch 9 TWA). Once the DB is external anyway, HF is just a slow Python host; the port cost is one small file, paid during a batch that was restructuring it anyway. |
-| Google OAuth as primary identity | **Deferred to Batch 8** | Anonymous identity delivers per-player features with zero friction; OAuth is a cross-device *upgrade*, not a gate — and Supabase identity linking makes it ~10 lines. |
+| Backend on HF Space | **Replaced with Vercel + Neon (Batch 1)** | Free HF has ephemeral disk (no DB), ~48 h sleep with slow cold starts, no custom domain (blocks the Batch 9 TWA). Once the DB is external anyway, HF is just a slow Python host. |
+| Supabase for DB/Auth/Realtime | **Swapped to Neon (+ Ably for realtime)** | Free Supabase allocation is committed elsewhere. Neon is a clean Postgres swap that keeps the whole relational plan, bundles free managed auth (60k MAU, Google), and drops the 7-day-pause chore. Realtime (Batch 7 only) → Ably free tier. |
+| Google OAuth as primary identity | **Deferred to Batch 8** | Anonymous identity delivers per-player features with zero friction; OAuth is a cross-device *upgrade*, not a gate — and Neon Auth identity-linking keeps it small. |
 | Auto-email for reported words | **Rejected in favour of DB + admin queue** | Email infra is disproportionate overhead; the Batch 5 queue with badge count covers the need. Weekly digest is a cheap later add-on if wanted. |
 | Stand-alone native Android app | **Replaced with PWA→TWA** | Second codebase for a text-input game; TWA gets Play Store presence reusing everything. Revisit only for offline-first requirement. |
 | Multiplayer early | **Kept, but sequenced late (Batch 7)** | It's the largest feature and depends on sessions, server-authoritative scoring, and identity. The daily puzzle (7.0/Batch 10) delivers social value years earlier in effort-terms. |
@@ -545,7 +614,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 | Batch | Rough size | Depends on |
 |---|---|---|
 | 0 — Bugs & security | S–M (each item ≤ ½ day) | — |
-| 1 — Foundations (Vercel + Supabase port) | M–L | 0 |
+| 1 — Foundations (Vercel + Neon port) | M–L | 0 |
 | 2 — Identity + scores + length | M | 1 |
 | 3 — Hints + bonus + stats | S–M | 2 |
 | 4 — Word curation | M | 2 |

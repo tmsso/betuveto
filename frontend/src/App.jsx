@@ -13,6 +13,12 @@ const canvasStyles = {
   zIndex: 9999,
 }
 
+// Respect the OS "reduce motion" setting for the JS-driven confetti (the CSS
+// animations are handled by a media query in index.css).
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+
 // Adjustable constants
 const TOP_SCORES_COUNT = 3;
 const MIN_GUESS_LENGTH = 3;
@@ -59,6 +65,7 @@ function App() {
   }, []);
 
   const fireConfetti = useCallback(() => {
+    if (prefersReducedMotion()) return;
     confettiRef.current?.({
       particleCount: 100,
       spread: 70,
@@ -67,6 +74,7 @@ function App() {
   }, []);
 
   const fireExplosion = useCallback(() => {
+    if (prefersReducedMotion()) return;
     confettiRef.current?.({
       particleCount: 200,
       spread: 160,
@@ -328,11 +336,13 @@ function App() {
           showTemporaryError(`Ezt a szót már kitaláltad: ${guess}`)
           setCurrentGuess('')
         }
-      } else if (!response.can_form) {
-        showTemporaryError('Csak a megadott betűket használd!')
+      } else if (!response.valid) {
+        // Not a known word (valid:false). Distinct from a real word that can't
+        // be built from the board (valid:true, can_form:false) handled below.
+        showTemporaryError(`Nincs ilyen szó: ${guess}`)
         setCurrentGuess('')
       } else {
-        showTemporaryError(`Nincs ilyen szó: ${guess}`)
+        showTemporaryError('Csak a megadott betűket használd!')
         setCurrentGuess('')
       }
 
@@ -472,7 +482,7 @@ function App() {
       
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-hand leading-tight">🔤 Betűvető</h1>
+        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-display leading-tight">🔤 Betűvető</h1>
       </div>
 
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
@@ -486,7 +496,11 @@ function App() {
         {/* Score and New Game Button */}
         <div className="flex justify-between items-center mb-6">
           <div className="text-left">
-            <div className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600' : 'text-game-primary'}`}>
+            <div
+              className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600' : 'text-game-primary'}`}
+              aria-live="polite"
+              aria-label={`Pontszám: ${displayScore} pont`}
+            >
               🏆 {displayScore} <span className="hidden sm:inline">pont</span>
             </div>
             <div className={`text-md text-gray-500 transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
@@ -494,7 +508,11 @@ function App() {
             </div>
           </div>
           <div className="flex items-center justify-center space-x-2">
-            <div className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}>
+            <div
+              className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}
+              role="timer"
+              aria-label={`Hátralévő idő: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`}
+            >
               ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </div>
           </div>
@@ -514,11 +532,12 @@ function App() {
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
-          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto">
+          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label="Kirakható betűk">
             {scrambledLetters.map((letter, index) => (
               <button
                 key={index}
                 onClick={() => handleLetterClick(letter)}
+                aria-label={`${letter} betű`}
                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold shadow-md transition-all transform active:scale-90 focus:outline-none focus:ring-2 focus:ring-opacity-50
                 ${currentAnimatingIndex === index 
                   ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10' 
@@ -549,6 +568,7 @@ function App() {
             <input
               id="guess-input"
               type="text"
+              aria-label="Tipp beírása"
               value={currentGuess}
               onChange={(e) => {
                 const val = e.target.value.toUpperCase();
@@ -572,6 +592,7 @@ function App() {
             {currentGuess && (
               <button
                 onClick={() => setCurrentGuess('')}
+                aria-label="Tipp törlése"
                 className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 hover:bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 text-xl"
               >
                 ✖️
@@ -585,10 +606,11 @@ function App() {
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={handleNewGameClick}
+              aria-label="Új játék"
               className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-secondary text-white text-sm sm:text-base font-semibold hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
               <span>🎲</span>
-              <span className="max-[420px]:hidden">Új Játék</span>
+              <span className="max-[420px]:hidden">Új játék</span>
             </button>
             <button
               onClick={handleScramble}
@@ -603,6 +625,7 @@ function App() {
 
           <button
             onClick={handleSubmit}
+            aria-label="Tipp beküldése"
             disabled={!currentGuess.trim()}
             className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
@@ -656,7 +679,7 @@ function App() {
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
           <div className="mt-8 border-t-2 border-game-border pt-6">
-            <h3 className="text-2xl font-bold text-game-primary mb-4 text-center">Talált Szavak:</h3>
+            <h3 className="text-2xl font-bold text-game-primary mb-4 text-center">Talált szavak:</h3>
             <div className="flex flex-wrap gap-3 justify-center">
               {[...foundWords].sort((a,b) => a.localeCompare(b, 'hu')).map((word, index) => (
                 <span

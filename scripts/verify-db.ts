@@ -1,11 +1,10 @@
 /**
- * Verify a Batch 1.1 deployment against the CLOUD Supabase project: schema applied,
- * wordlist imported, RLS locked down, and — most importantly — that the signature-subset
- * query the API will rely on (ROADMAP decision 6) returns the right words and uses the
- * index rather than scanning 155k rows.
+ * Verify a Batch 1 deployment against the Neon database: schema applied, wordlist
+ * imported, and — most importantly — that the signature-subset query the API will rely on
+ * (ROADMAP decision 6) returns the right words and uses the index rather than scanning
+ * 155k rows.
  *
- *   DATABASE_URL='postgresql://postgres.<ref>:...@aws-0-<region>.pooler.supabase.com:6543/postgres' \
- *     npm run db:verify
+ *   DATABASE_URL='<neon pooled connection string>' npm run db:verify
  *
  * Read-only: this script never writes.
  */
@@ -26,7 +25,7 @@ function check(label: string, actual: unknown, expected: unknown): void {
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    console.error("ERROR: set DATABASE_URL to the CLOUD Supabase pooler connection string.");
+    console.error("ERROR: set DATABASE_URL to the Neon pooled connection string.");
     process.exit(1);
   }
   const sql = postgres(databaseUrl, { onnotice: () => {}, prepare: false });
@@ -38,13 +37,6 @@ async function main(): Promise<void> {
     `;
     const present = new Set(tables.map((t) => t.tablename));
     for (const t of TABLES) check(`table ${t} exists`, present.has(t), true);
-
-    console.log("\nRow-level security (must be enabled on every table — ROADMAP 1.1)");
-    const rls = await sql<{ relname: string; relrowsecurity: boolean }[]>`
-      select relname, relrowsecurity from pg_class
-       where relnamespace = 'public'::regnamespace and relname = any(${TABLES})
-    `;
-    for (const row of rls) check(`RLS on ${row.relname}`, row.relrowsecurity, true);
 
     console.log("\nWordlist");
     const [list] = await sql<{ id: number; code: string; name: string }[]>`

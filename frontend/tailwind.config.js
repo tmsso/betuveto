@@ -16,7 +16,10 @@ export default {
         'game-border': '#dee2e6',
       },
       fontFamily: {
-        'hand': ['Brush Script MT', 'Lucida Handwriting', 'Apple Chancery', 'cursive'],
+        // Rounded, readable base face with full Hungarian (ő/ű) support.
+        'sans': ['Nunito', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        // Curved display face for the title/headings (not handwritten/calligraphic).
+        'display': ['"Baloo 2"', 'Nunito', 'system-ui', 'sans-serif'],
       },
       animation: {
         'shake': 'shake 0.5s',

@@ -78,11 +78,6 @@ frontend/node_modules/
 config.toml
 secrets.toml
 
-# Supabase project config/ignore are committed (they hold no secrets — secrets live
-# in the git-ignored .env files). Re-include them despite the broad rules above.
-!supabase/config.toml
-!supabase/.gitignore
-
 # The `lib/` rule above targets Python build output. Our shared TypeScript game logic
 # also lives in lib/ and must be committed — the API functions import it.
 !lib/
