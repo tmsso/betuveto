@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
 import ConfirmationModal from './ConfirmationModal'
+import OfflineNotice from './OfflineNotice'
+import InstallPrompt from './InstallPrompt'
 
 const canvasStyles = {
   position: 'fixed',
@@ -449,6 +451,8 @@ function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-game-paper flex items-center justify-center font-sans">
+        <OfflineNotice />
+        <InstallPrompt />
         <div className="text-center">
           <div className="animate-pulse text-4xl text-game-secondary mb-4">Betöltés...</div>
           <p className="text-gray-600">Játék indítása...</p>
@@ -460,11 +464,13 @@ function App() {
   if (error && !isLoading) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-sans">
+            <OfflineNotice />
+            <InstallPrompt />
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
                 <strong className="font-bold">Hiba!</strong>
                 <span className="block sm:inline"> {error}</span>
                 <div className="mt-4">
-                    <button 
+                    <button
                         onClick={startNewGame}
                         className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                     >
@@ -478,6 +484,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-game-paper p-4 flex flex-col items-center justify-center font-sans text-game-primary">
+      <OfflineNotice />
+      <InstallPrompt />
       <ReactCanvasConfetti ref={getInstance} style={canvasStyles} />
       
       {/* Header */}
