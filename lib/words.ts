@@ -13,7 +13,16 @@ export const MAX_WORD_LENGTH = 15; // longest word loaded from the dictionary
 export const MIN_TARGET_LENGTH = 5; // shortest board a game may request
 export const MAX_TARGET_LENGTH = 10; // longest board a game may request
 export const DEFAULT_TARGET_LENGTH = 7;
-export const GAME_DURATION_SECONDS = 180;
+// A board must offer at least this many candidate target words of its exact length to be
+// offered in the length selector (ROADMAP 2.3) — guards against a future language/wordlist
+// (Batch 6) or heavy word-curation (Batch 4) leaving some length too thin to pick from.
+export const MIN_WORDS_PER_LENGTH = 500;
+
+/** `duration = 120 + 15 × (length − 5)` (ROADMAP 2.3): longer boards have more findable
+ *  words, so they get more time. 150s at the default length of 7. */
+export function durationForLength(length: number): number {
+  return 120 + 15 * (length - MIN_TARGET_LENGTH);
+}
 
 /** Trim, NFC-normalise, uppercase. Returns null if the word is out of range. */
 export function normalizeWord(raw: string): string | null {

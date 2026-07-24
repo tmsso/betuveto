@@ -24,7 +24,15 @@ const prefersReducedMotion = () =>
 // Adjustable constants
 const TOP_SCORES_COUNT = 3;
 const MIN_GUESS_LENGTH = 3;
-const GAME_DURATION_SECONDS = 180;
+const MIN_TARGET_LENGTH = 5;
+const MAX_TARGET_LENGTH = 10;
+const DEFAULT_TARGET_LENGTH = 7;
+// Mirrors lib/words.ts's durationForLength (ROADMAP 2.3) — duplicated here the same way
+// canFormWord/calculateScore already are in api/client.ts, since the frontend build
+// doesn't share modules with the API's lib/. Only used before the first /start response
+// arrives; the server's duration_seconds is always the source of truth after that.
+const durationForLength = (length) => 120 + 15 * (length - MIN_TARGET_LENGTH);
+const GAME_DURATION_SECONDS = durationForLength(DEFAULT_TARGET_LENGTH);
 
 function App() {
   // Game state
@@ -59,6 +67,18 @@ function App() {
   const [allPossibleWords, setAllPossibleWords] = useState([])
   const [showRemainingWords, setShowRemainingWords] = useState(false)
   const [allPossibleWordsFound, setAllPossibleWordsFound] = useState(false)
+
+  // Word length option (ROADMAP 2.3). availableLengths defaults to the full 5-10 range
+  // and is narrowed to whatever the server says has enough candidate words (>= 500);
+  // selectedLength is the player's choice for the *next* game (mid-game changes don't
+  // interrupt the current one — see handleLengthChange).
+  const [selectedLength, setSelectedLength] = useState(DEFAULT_TARGET_LENGTH)
+  const [availableLengths, setAvailableLengths] = useState(() =>
+    Array.from(
+      { length: MAX_TARGET_LENGTH - MIN_TARGET_LENGTH + 1 },
+      (_, i) => MIN_TARGET_LENGTH + i,
+    )
+  )
 
   // Confetti ref
   const confettiRef = useRef(null);
@@ -206,17 +226,17 @@ function App() {
     animate()
   }, [isAnimatingLetters, scrambledLetters])
 
-  const startNewGame = useCallback(async () => {
+  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH) => {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await betuAPI.startGame()
+      const response = await betuAPI.startGame(length)
       setScrambledLetters(response.scrambled_letters.split(' '))
       setFoundWords([])
       setCurrentGuess('')
       setGuessCount(0)
       setJustFoundWord(null)
-      setTimeLeft(response.duration_seconds ?? GAME_DURATION_SECONDS)
+      setTimeLeft(response.duration_seconds ?? durationForLength(length))
       setEndsAt(response.ends_at)
       setIsTimerActive(false)
       setIsAnimatingLetters(true)
@@ -250,9 +270,23 @@ function App() {
     if (foundWords.length > 0 && !isTimeUp) {
       setIsNewGameModalOpen(true);
     } else {
-      startNewGame();
+      startNewGame(selectedLength);
     }
   };
+
+  // Length selector (ROADMAP 2.3): always updates the selection and saves it as the
+  // player's preference; only restarts immediately if there's no in-progress game to
+  // lose (a fresh load, or a finished one) — otherwise the choice just applies to
+  // whatever "Új játék" starts next, same as picking it before that click.
+  const handleLengthChange = useCallback((length) => {
+    setSelectedLength(length)
+    betuAPI.setPreferredLength(length).catch((err) => {
+      console.error('Error saving length preference:', err)
+    })
+    if (foundWords.length === 0 || isTimeUp) {
+      startNewGame(length)
+    }
+  }, [foundWords.length, isTimeUp, startNewGame])
 
   const recordFailedWord = useCallback((word, learned = false) => {
     setFailedWordsHistory(prev => {
@@ -373,10 +407,31 @@ function App() {
     }
   }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, recordFailedWord, showTemporaryError])
 
-  // Start one game on mount. startNewGame is a stable useCallback ([] deps), so
+  // On mount: load which lengths are worth offering and the player's saved preference
+  // (ROADMAP 2.3, both no-ops for a first-ever visitor with no cookie yet), then start
+  // the first game at that length. startNewGame is a stable useCallback ([] deps), so
   // listing it here satisfies exhaustive-deps without causing repeated restarts.
   useEffect(() => {
-    startNewGame()
+    let cancelled = false
+    const init = async () => {
+      let initialLength = DEFAULT_TARGET_LENGTH
+      try {
+        const [lengths, preferred] = await Promise.all([
+          betuAPI.getAvailableLengths(),
+          betuAPI.getPreferredLength(),
+        ])
+        if (cancelled) return
+        setAvailableLengths(lengths)
+        if (preferred && lengths.includes(preferred)) initialLength = preferred
+      } catch (err) {
+        console.error('Error loading length preferences:', err)
+      }
+      if (cancelled) return
+      setSelectedLength(initialLength)
+      startNewGame(initialLength)
+    }
+    init()
+    return () => { cancelled = true }
   }, [startNewGame])
 
 
@@ -500,6 +555,26 @@ function App() {
                 ⚠️ Korábban elhibázott szó
             </div>
         )}
+
+        {/* Word length selector (ROADMAP 2.3) — applies to the next game; a change
+            mid-game is only saved and applied once the current game ends or restarts. */}
+        <div className="flex items-center justify-center gap-2 mb-4 text-sm">
+          <label htmlFor="length-select" className="text-gray-500 font-semibold">
+            Szóhossz:
+          </label>
+          <select
+            id="length-select"
+            value={selectedLength}
+            disabled={isLoading}
+            onChange={(e) => handleLengthChange(Number(e.target.value))}
+            aria-label="Szóhossz kiválasztása a következő játékhoz"
+            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+          >
+            {availableLengths.map((length) => (
+              <option key={length} value={length}>{length} betű</option>
+            ))}
+          </select>
+        </div>
 
         {/* Score and New Game Button */}
         <div className="flex justify-between items-center mb-6">
@@ -741,7 +816,7 @@ function App() {
       <ConfirmationModal 
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
-        onConfirm={startNewGame}
+        onConfirm={() => startNewGame(selectedLength)}
         message="A jelenlegi pontszámod elvész."
       />
     </div>

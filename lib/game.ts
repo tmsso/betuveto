@@ -13,11 +13,12 @@
 import type { Sql } from "postgres";
 import { db, wordlistId } from "./db.js";
 import {
-  GAME_DURATION_SECONDS,
   MAX_TARGET_LENGTH,
   MIN_TARGET_LENGTH,
   MIN_WORD_LENGTH,
+  MIN_WORDS_PER_LENGTH,
   canFormWord,
+  durationForLength,
   letterCount,
   normalizeGuess,
   scoreFor,
@@ -116,13 +117,15 @@ export async function startGame(
     return { status: 422, body: { detail: "duration_seconds must be an integer." } };
   }
 
-  // Clamped so a client can shorten its own timer (which the tests use to exercise
-  // expiry) but never lengthen it. A shorter clock is only ever a handicap, so this
-  // cannot be turned into an advantage.
+  // Longer boards have (combinatorially) many more findable words, so the ceiling itself
+  // scales with length (ROADMAP 2.3: 120 + 15 × (length − 5)). Below that ceiling, clamped
+  // so a client can shorten its own timer (which the tests use to exercise expiry) but
+  // never lengthen it — a shorter clock is only ever a handicap, never an advantage.
+  const maxDuration = durationForLength(targetLength);
   const duration =
     durationSeconds === undefined
-      ? GAME_DURATION_SECONDS
-      : Math.min(Math.max(durationSeconds, 5), GAME_DURATION_SECONDS);
+      ? maxDuration
+      : Math.min(Math.max(durationSeconds, 5), maxDuration);
 
   const sql = db();
   const listId = await wordlistId();
@@ -395,12 +398,18 @@ export async function getWordCount(): Promise<Reply> {
   return { status: 200, body: { total_words: row.count } };
 }
 
+/** Board lengths worth offering in the start-screen selector (ROADMAP 2.3): within the
+ *  playable range and backed by enough candidate targets that a game start won't run dry
+ *  or repeat the same handful of words. */
 export async function getAvailableLengths(): Promise<Reply> {
   const sql = db();
   const listId = await wordlistId();
   const rows = await sql<{ length: number }[]>`
-    select distinct length from words
+    select length from words
      where wordlist_id = ${listId} and active
+       and length between ${MIN_TARGET_LENGTH} and ${MAX_TARGET_LENGTH}
+     group by length
+    having count(*) >= ${MIN_WORDS_PER_LENGTH}
      order by length
   `;
   return { status: 200, body: { available_lengths: rows.map((row) => row.length) } };

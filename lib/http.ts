@@ -7,16 +7,20 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { Reply } from "./game.js";
 
 type Logic = (req: VercelRequest) => Promise<Reply>;
+type Method = "GET" | "POST" | "PATCH";
 
 /**
- * Wrap a logic function as a Vercel handler: enforce the method, serialise the reply, and
- * turn an unexpected throw into a 500 without leaking the error to the client (it goes to
- * the function logs instead — a stack trace could disclose the target word).
+ * Dispatch to one logic function per HTTP method, serialise the reply, and turn an
+ * unexpected throw into a 500 without leaking the error to the client (it goes to the
+ * function logs instead — a stack trace could disclose the target word). `handler` below
+ * is the single-method common case; endpoints that need e.g. GET *and* PATCH on the same
+ * route (api/v1/me/preferences) use this directly.
  */
-export function handler(method: "GET" | "POST", logic: Logic) {
+export function methodHandler(routes: Partial<Record<Method, Logic>>) {
   return async (req: VercelRequest, res: VercelResponse): Promise<void> => {
-    if (req.method !== method) {
-      res.setHeader("Allow", method);
+    const logic = req.method ? routes[req.method as Method] : undefined;
+    if (!logic) {
+      res.setHeader("Allow", Object.keys(routes).join(", "));
       res.status(405).json({ detail: `Method ${req.method} not allowed.` });
       return;
     }
@@ -33,6 +37,11 @@ export function handler(method: "GET" | "POST", logic: Logic) {
   };
 }
 
+/** Wrap a single logic function as a Vercel handler for one HTTP method. */
+export function handler(method: "GET" | "POST", logic: Logic) {
+  return methodHandler({ [method]: logic });
+}
+
 /** The `[id]` path segment. */
 export function gameId(req: VercelRequest): string {
   const id = req.query.id;
@@ -40,11 +49,19 @@ export function gameId(req: VercelRequest): string {
 }
 
 /**
- * An integer query parameter. Returns `fallback` when absent, and NaN when present but
- * not an integer — which the caller rejects as a 422, rather than silently defaulting a
- * typo like `?target_length=seven` to 7.
+ * An integer query parameter. Returns `fallback` when absent (or, with no fallback given,
+ * `undefined` — used where "absent" and "explicitly provided" must be told apart, e.g.
+ * game/start's duration_seconds, whose default depends on target_length), and NaN when
+ * present but not an integer — which the caller rejects as a 422, rather than silently
+ * defaulting a typo like `?target_length=seven` to 7.
  */
-export function intQuery(req: VercelRequest, name: string, fallback: number): number {
+export function intQuery(req: VercelRequest, name: string): number | undefined;
+export function intQuery(req: VercelRequest, name: string, fallback: number): number;
+export function intQuery(
+  req: VercelRequest,
+  name: string,
+  fallback?: number,
+): number | undefined {
   const raw = req.query[name];
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (value === undefined || value === "") return fallback;
@@ -55,4 +72,12 @@ export function intQuery(req: VercelRequest, name: string, fallback: number): nu
 export function bodyWord(req: VercelRequest): string {
   const body = req.body as { word?: unknown } | undefined;
   return typeof body?.word === "string" ? body.word : "";
+}
+
+/** One named field out of a JSON body, untyped — callers validate their own shape (e.g.
+ *  preferences.ts's PATCH, which needs to tell "absent" apart from "present but wrong
+ *  type" for its own 422 message). */
+export function bodyField(req: VercelRequest, name: string): unknown {
+  const body = req.body as Record<string, unknown> | undefined;
+  return body?.[name];
 }

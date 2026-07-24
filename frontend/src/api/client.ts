@@ -83,6 +83,24 @@ class BetuAPIClient {
     return data.available_lengths;
   }
 
+  // Player preferences (ROADMAP 2.3). Not under /api/game or /api/words, so no
+  // /api/... rewrite alias applies — call the /api/v1 path directly.
+  async getPreferredLength(): Promise<number | null> {
+    const response = await fetch('/api/v1/me/preferences');
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    const data = await response.json();
+    return data.preferred_length ?? null;
+  }
+
+  async setPreferredLength(length: number): Promise<void> {
+    const response = await fetch('/api/v1/me/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferred_length: length }),
+    });
+    if (!response.ok) throw new Error('Failed to save preferred length');
+  }
+
   // Game management
   async startGame(targetLength: number = 7): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });
