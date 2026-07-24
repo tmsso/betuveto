@@ -9,6 +9,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      workbox: {
+        // Serve the (precached) app shell for any failed/offline navigation,
+        // but never for API calls — the game has no offline mode, so the
+        // shell itself must communicate "you're offline", not pretend to work.
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+      },
       manifest: {
         name: 'Betűvető',
         short_name: 'Betűvető',
