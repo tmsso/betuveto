@@ -1,7 +1,7 @@
 import { mintIdentity, verifyIdentity } from "../../../lib/auth.js";
 import { startGame } from "../../../lib/game.js";
 import { handler, intQuery } from "../../../lib/http.js";
-import { DEFAULT_TARGET_LENGTH, GAME_DURATION_SECONDS } from "../../../lib/words.js";
+import { DEFAULT_TARGET_LENGTH } from "../../../lib/words.js";
 
 // 400 days: the longest Max-Age Chrome/Firefox honour, so anything larger just gets
 // silently clamped anyway (ROADMAP 2.1).
@@ -23,7 +23,9 @@ export default handler("POST", (req) => {
 
   return startGame(
     intQuery(req, "target_length", DEFAULT_TARGET_LENGTH),
-    intQuery(req, "duration_seconds", GAME_DURATION_SECONDS),
+    // No fallback: absent means "use the length-scaled default" (ROADMAP 2.3), which only
+    // startGame can compute since it alone knows the (already-validated) target_length.
+    intQuery(req, "duration_seconds"),
     playerId,
     setCookieHeader,
   );

@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canFormWord,
+  durationForLength,
   letterCount,
   normalizeWord,
   scoreFor,
@@ -107,5 +108,20 @@ describe("scrambleWord", () => {
     const scrambled = scrambleWord("HANGKÖZ");
     expect(scrambled.split(" ").join("")).toHaveLength(7);
     expect(signatureOf(scrambled.split(" ").join(""))).toBe(signatureOf("HANGKÖZ"));
+  });
+});
+
+describe("durationForLength (ROADMAP 2.3)", () => {
+  it("matches the roadmap's formula at both ends of the range", () => {
+    expect(durationForLength(5)).toBe(120);
+    expect(durationForLength(10)).toBe(195);
+  });
+
+  it("is 150s at the default length of 7", () => {
+    expect(durationForLength(7)).toBe(150);
+  });
+
+  it("increases by 15s per extra letter", () => {
+    expect(durationForLength(8) - durationForLength(7)).toBe(15);
   });
 });
