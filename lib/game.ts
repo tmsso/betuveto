@@ -386,3 +386,10 @@ export async function getAvailableLengths(): Promise<Reply> {
   `;
   return { status: 200, body: { available_lengths: rows.map((row) => row.length) } };
 }
+
+/** One cheap DB read, for uptime checks (ROADMAP 1.4) — no Neon keep-alive needed. */
+export async function healthCheck(): Promise<Reply> {
+  const sql = db();
+  await sql`select 1`;
+  return { status: 200, body: { ok: true } };
+}

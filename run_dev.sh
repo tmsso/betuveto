@@ -1,22 +1,5 @@
 #!/bin/bash
-
-# This "trap" ensures that if you stop the script, it kills both sub-processes
-trap "kill 0" EXIT
-
-echo "🚀 Starting Betűvető Full-Stack..."
-
-# 1. Start the Backend (FastAPI)
-(
-  cd backend && 
-  source venv/bin/activate && 
-  uvicorn main:app --host 0.0.0.0 --port 8000
-) &
-
-# 2. Start the Frontend (Vite)
-(
-  cd frontend && 
-  npm run dev -- --host
-) &
-
-# Keep the script running so the trap stays active
-wait
+# Runs the frontend and the Vercel API functions on one origin (ROADMAP 1.3).
+# `vercel dev` serves api/ itself and proxies everything else to the Vite dev
+# server declared as `devCommand` in vercel.json — no separate backend, no proxy.
+exec npx vercel dev

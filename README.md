@@ -7,47 +7,37 @@ finding every possible word clears the board.
 ## Stack
 
 - **Frontend:** React 19 + Vite 7 + Tailwind CSS 3 (PWA-enabled)
-- **Backend:** FastAPI (Python 3.10+), in-memory game state keyed per game
+- **API:** TypeScript Vercel serverless functions, server-authoritative, no in-process state
+- **Database:** Neon serverless Postgres
 - **Dictionary:** ~161k Hungarian words (`data/magyar-szavak.txt`)
 
-> A batch-by-batch plan for where this project is headed (persistence, accounts,
-> multiplayer, i18n, admin tools, Android) lives in [`ROADMAP.md`](./ROADMAP.md).
-> The target architecture is Vercel + Neon (Postgres + auth), with Ably for realtime
-> once multiplayer lands; the current FastAPI backend is the interim implementation.
+> A batch-by-batch plan for where this project is headed (accounts, multiplayer, i18n,
+> admin tools, Android) lives in [`ROADMAP.md`](./ROADMAP.md). Realtime (Ably) arrives
+> once multiplayer lands (Batch 7).
 
 ## Development setup
 
-Requirements: Python 3.10+, Node 18+.
+Requirements: Node 18+, the [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`,
+then `vercel login` and `vercel link` once to connect this checkout to the Vercel project).
 
 ```bash
-# 1. Backend
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+npm install                       # root tooling: API, migrations, tests
+npm --prefix frontend install     # frontend deps
 
-# 2. Frontend (in a second terminal)
-cd frontend
-npm install
-npm run dev -- --host
+./run_dev.sh                      # `vercel dev` — frontend + api/ on one origin
 ```
 
-Or run both at once from the repo root:
-
-```bash
-./run_dev.sh   # expects backend/venv to exist
-```
-
-The frontend dev server proxies `/api` to `http://localhost:8000`.
+Frontend and API are same-origin under `vercel dev` (it runs the Vite dev server declared
+as `devCommand` in `vercel.json` and proxies non-`/api` requests to it), so there is no
+CORS or dev-proxy configuration to maintain. `vercel dev` also pulls the linked project's
+**Development** environment variables automatically — set them in the Vercel dashboard
+(or `vercel env add ... development`) rather than duplicating them locally.
 
 ### Configuration
 
-See [`.env.example`](./.env.example). Key variables:
-
-- `CORS_ORIGINS` — comma-separated allowlist of browser origins (no wildcard;
-  the API sends credentials).
-- `WORDLIST_PATH` — path to the word list (defaults to `data/magyar-szavak.txt`).
-- `VITE_API_BASE_URL` — API base for the frontend (defaults to `/api`).
+See [`.env.example`](./.env.example) for `DATABASE_URL` (needed locally to run
+`db:migrate`/`db:import`/`db:verify` directly, outside of `vercel dev`) and the contract
+test's `API_BASE_URL`/`VERCEL_AUTOMATION_BYPASS_SECRET`.
 
 ## API (Vercel functions)
 
@@ -56,7 +46,8 @@ server-authoritative and holds **no in-process state**: every game lives in the 
 table and every scored guess in `game_guesses`, so any function instance can serve any
 request and a redeploy mid-game loses nothing.
 
-- `api/v1/…` — one thin handler per endpoint (9 functions).
+- `api/v1/…` — one thin handler per endpoint (10 functions, including `health` — a cheap
+  DB read for uptime checks, ROADMAP 1.4).
 - `lib/` — the logic they share: `words.ts` (board/letter rules), `game.ts` (the game),
   `db.ts` (Postgres), `http.ts` (the Vercel adapter). The importer in `scripts/` reads its
   rules from `lib/words.ts` too, so the API and the dictionary can never disagree about
@@ -91,11 +82,10 @@ The target architecture (ROADMAP Batch 1) puts persistence on **Neon** serverles
 stores a `signature` — its letters sorted — so possible-words is one indexed query rather
 than a full scan).
 
-> **Status:** the schema, importer and API were first built on Supabase (#9, #10) and the
-> code has been re-pointed to Neon (ROADMAP Batch 1.5): plain-SQL migrations in
-> `migrations/`, a `db:migrate` runner, and a single `DATABASE_URL` (no Supabase CLI or
-> `SUPABASE_*` vars). What remains is the live apply — it needs a Neon project, so run the
-> commands below once you have one. Not yet run against a live Neon database.
+> **Status:** the schema, importer and API were first built on Supabase (#9, #10) and
+> re-pointed to Neon in ROADMAP Batch 1.5 — plain-SQL migrations in `migrations/`, a
+> `db:migrate` runner, and a single `DATABASE_URL` (no Supabase CLI or `SUPABASE_*` vars).
+> Live and verified against a Neon project: 155,107 words imported, `db:verify` green.
 
 ```bash
 npm install                       # repo-root tooling (importer, migration runner)
@@ -113,24 +103,24 @@ npm run db:import
 npm run db:verify
 ```
 
-> **Connection:** put Neon's **pooled** connection string in `DATABASE_URL`. The
-> `@neondatabase/serverless` driver talks over HTTP/WebSocket, so there's no IPv4/IPv6
-> direct-host problem to work around (that caveat was Supabase-specific).
+> **Connection:** put Neon's **pooled** connection string in `DATABASE_URL`
+> (`...-pooler.<region>.aws.neon.tech`, dual-stack) — same `postgres` (postgres.js) driver
+> as the Supabase build, no swap needed. `prepare: false` stays required: Neon's pooler is
+> also PgBouncer in transaction mode.
 
 ## Tests
 
 ```bash
-cd backend && pip install -r requirements.txt && pytest      # backend API tests
-cd frontend && npm run lint && npm run build                 # frontend checks
+npm test                                      # API unit tests (no database needed)
+cd frontend && npm run lint && npm run build  # frontend checks
 ```
 
 CI runs all of the above on every pull request (`.github/workflows/ci.yml`).
 
 ## Deployment
 
-`.github/workflows/hf_sync.yml` syncs the `backend/` directory (plus the
-root `data/`) to a Hugging Face Space on every push to `main`. The frontend is
-deployed via Vercel's GitHub integration.
+Vercel builds and deploys the whole app (frontend + `api/`) from its GitHub integration on
+every push — there is no separate backend deployment.
 
 ## Word list
 
