@@ -351,7 +351,7 @@ Neon — nothing to migrate data-wise.*
   Anonymous identity delivers per-player scores/stats immediately; OAuth arrives in
   Batch 8 as a ~10-line *identity link* on the same user ("keep my progress across devices").
 
-### 2.2 `[ ]` Server-side high scores
+### 2.2 `[x]` Server-side high scores
 - `GET /api/v1/scores/top?length=7&wordlist=hu&period=all|week|day` → top N
   (score, display_name, date). Written automatically when a game finishes (server
   computes final score — client totals are never trusted).
@@ -362,8 +362,15 @@ Neon — nothing to migrate data-wise.*
   rate-limit `/guess` (e.g. 3/s per player — cheapest implementation: count the player's
   `game_guesses` rows from the last few seconds before accepting) so dictionary-dump
   bots don't own the board. Perfect anti-cheat is explicitly out of scope.
+- **Shipped 2026-07-24:** `GET /api/v1/scores/top` + `lib/scores.ts`, top 10 + `your_best`
+  (identity resolved server-side from the signed cookie, never a client-supplied
+  `player_id` — prevents guessing another player's best). Reuses `games_leaderboard_idx`
+  as-is. Frontend high-score panel wired up; localStorage top-3 kept as an offline/error
+  fallback. **Not yet done — deferred on purpose:** the anti-cheat rate-limit bullet above
+  (kept `guess()` free for the same-round completion-bonus work below); a period selector
+  in the UI (`period` is implemented and tested on the API, just not exposed yet).
 
-### 2.3 `[ ]` Word length option (5–10)
+### 2.3 `[x]` Word length option (5–10)
 - Backend already parametrised after 0.7. Frontend: a length selector on the
   new-game modal/start screen (default 7, persisted per player in DB `players.preferred_length`).
 - High scores are **per length** (a 10-letter board yields far more points — never mix boards).
@@ -371,6 +378,12 @@ Neon — nothing to migrate data-wise.*
   (config values, admin-editable in Batch 5).
 - **Accept:** each length 5–10 has words available (verify against the wordlist and hide
   lengths with < 500 candidate words), separate leaderboards render correctly.
+- **Shipped 2026-07-24:** length selector (5–10, default 7) wired to game start; timer
+  ceiling now `durationForLength` (`120 + 15 × (length − 5)`); `players.preferred_length`
+  persisted via `GET`/`PATCH /api/v1/me/preferences`; selector only offers lengths with
+  ≥500 candidate words. **Visible behaviour change riding along:** default (length-7) game
+  duration dropped from 180s to 150s — this is exactly the roadmap formula above, not a
+  bug, but worth knowing if it looks surprising later.
 
 ---
 
@@ -387,12 +400,22 @@ Neon — nothing to migrate data-wise.*
   a separate "pure" board is a config toggle for later, not a launch requirement.
 - Frontend: hint button with cost label, disabled when score < cost or no unfound words.
 
-### 3.2 `[ ]` Total word count + completion bonus (server-side)
+### 3.2 `[x]` Total word count + completion bonus (server-side)
 - The client already shows found/total and grants `+timeLeft` bonus — but computes it
   locally. Move to server: when `found_count == possible_count`, server ends the game and
   adds `remaining_seconds × completion_multiplier` (default 1) bonus. Return the final
   breakdown so the UI can celebrate honestly.
 - Show possible-count per game start (from 0.1's count endpoint).
+- **Shipped 2026-07-24, pulled forward out of order** (built alongside Batch 2's
+  remainder, ahead of 3.1/3.3): `guess()`'s existing `gameEnded` block (which already set
+  `status='finished'`/`final_score` on a full clear) now adds
+  `remaining_seconds × COMPLETION_BONUS_MULTIPLIER` (plain constant `1` for now — Batch 5
+  makes it admin-editable) and returns a `completion_bonus` field; the frontend celebration
+  now displays the server's number instead of its own local `+timeLeft` calculation.
+- **Pre-existing issue surfaced, not fixed here (out of scope for this item):** the
+  frontend's own score display uses JS string length for a word, which can diverge from
+  the server's Hungarian-aware letter count for digraphs (`cs`, `sz`, …) — whoever next
+  touches score display should know this predates 3.2 and isn't something it introduced.
 
 ### 3.3 `[ ]` Player stats page (small, high-value)
 - `GET /api/v1/me/stats`: games played, average score per length, longest word found,
