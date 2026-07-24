@@ -78,13 +78,12 @@ These are decided once, here, so individual batches don't re-litigate them:
    credentials at all** — every query runs in a Vercel function holding `DATABASE_URL`, so no
    table of answers is ever client-readable. (Postgres RLS is therefore optional here —
    defense-in-depth, not load-bearing as it was under Supabase's anon key.)
-4. **Identity: anonymous-first via Neon Auth.** Neon Auth (managed Better Auth) is the
-   primary identity (Batch 2); Google OAuth arrives later (Batch 8) as an *identity link*
-   on the same user — an upgrade for cross-device continuity, never a login wall. Nobody is
-   ever forced to sign in to play. **Caveat to confirm in Batch 2:** it is unverified whether
-   Neon's *managed* Better Auth exposes anonymous sessions. If it does not, the fallback is a
-   signed anonymous cookie for device identity (the original plan), with Neon Auth handling
-   only the Google upgrade — either way the roadmap holds.
+4. **Identity: anonymous-first via a signed device cookie; Neon Auth reserved for Google.**
+   **Confirmed 2026-07-24:** Neon's managed Better Auth does not support anonymous sessions
+   (the `anonymous` Better Auth plugin isn't in Neon's supported-plugin list or roadmap).
+   So Batch 2 mints its own signed, HTTP-only anonymous cookie for device identity — nobody
+   is ever forced to sign in to play — and Neon Auth is reserved for the Google OAuth
+   *identity link* in Batch 8 (an upgrade for cross-device continuity, never a login wall).
 5. **Server-authoritative game state.** After Batch 1, the client never receives the
    target word or the solution list during an active game, and the server enforces the
    timer and computes all scores. Serverless statelessness makes this structural: there
@@ -326,15 +325,17 @@ Neon — nothing to migrate data-wise.*
 
 ## Batch 2 — Player identity (anonymous), server high scores, word-length option
 
-### 2.1 `[ ]` Anonymous identity via Neon Auth
-- On first visit, establish an anonymous identity via **Neon Auth** (managed Better Auth):
-  the client gets a session token it sends as `Authorization: Bearer`; API routes verify it
-  and resolve or create the matching `players` row. No UI, no consent friction — a device
-  identity, like a save file.
-- **Confirm first (see architecture decision 4):** whether Neon's managed Better Auth exposes
-  anonymous sessions. If not, fall back to a signed, HTTP-only anonymous cookie minted by the
-  API (device identity), and reserve Neon Auth for the Google upgrade in Batch 8 — the rest
-  of this batch is unchanged either way.
+### 2.1 `[ ]` Anonymous identity via a signed cookie (Neon Auth reserved for Google, Batch 8)
+- **Confirmed 2026-07-24 (see architecture decision 4): Neon's managed Better Auth does not
+  support anonymous sessions.** Its documented supported-plugin list (Admin, Email OTP, JWT,
+  Magic Link, Organization, Open API, Phone Number) does not include Better Auth's
+  `anonymous` plugin, and it isn't on Neon's roadmap either (only "other plugins based on
+  demand"). Note: Neon's `@neondatabase/auth` SDK has an unrelated `allowAnonymous` option —
+  that issues anonymous JWTs for RLS-based *public read access*, not a persistent per-device
+  user account with an upgrade path, so it isn't a substitute here.
+- On first visit, the API mints a signed, HTTP-only anonymous cookie (device identity, like
+  a save file) and resolves or creates the matching `players` row from it. No UI, no consent
+  friction. Neon Auth is reserved for the Google OAuth upgrade in Batch 8.
 - Optional display name: small "name yourself" input (stored on `players.display_name`,
   max 20 chars, strip/validate; profanity filtering is out of scope — admin can edit in Batch 5).
 - **Challenge to the original idea:** *don't start with Google OAuth.* It adds a consent
@@ -526,9 +527,9 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   On a new device, signing in with Google resolves to the already-linked user — cross-device
   continuity is the entire point of this batch. (One-time setup: GCP OAuth client + enabling
   the Google provider in Neon Auth.)
-- If the cookie fallback from Batch 2 was used instead of Neon Auth anonymous sessions, this
-  batch is where Neon Auth is first introduced: link the Google login to the cookie's
-  `players` row on first sign-in.
+- Batch 2 uses the signed-cookie identity (Neon Auth has no anonymous sessions, confirmed —
+  see architecture decision 4), so this batch is where Neon Auth is first introduced: link
+  the Google login to the cookie's `players` row on first sign-in.
 - Merge rule — the only real code in this batch: if the *new device* accumulated
   anonymous games before signing in, linking fails (the Google identity already belongs
   to another user); instead sign in and merge the orphaned anonymous player's stats into
