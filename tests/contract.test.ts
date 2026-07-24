@@ -47,8 +47,9 @@ async function call(
   method: "GET" | "POST",
   route: string,
   body?: unknown,
-): Promise<{ status: number; json: any }> {
-  const headers: Record<string, string> = {};
+  extraHeaders?: Record<string, string>,
+): Promise<{ status: number; json: any; headers: Headers }> {
+  const headers: Record<string, string> = { ...extraHeaders };
   if (BYPASS) headers["x-vercel-protection-bypass"] = BYPASS;
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -64,7 +65,7 @@ async function call(
   } catch {
     throw new Error(`${method} ${route} -> ${response.status}, non-JSON body: ${text.slice(0, 200)}`);
   }
-  return { status: response.status, json };
+  return { status: response.status, json, headers: response.headers };
 }
 
 /** The dictionary as imported, so the tests can reason about a board the way the API does. */
@@ -319,5 +320,23 @@ describeApi("Betűvető API contract", () => {
     const { status, json } = await call("GET", "/api/v1/health");
     expect(status).toBe(200);
     expect(json.ok).toBe(true);
+  });
+
+  // --- Anonymous identity (ROADMAP 2.1) --------------------------------------
+  it("mints a signed anonymous cookie on first visit and remembers it thereafter", async () => {
+    const first = await call("POST", "/api/game/start?target_length=7");
+    const mintedCookie = first.headers.get("set-cookie");
+    expect(mintedCookie).toBeTruthy();
+    expect(mintedCookie).toMatch(/^bv_anon=[^;]+\.[0-9a-f]+;/);
+    expect(typeof first.json.player_id).toBe("string");
+
+    // Send only the cookie's own name=value back, as a browser would.
+    const cookieValue = mintedCookie!.split(";", 1)[0];
+    const second = await call("POST", "/api/game/start?target_length=7", undefined, {
+      Cookie: cookieValue,
+    });
+    expect(second.json.player_id).toBe(first.json.player_id);
+    // Same identity recognised: no need to mint (and overwrite) the cookie again.
+    expect(second.headers.get("set-cookie")).toBeNull();
   });
 });

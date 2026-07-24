@@ -29,6 +29,8 @@ import {
 export interface Reply {
   status: number;
   body: unknown;
+  /** Set-Cookie etc. — currently only game/start's freshly-minted anon identity uses this. */
+  headers?: Record<string, string>;
 }
 
 interface GameRow {
@@ -89,7 +91,14 @@ async function findableWords(sql: Sql, listId: number, target: string): Promise<
   return rows.map((row) => row.word);
 }
 
-export async function startGame(targetLength: number, durationSeconds?: number): Promise<Reply> {
+export async function startGame(
+  targetLength: number,
+  durationSeconds: number | undefined,
+  playerId: string,
+  // Only set when the caller minted a fresh identity this request — signals both "create
+  // the players row" and "echo the Set-Cookie back", so the two can never drift apart.
+  setCookieHeader?: string,
+): Promise<Reply> {
   if (
     !Number.isInteger(targetLength) ||
     targetLength < MIN_TARGET_LENGTH ||
@@ -118,6 +127,12 @@ export async function startGame(targetLength: number, durationSeconds?: number):
   const sql = db();
   const listId = await wordlistId();
 
+  if (setCookieHeader) {
+    // Explicit id: the column default (gen_random_uuid()) exists for callers that don't
+    // care which id they get, but this one must match the cookie already being minted.
+    await sql`insert into players (id) values (${playerId})`;
+  }
+
   // Uniform among active words of the requested length. The per-player weighting that
   // resurfaces previously-failed words (word_stats) needs an identity to key on, which
   // arrives with auth in Batch 2; anonymous games have no history to weight by.
@@ -136,9 +151,9 @@ export async function startGame(targetLength: number, durationSeconds?: number):
   const scrambled = scrambleWord(target);
 
   const [game] = await sql<{ id: string; ends_at: Date }[]>`
-    insert into games (wordlist_id, target_word, target_length, scrambled_letters,
+    insert into games (player_id, wordlist_id, target_word, target_length, scrambled_letters,
                        possible_count, ends_at)
-    values (${listId}, ${target}, ${targetLength}, ${scrambled},
+    values (${playerId}, ${listId}, ${target}, ${targetLength}, ${scrambled},
             ${possible.length}, now() + ${`${duration} seconds`}::interval)
     returning id, ends_at
   `;
@@ -154,7 +169,11 @@ export async function startGame(targetLength: number, durationSeconds?: number):
       duration_seconds: duration,
       possible_count: possible.length,
       is_previously_failed: false,
+      // Not the auth token itself (that stays HttpOnly) — just the id, so a black-box
+      // test (or a future /me endpoint) can assert continuity across requests.
+      player_id: playerId,
     },
+    ...(setCookieHeader ? { headers: { "Set-Cookie": setCookieHeader } } : {}),
   };
 }
 
