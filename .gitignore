@@ -98,6 +98,11 @@ SOUL.md
 TOOLS.md
 USER.md
 
+# Claude Code skills are a different tool from Openclaw — re-include despite the broad
+# skills/ rule above.
+!.claude/skills/
+!.claude/skills/**
+
 # Virtual environments (word-game-env)
 word-game-env/
 
