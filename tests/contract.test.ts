@@ -605,7 +605,20 @@ describeApi("Betűvető API contract", () => {
   });
 
   // --- Word curation (ROADMAP 4.1) --------------------------------------------
-  it("requires identity to report a word, 404s an unknown word, and is idempotent", async () => {
+  //
+  // Deliberately narrow: only the read-only, no-side-effect paths (no identity, unknown
+  // word) are exercised here. This suite is meant to be safe to run repeatedly against
+  // any deployment indefinitely, including a shared, persistent production database
+  // (ROADMAP 1.5 — Production and Preview share one Neon connection by default). A first
+  // draft of this test also asserted the insert/idempotency path with a real dictionary
+  // word — every run mints a fresh player_id, so *separate runs* reporting the same word
+  // is exactly two distinct reporters, which auto-inactivates it (>= 2 distinct players,
+  // lib/word-reports.ts). `findable(game)[0]` is also biased toward short, common words
+  // (first match in wordlist-file order), making a collision across runs likely rather
+  // than remote. Caught before merge by checking the actual DB rather than assuming a
+  // single manual test run proved it safe. The accept-and-record path is covered by
+  // manual verification instead (curl + direct DB queries), not by this committed suite.
+  it("requires identity to report a word, and 404s an unknown word", async () => {
     const game = await start();
     const word = findable(game)[0];
 
@@ -613,19 +626,6 @@ describeApi("Betűvető API contract", () => {
     expect(unauth.status).toBe(401);
 
     const { cookie } = await startWithCookie();
-    const first = await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
-    expect(first.status).toBe(200);
-    expect(first.json.reported).toBe(true);
-    expect(first.json.already_reported).toBe(false);
-
-    const second = await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
-    expect(second.json.already_reported).toBe(true);
-
-    // Auto-inactivation needs 2 *distinct* reporters (see lib/word-reports.ts) — not
-    // exercised here on purpose: this suite runs repeatedly against a shared, persistent
-    // preview DB, and crossing that threshold would permanently retire a real dictionary
-    // word from every future game on that deployment. Verified manually instead (and
-    // reverted) during this batch's development.
     const unknown = await call(
       "POST",
       "/api/v1/words/report",
