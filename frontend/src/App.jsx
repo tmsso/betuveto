@@ -863,7 +863,7 @@ function App() {
             </button>
             <button
               onClick={handleUseHint}
-              disabled={hintLoading || foundWords.length >= possibleWordsCount || displayScore < HINT_COST}
+              disabled={hintLoading || foundWords.length >= possibleWordsCount}
               title={`Egy szó első betűjének felfedése (-${HINT_COST} pont)`}
               className="text-xs text-game-secondary underline hover:text-blue-700 disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
             >
