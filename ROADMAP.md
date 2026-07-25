@@ -430,10 +430,15 @@ Neon — nothing to migrate data-wise.*
   column — a single floored value would let the score visibly jump back down on the next
   guess once hints had driven it to 0 (`max(0,x)+s ≠ max(0,x+s)` for `x<0`). Leaderboard
   (`lib/scores.ts`) gained a `hinted` boolean per entry. Frontend: hint button (disabled
-  once every word is found or the score is under cost), a `hintPenalty` state subtracted
-  from the client's own locally-summed score at display time (the client never learns the
+  once every word is found; **not** disabled by score, on purpose — a first pass also
+  disabled it whenever the running score was under the hint cost, which is *every* fresh
+  game at 0 points, so the button was unusable until the player had already found
+  something. The browser check against the preview deployment caught this: the button
+  never became clickable on a new game. Removed — the server's own floor-at-0 already
+  does the job that condition was trying to). A `hintPenalty` state is subtracted from
+  the client's own locally-summed score at display time (the client never learns the
   server's total mid-game — same pre-existing local-score-computation shape 3.2 already
-  flagged), and a toast showing the revealed letter.
+  flagged), and a toast shows the revealed letter.
 
 ### 3.2 `[x]` Total word count + completion bonus (server-side)
 - The client already shows found/total and grants `+timeLeft` bonus — but computes it
