@@ -26,6 +26,7 @@ import {
   signatureOf,
   subSignatures,
 } from "./words.js";
+import { hasFailedBefore, recordFailed, recordSolved } from "./word-stats.js";
 
 export interface Reply {
   status: number;
@@ -34,9 +35,10 @@ export interface Reply {
   headers?: Record<string, string>;
 }
 
-interface GameRow {
+export interface GameRow {
   id: string;
   wordlist_id: number;
+  player_id: string | null;
   target_word: string;
   target_length: number;
   scrambled_letters: string;
@@ -44,10 +46,13 @@ interface GameRow {
   found_count: number;
   status: string;
   ends_at: Date;
-  total_score: number;
+  // Raw components, not a precomputed total: see effectiveScore's doc comment for why
+  // flooring has to happen at the point of use rather than once here.
+  raw_guess_score: number;
+  hint_cost_total: number;
 }
 
-const NOT_FOUND: Reply = {
+export const NOT_FOUND: Reply = {
   status: 404,
   body: { detail: "Game not found or expired. Start a new game." },
 };
@@ -56,21 +61,40 @@ const NOT_FOUND: Reply = {
  *  plain constant for now — becomes admin-editable config in Batch 5. */
 const COMPLETION_BONUS_MULTIPLIER = 1;
 
+/** Anti-cheat baseline (ROADMAP 2.2): more than this many *correct* guesses from one
+ *  player in a second means a script working through a locally-computed word list, not a
+ *  human — the scrambled letters are public, so a bot can compute the findable set itself
+ *  without ever needing the server to leak it. A plain constant for now, same as the
+ *  completion bonus multiplier above. */
+const GUESS_RATE_LIMIT = 3;
+
 /** Seconds since the epoch, as the frontend's countdown expects (it compares to Date.now()/1000). */
 function epochSeconds(at: Date): number {
   return at.getTime() / 1000;
 }
 
-async function loadGame(sql: Sql, gameId: string): Promise<GameRow | null> {
+/** The score actually shown to the player: guess points minus hint costs, floored at 0.
+ *  Floored *here*, at every point of use, rather than stored as one pre-floored column —
+ *  `max(0, max(0,x)+s)` diverges from `max(0,x+s)` once x has gone negative, so a value
+ *  that was floored before a new guess was added would let the score visibly jump back
+ *  down on the next read. Keeping both raw components and flooring on each computation
+ *  keeps every reading consistent regardless of how many hints or guesses came first. */
+export function effectiveScore(rawGuessScore: number, hintCostTotal: number): number {
+  return Math.max(0, rawGuessScore - hintCostTotal);
+}
+
+export async function loadGame(sql: Sql, gameId: string): Promise<GameRow | null> {
   // A malformed id must read as "no such game", not as a 500 from Postgres' uuid parser.
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gameId)) {
     return null;
   }
   const [game] = await sql<GameRow[]>`
-    select g.id, g.wordlist_id, g.target_word, g.target_length, g.scrambled_letters,
+    select g.id, g.wordlist_id, g.player_id, g.target_word, g.target_length, g.scrambled_letters,
            g.possible_count, g.found_count, g.status, g.ends_at,
            coalesce((select sum(score)::int from game_guesses
-                      where game_id = g.id and correct), 0) as total_score
+                      where game_id = g.id and correct), 0) as raw_guess_score,
+           coalesce((select sum(cost)::int from game_hints
+                      where game_id = g.id), 0) as hint_cost_total
       from games g
      where g.id = ${gameId}
   `;
@@ -79,14 +103,14 @@ async function loadGame(sql: Sql, gameId: string): Promise<GameRow | null> {
 
 /** The effective status: an active game whose deadline has passed is expired, whether or
  *  not anything has written that to the row yet. */
-function effectiveStatus(game: GameRow, now: Date): string {
+export function effectiveStatus(game: GameRow, now: Date): string {
   if (game.status === "active" && now > game.ends_at) return "expired";
   return game.status;
 }
 
 /** The words findable on this board: those whose signature is a sub-multiset of the
  *  board's letters. One indexed lookup, ~99 signatures for a 7-letter board. */
-async function findableWords(sql: Sql, listId: number, target: string): Promise<string[]> {
+export async function findableWords(sql: Sql, listId: number, target: string): Promise<string[]> {
   const signatures = subSignatures(signatureOf(target), MIN_WORD_LENGTH);
   const rows = await sql<{ word: string }[]>`
     select word from words
@@ -94,6 +118,32 @@ async function findableWords(sql: Sql, listId: number, target: string): Promise<
      order by word
   `;
   return rows.map((row) => row.word);
+}
+
+/** A game whose deadline has passed but is still marked 'active' gets finalized the
+ *  first time any endpoint notices — guess(), giveUp(), and getPossibleWords() (the
+ *  reveal the frontend fetches right after its countdown hits zero) all call this before
+ *  doing anything else. Only the invocation whose UPDATE actually flips the row records
+ *  the word_stats failure, so two concurrent finalizers can't double-count it. */
+async function finalizeExpiry(sql: Sql, game: GameRow, now: Date): Promise<void> {
+  if (game.status !== "active" || now <= game.ends_at) return;
+  const finalScore = effectiveScore(game.raw_guess_score, game.hint_cost_total);
+  const result = await sql`
+    update games set status = 'expired', ended_at = now(), final_score = ${finalScore}
+     where id = ${game.id} and status = 'active'
+  `;
+  if (result.count > 0) await recordFailureIfNeeded(sql, game);
+}
+
+/** Records a failed target word for word_stats/3.3 — unless it was actually solved this
+ *  game (a full board clear can coincide with the deadline in the same instant). */
+async function recordFailureIfNeeded(sql: Sql, game: GameRow): Promise<void> {
+  const [solved] = await sql<{ x: number }[]>`
+    select 1 as x from game_guesses
+     where game_id = ${game.id} and word = ${game.target_word} and correct
+     limit 1
+  `;
+  if (!solved) await recordFailed(sql, game.player_id, game.target_word);
 }
 
 export async function startGame(
@@ -141,8 +191,9 @@ export async function startGame(
   }
 
   // Uniform among active words of the requested length. The per-player weighting that
-  // resurfaces previously-failed words (word_stats) needs an identity to key on, which
-  // arrives with auth in Batch 2; anonymous games have no history to weight by.
+  // resurfaces previously-failed words (ROADMAP Batch 10's spaced-repetition polish) is
+  // still future work; what Batch 3.3 adds is just telling the client this specific
+  // target has burned this player before (is_previously_failed, below).
   const [pick] = await sql<{ word: string }[]>`
     select word from words
      where wordlist_id = ${listId} and length = ${targetLength} and active
@@ -156,6 +207,7 @@ export async function startGame(
   const target = pick.word;
   const possible = await findableWords(sql, listId, target);
   const scrambled = scrambleWord(target);
+  const wasFailedBefore = await hasFailedBefore(playerId, target);
 
   const [game] = await sql<{ id: string; ends_at: Date }[]>`
     insert into games (player_id, wordlist_id, target_word, target_length, scrambled_letters,
@@ -175,7 +227,7 @@ export async function startGame(
       ends_at: epochSeconds(game.ends_at),
       duration_seconds: duration,
       possible_count: possible.length,
-      is_previously_failed: false,
+      is_previously_failed: wasFailedBefore,
       // Not the auth token itself (that stays HttpOnly) — just the id, so a black-box
       // test (or a future /me endpoint) can assert continuity across requests.
       player_id: playerId,
@@ -190,16 +242,10 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   if (!game) return NOT_FOUND;
 
   const now = new Date();
+  await finalizeExpiry(sql, game, now);
   const status = effectiveStatus(game, now);
 
   if (status === "expired") {
-    // Persist the expiry the first time anyone notices it.
-    if (game.status === "active") {
-      await sql`
-        update games set status = 'expired', ended_at = now(), final_score = ${game.total_score}
-         where id = ${game.id} and status = 'active'
-      `;
-    }
     return {
       status: 200,
       body: {
@@ -209,7 +255,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
         score: 0,
         message: "Lejárt az idő.",
         game_ended: true,
-        total_score: game.total_score,
+        total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total),
         found_count: game.found_count,
       },
     };
@@ -237,9 +283,15 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
     return reject(`Legalább ${MIN_WORD_LENGTH} betűs szót adj meg.`);
   }
 
+  // The target itself stays guessable even if a word report (ROADMAP 4.1) deactivated it
+  // mid-game — "don't yank a live game's target" — every other word obeys the normal
+  // active flag. (A *non-target* findable word going inactive mid-game is a rarer edge
+  // case this doesn't cover: found_count could then never reach the frozen possible_count,
+  // making the completion bonus unreachable for that one game — accepted as out of scope.)
   const [known] = await sql<{ word: string }[]>`
     select word from words
-     where wordlist_id = ${game.wordlist_id} and word = ${word} and active
+     where wordlist_id = ${game.wordlist_id} and word = ${word}
+       and (active or word = ${game.target_word})
   `;
   if (!known) return reject(`Nem ismerek ilyen szót: ${word}`);
 
@@ -268,28 +320,75 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
         can_form: true,
         already_guessed: true,
         score: 0,
-        message: `Ezért a szóért már kaptál pontot. Pontszámod továbbra is ${game.total_score}.`,
+        message: `Ezért a szóért már kaptál pontot. Pontszámod továbbra is ${effectiveScore(game.raw_guess_score, game.hint_cost_total)}.`,
         game_ended: false,
       },
     };
   }
 
-  const totalScore = game.total_score + score;
-  const foundCount = game.found_count + 1;
-  const gameEnded = foundCount >= game.possible_count;
+  // Anti-cheat baseline (ROADMAP 2.2), checked *after* this guess is already committed:
+  // count this player's own correct guesses across the last second, across every game.
+  // Checking before inserting is a check-then-act race — concurrent requests (a bot
+  // firing many at once, not one-by-one) can all read "0 so far" before any of them have
+  // committed. Counting post-insert means every sibling's commit is visible by the time
+  // each one checks, so the number of guesses that survive the window is genuinely
+  // bounded even under true concurrency (which exact one gets rejected isn't strictly
+  // first-come-first-served, but the rate is actually capped, which is what matters here).
+  if (game.player_id) {
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count
+        from game_guesses gg join games g on g.id = gg.game_id
+       where g.player_id = ${game.player_id} and gg.correct
+         and gg.created_at >= now() - interval '1 second'
+    `;
+    if (count > GUESS_RATE_LIMIT) {
+      await sql`delete from game_guesses where id = ${inserted[0].id}`;
+      return { status: 429, body: { detail: "Túl sok tipp túl gyorsan. Lassíts egy kicsit." } };
+    }
+  }
+
+  // The target word itself, found for the first time — record it as solved (ROADMAP 3.3)
+  // regardless of whether this same guess also happens to clear the whole board.
+  if (word === game.target_word) {
+    await recordSolved(sql, game.player_id, word);
+  }
+
+  const totalScore = effectiveScore(game.raw_guess_score + score, game.hint_cost_total);
   // Floored at 0: the game could theoretically end in the same instant as its last second.
   const remainingSeconds = Math.max(0, Math.floor((game.ends_at.getTime() - now.getTime()) / 1000));
-  const completionBonus = gameEnded ? remainingSeconds * COMPLETION_BONUS_MULTIPLIER : 0;
-  const finalScore = totalScore + completionBonus;
 
-  await sql`
+  // found_count = found_count + 1 is computed by Postgres itself, not from the JS-held
+  // `game.found_count` read at the top of this function — a pre-existing bug (not
+  // introduced here) let two concurrent guesses on the same board both derive
+  // found_count+1 from the same stale read, so the second one silently overwrote the
+  // first's increment. Row-level locking on a single UPDATE statement serializes this
+  // for free. Likewise final_score, on the row that turns out to finish the game, is
+  // computed from a fresh sum over game_guesses/game_hints in the same statement rather
+  // than the JS-held raw_guess_score/hint_cost_total — those were read before this
+  // request's own insert and so can't see a concurrent sibling's simultaneous find.
+  const [row] = await sql<{ found_count: number; game_ended: boolean; final_score: number | null }[]>`
     update games
-       set found_count = ${foundCount},
-           status      = case when ${gameEnded} then 'finished' else status end,
-           ended_at    = case when ${gameEnded} then now() else ended_at end,
-           final_score = case when ${gameEnded} then ${finalScore} else final_score end
+       set found_count = found_count + 1,
+           status      = case when found_count + 1 >= possible_count then 'finished' else status end,
+           ended_at    = case when found_count + 1 >= possible_count then now() else ended_at end,
+           final_score = case when found_count + 1 >= possible_count
+                              then greatest(0,
+                                     (select coalesce(sum(score)::int, 0) from game_guesses
+                                       where game_id = games.id and correct)
+                                     - (select coalesce(sum(cost)::int, 0) from game_hints
+                                         where game_id = games.id)
+                                   ) + ${remainingSeconds * COMPLETION_BONUS_MULTIPLIER}
+                              else final_score end
      where id = ${game.id}
+     returning found_count, (found_count >= possible_count) as game_ended, final_score
   `;
+  const foundCount = row.found_count;
+  const gameEnded = row.game_ended;
+  const completionBonus = gameEnded ? remainingSeconds * COMPLETION_BONUS_MULTIPLIER : 0;
+  // gameEnded's final_score comes straight back from the row just persisted (see the
+  // comment above the UPDATE) rather than being recomputed here from the pre-insert
+  // `totalScore`, so the response body can never disagree with what actually got saved.
+  const finalScore = gameEnded ? row.final_score! : totalScore;
 
   return {
     status: 200,
@@ -315,11 +414,13 @@ export async function giveUp(gameId: string): Promise<Reply> {
   if (!game) return NOT_FOUND;
 
   if (game.status === "active") {
-    await sql`
+    const finalScore = effectiveScore(game.raw_guess_score, game.hint_cost_total);
+    const result = await sql`
       update games
-         set status = 'given_up', ended_at = now(), final_score = ${game.total_score}
+         set status = 'given_up', ended_at = now(), final_score = ${finalScore}
        where id = ${game.id} and status = 'active'
     `;
+    if (result.count > 0) await recordFailureIfNeeded(sql, game);
   }
 
   const possible = await findableWords(sql, game.wordlist_id, game.target_word);
@@ -366,7 +467,7 @@ export async function getState(gameId: string): Promise<Reply> {
       scrambled_letters: game.scrambled_letters,
       found_count: game.found_count,
       possible_count: game.possible_count,
-      total_score: game.total_score,
+      total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total),
       guess_count: game.found_count,
       target_length: game.target_length,
       ends_at: epochSeconds(game.ends_at),
@@ -380,7 +481,12 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
   const game = await loadGame(sql, gameId);
   if (!game) return NOT_FOUND;
 
-  if (effectiveStatus(game, new Date()) === "active") {
+  // The frontend fetches this the instant its own countdown hits zero — for most plays
+  // this, not getState, is where a stale-active/expired row actually gets finalized.
+  const now = new Date();
+  await finalizeExpiry(sql, game, now);
+
+  if (effectiveStatus(game, now) === "active") {
     return {
       status: 403,
       body: { detail: "Possible words are only available after the game ends." },
