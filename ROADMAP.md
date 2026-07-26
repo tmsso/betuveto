@@ -293,6 +293,14 @@ runner, auth wiring and env vars change.*
   data yet (Batch 2 identity hasn't shipped). Revisit the monthly `pg_dump` GitHub Actions
   backup once real player/game data exists to protect. (The earlier blocker — the push
   token lacking the `workflow` scope — is resolved; the token now has it.)
+- **Backup shipped 2026-07-25** (unblocked: Batch 2 identity has since landed, so there's
+  real player data to protect): `.github/workflows/backup.yml`, monthly `pg_dump` against
+  the Neon pooled connection string, uploaded as a 90-day workflow artifact. Pins
+  `postgresql-client-18` from the PGDG apt repo rather than Ubuntu's default (checked live:
+  the Neon project is on Postgres 18, and a mismatched `pg_dump` major hard-errors).
+  **Needs one manual step before it's live:** add a `DATABASE_URL` repository secret
+  (Settings → Secrets and variables → Actions) — a workflow can't create its own secret.
+  Use `workflow_dispatch` to run it once by hand and confirm before trusting the cron.
 
 ### 1.5 `[x]` Re-point persistence from Supabase to Neon
 *The old Supabase DB was paused and unrecoverable, so this was a from-scratch build on
@@ -369,6 +377,21 @@ Neon — nothing to migrate data-wise.*
   fallback. **Not yet done — deferred on purpose:** the anti-cheat rate-limit bullet above
   (kept `guess()` free for the same-round completion-bonus work below); a period selector
   in the UI (`period` is implemented and tested on the API, just not exposed yet).
+- **Rate limit shipped 2026-07-25** (unblocked: the completion-bonus work above has since
+  landed): 3 correct guesses/second/player in `guess()`, checked *after* the guess is
+  already committed rather than before. That ordering wasn't a style choice — a
+  concurrency test during this batch (`Promise.all` firing 8 correct guesses on one board
+  at once) showed the naive check-then-insert version doing nothing at all: every
+  concurrent request read "0 so far" before any had committed, so all 8 passed. Counting
+  post-insert (and deleting the offending row on rejection) means every sibling's commit
+  is visible by the time each one checks, so the surviving rate really is bounded even
+  under true concurrency. The same test also surfaced a pre-existing, unrelated bug it
+  happened to make visible: `found_count = found_count + 1` was computed in JS from a
+  stale pre-request read, so concurrent guesses on the same board could overwrite each
+  other's increment. Fixed alongside (not introduced by this item) by making the
+  increment — and the persisted `final_score` on the game-ending guess — a single atomic
+  `UPDATE ... RETURNING`, sourced from a fresh sum over `game_guesses`/`game_hints` rather
+  than the JS-held pre-request numbers.
 
 ### 2.3 `[x]` Word length option (5–10)
 - Backend already parametrised after 0.7. Frontend: a length selector on the
@@ -389,7 +412,7 @@ Neon — nothing to migrate data-wise.*
 
 ## Batch 3 — Gameplay depth: hints, totals & bonus, stats
 
-### 3.1 `[ ]` Hint option (at a cost)
+### 3.1 `[x]` Hint option (at a cost)
 - Design (keep it simple, one hint type first):
   - `POST /api/v1/game/{id}/hint` reveals the **first letter of one random unfound word**
     (prefer longer words). Response: `{letter, position: 1, word_length, cost}`.
@@ -399,6 +422,23 @@ Neon — nothing to migrate data-wise.*
 - Leaderboard policy: hinted games still count, but show a 💡 marker; keep it simple —
   a separate "pure" board is a config toggle for later, not a launch requirement.
 - Frontend: hint button with cost label, disabled when score < cost or no unfound words.
+- **Shipped 2026-07-25:** `game_hints` migration (`migrations/0002_hints_and_reports.sql`),
+  `lib/hints.ts`'s `useHint()` (plain `HINT_COST = 10` constant, per 3.2's precedent —
+  becomes admin-editable in Batch 5), `POST /api/v1/game/{id}/hint`. Cost is deducted by
+  keeping `raw_guess_score`/`hint_cost_total` as separate components and flooring at 0 at
+  every point of use (`lib/game.ts`'s `effectiveScore`) rather than as one pre-floored
+  column — a single floored value would let the score visibly jump back down on the next
+  guess once hints had driven it to 0 (`max(0,x)+s ≠ max(0,x+s)` for `x<0`). Leaderboard
+  (`lib/scores.ts`) gained a `hinted` boolean per entry. Frontend: hint button (disabled
+  once every word is found; **not** disabled by score, on purpose — a first pass also
+  disabled it whenever the running score was under the hint cost, which is *every* fresh
+  game at 0 points, so the button was unusable until the player had already found
+  something. The browser check against the preview deployment caught this: the button
+  never became clickable on a new game. Removed — the server's own floor-at-0 already
+  does the job that condition was trying to). A `hintPenalty` state is subtracted from
+  the client's own locally-summed score at display time (the client never learns the
+  server's total mid-game — same pre-existing local-score-computation shape 3.2 already
+  flagged), and a toast shows the revealed letter.
 
 ### 3.2 `[x]` Total word count + completion bonus (server-side)
 - The client already shows found/total and grants `+timeLeft` bonus — but computes it
@@ -417,10 +457,27 @@ Neon — nothing to migrate data-wise.*
   the server's Hungarian-aware letter count for digraphs (`cs`, `sz`, …) — whoever next
   touches score display should know this predates 3.2 and isn't something it introduced.
 
-### 3.3 `[ ]` Player stats page (small, high-value)
+### 3.3 `[x]` Player stats page (small, high-value)
 - `GET /api/v1/me/stats`: games played, average score per length, longest word found,
   completion rate, personal failed-words list (server-side now, from `word_stats` —
   replaces the localStorage "Előzmények" feature; migrate then delete the local version).
+- **Shipped 2026-07-25:** `lib/word-stats.ts` — this is where `word_stats` first gets
+  *written* (it existed as a table since Batch 1.1 but nothing populated it until now):
+  `recordSolved`/`recordFailed`, called from `lib/game.ts` at every terminal transition —
+  the target word found (`guess()`), a full timeout, or `give_up()`. The timeout case
+  needed a real fix, not just a hook: the frontend never calls `getGameState`, it calls
+  `getPossibleWords()` the instant its own countdown hits zero, so that's where a
+  stale-`active` row actually gets finalized in practice (alongside `guess()` and
+  `give_up()`) — extracted into a shared `finalizeExpiry` so all three agree. `GET
+  /api/v1/me/stats` reads a no-identity request as an empty sheet (same convention as
+  `lib/players.ts`'s `getPreferredLength`), not an error. Riding along: `is_previously_failed`
+  (returned since Batch 0.1, always hardcoded `false` before this) is now a real lookup
+  against `word_stats`. **Migration decision (per discussion):** no one-shot migration of
+  existing localStorage failed-words data — dropped in favour of starting the server-side
+  list fresh, since anonymous-cookie identity (Batch 2.1) is new enough that little of
+  the old local history is meaningfully tied to a durable player anyway. Frontend: the old
+  "Előzmények" panel is gone, replaced by a "📊 Statisztikám" panel (games played,
+  completion rate, avg score per length, longest word, failed words with counts).
 
 ---
 
@@ -429,7 +486,7 @@ Neon — nothing to migrate data-wise.*
 *Rationale: with a 161k-word scraped list, curation is the highest-leverage quality
 feature for a Hungarian word game. Ship it before the admin UI so the queue has content.*
 
-### 4.1 `[ ]` Flag an accepted word as wrong
+### 4.1 `[x]` Flag an accepted word as wrong
 - In the found-words chips and end-of-game "missing words" list, add a small ⚑ on each
   word → `POST /api/v1/words/{word_id}/report {reason?: string}` (player-authenticated,
   one report per player per word).
@@ -443,6 +500,20 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   spam folders) is pure overhead when Batch 5 gives the admin a queue with a badge count.
   If a nudge is wanted later, a weekly digest cron is a one-day add-on — record
   everything in DB now, decide about email never.
+- **Shipped 2026-07-25, one deliberate deviation from the spec above:** the endpoint is
+  `POST /api/v1/words/report {word, wordlist?, reason?}` rather than path-based
+  `{word_id}/report` — the frontend never receives word ids anywhere in the existing API
+  surface (found-word chips, possible-word lists, and guesses are all plain text), so
+  routing by id would mean threading ids through every response just for this one
+  feature. `lib/word-reports.ts` resolves the id server-side from `{wordlist, word}`
+  instead. `word_reports` migration in `migrations/0002_hints_and_reports.sql`;
+  auto-inactivation counts `count(distinct player_id)` so one player double-reporting
+  can't retire a word alone. `lib/game.ts`'s `guess()` keeps a game's own target word
+  guessable even if it gets deactivated mid-game by this mechanism (an explicit exception
+  for `word = game.target_word`); a *non-target* findable word deactivating mid-game is
+  not specially handled (documented as an accepted, rare edge case in that function).
+  Frontend: a ⚑ button on both found-word chips and the end-of-game missing-words list,
+  simplified to no reason-collection UI for v1 (the API accepts one, just not surfaced).
 
 ### 4.2 `[ ]` Suggest a missing word
 - After a rejected guess ("Nem ismerek ilyen szót"), offer "Szerinted létező szó?

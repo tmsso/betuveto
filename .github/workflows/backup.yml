@@ -1,0 +1,46 @@
+name: Monthly DB backup
+
+# Deferred in ROADMAP 1.4 until there was real player/game data to protect (Batch 2
+# identity had not shipped yet); it has since, so this is that backup. Requires a
+# `DATABASE_URL` repository secret (the same Neon pooled connection string used
+# elsewhere) — set it under Settings → Secrets and variables → Actions before this can
+# run. `workflow_dispatch` lets you run it once by hand to confirm the secret and the
+# pg_dump version match before trusting the monthly cron.
+on:
+  schedule:
+    - cron: "0 3 1 * *" # 03:00 UTC on the 1st of every month
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install pg_dump matching the Neon server version (PG 18)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates gnupg
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+
+      - name: Dump the database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set — add it under repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          pg_dump "$DATABASE_URL" --format=custom --file=betuveto-backup.dump
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: betuveto-db-backup-${{ github.run_id }}
+          path: betuveto-backup.dump
+          retention-days: 90

@@ -29,6 +29,7 @@ interface ScoreRow {
   display_name: string | null;
   final_score: number;
   ended_at: Date;
+  hinted: boolean;
 }
 
 /** Seconds since the epoch, matching the shape the rest of the API returns timestamps in. */
@@ -76,7 +77,8 @@ export async function getTopScores(
   const clause = periodFilter(sql, period);
 
   const rows = await sql<ScoreRow[]>`
-    select p.display_name, g.final_score, g.ended_at
+    select p.display_name, g.final_score, g.ended_at,
+           exists(select 1 from game_hints h where h.game_id = g.id) as hinted
       from games g
       left join players p on p.id = g.player_id
      where g.wordlist_id = ${listId}
@@ -91,6 +93,9 @@ export async function getTopScores(
     display_name: row.display_name?.trim() || ANONYMOUS_DISPLAY_NAME,
     final_score: row.final_score,
     ended_at: epochSeconds(row.ended_at),
+    // 💡 marker (ROADMAP 3.1): hinted games still count, but are flagged rather than
+    // hidden — a separate "pure" leaderboard is a config toggle for later, not this batch.
+    hinted: row.hinted,
   }));
 
   let yourBest: { final_score: number; ended_at: number } | null = null;

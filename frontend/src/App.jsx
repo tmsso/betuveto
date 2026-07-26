@@ -33,6 +33,10 @@ const DEFAULT_TARGET_LENGTH = 7;
 // arrives; the server's duration_seconds is always the source of truth after that.
 const durationForLength = (length) => 120 + 15 * (length - MIN_TARGET_LENGTH);
 const GAME_DURATION_SECONDS = durationForLength(DEFAULT_TARGET_LENGTH);
+// Mirrors lib/hints.ts's HINT_COST — duplicated the same way durationForLength is above;
+// used only to disable the hint button before it's obviously futile. The server is the
+// real authority on cost and always floors the score at 0 regardless of this check.
+const HINT_COST = 10;
 
 function App() {
   // Game state
@@ -68,8 +72,19 @@ function App() {
   const [serverScores, setServerScores] = useState(null)
   const [serverScoresLoading, setServerScoresLoading] = useState(false)
   const [showHighScores, setShowHighScores] = useState(false)
-  const [showFailedWords, setShowFailedWords] = useState(false)
-  const [failedWordsHistory, setFailedWordsHistory] = useState([])
+  // Player stats (ROADMAP 3.3): server-side, replaces the old localStorage "Előzmények"
+  // (failed-words) panel — this player's failed-words list now lives in word_stats.
+  const [stats, setStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [showStats, setShowStats] = useState(false)
+  // Hints (ROADMAP 3.1). Mirrors lib/hints.ts's HINT_COST the same way durationForLength
+  // mirrors lib/words.ts — the frontend build doesn't share modules with the API's lib/.
+  const [hintPenalty, setHintPenalty] = useState(0)
+  const [hintLoading, setHintLoading] = useState(false)
+  const [hintMessage, setHintMessage] = useState(null)
+  // Word curation (ROADMAP 4.1): session-local, so a flagged chip shows disabled without
+  // a round trip — the server itself is the source of truth for "already reported".
+  const [reportedWords, setReportedWords] = useState(() => new Set())
   const [possibleWordsCount, setPossibleWordsCount] = useState(0)
   const [allPossibleWords, setAllPossibleWords] = useState([])
   const [showRemainingWords, setShowRemainingWords] = useState(false)
@@ -120,18 +135,15 @@ function App() {
     }, 2000);
   }, []);
 
-  // Load high scores and failed words from localStorage on mount.
-  // Wrapped defensively: a single corrupted value must not white-screen the app.
+  // Load high scores from localStorage on mount (kept only as an offline/error fallback
+  // — failed words are server-side now, ROADMAP 3.3). Wrapped defensively: a single
+  // corrupted value must not white-screen the app.
   useEffect(() => {
-    const readJson = (key) => {
-      try {
-        return JSON.parse(localStorage.getItem(key) || '[]');
-      } catch {
-        return [];
-      }
-    };
-    setHighScores(readJson('betuveto_high_scores'));
-    setFailedWordsHistory(readJson('betuveto_failed_words'));
+    try {
+      setHighScores(JSON.parse(localStorage.getItem('betuveto_high_scores') || '[]'));
+    } catch {
+      setHighScores([]);
+    }
   }, []);
 
   const updateHighScores = useCallback((finalScore) => {
@@ -165,8 +177,32 @@ function App() {
     fetchServerScores(targetLength);
   }, [targetLength, isTimeUp, fetchServerScores]);
 
+  // Player stats (ROADMAP 3.3): refetched whenever a game ends, same as the high-score
+  // panel, so a just-finished game's outcome (and any newly-failed word) shows up
+  // without a page reload.
+  const fetchMyStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const result = await betuAPI.getMyStats();
+      setStats(result);
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMyStats();
+  }, [isTimeUp, fetchMyStats]);
+
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
-  const displayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
+  const rawDisplayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
+  // Hints (ROADMAP 3.1) deduct from the server's score; the client-side sum above never
+  // knows about them, so the penalty is subtracted once, here, at the final display step
+  // — floored at 0 the same way the server floors it (lib/game.ts's effectiveScore).
+  const displayScore = Math.max(0, rawDisplayScore - hintPenalty)
 
   // End of game score tracking
   useEffect(() => {
@@ -275,6 +311,8 @@ function App() {
       setIsTimeUp(false)
       setScoreAtExpiry(0)
       setCompletionBonus(0)
+      setHintPenalty(0)
+      setHintMessage(null)
 
       // The full solution list is no longer served while a game is active
       // (it would leak the answers). Only the count is known up front; the
@@ -318,19 +356,39 @@ function App() {
     }
   }, [foundWords.length, isTimeUp, startNewGame])
 
-  const recordFailedWord = useCallback((word, learned = false) => {
-    setFailedWordsHistory(prev => {
-      const existing = prev.find(p => p.word === word);
-      let next;
-      if (existing) {
-        next = prev.map(p => p.word === word ? { ...p, learned } : p);
-      } else {
-        next = [...prev, { word, learned, timestamp: Date.now() }];
-      }
-      localStorage.setItem('betuveto_failed_words', JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  // Hints (ROADMAP 3.1): reveals the first letter of a random unfound word and deducts
+  // its cost. Disabled client-side once there's nothing left to hint at or the score
+  // can't usefully absorb the cost — see hintPenalty/HINT_COST above for why the server
+  // remains the real authority on both.
+  const handleUseHint = useCallback(async () => {
+    if (isTimeUp || hintLoading) return;
+    setHintLoading(true);
+    try {
+      const result = await betuAPI.useHint();
+      setHintPenalty((prev) => prev + result.cost);
+      setHintMessage(`💡 Egy ${result.word_length} betűs szó eleje: "${result.letter}" (-${result.cost} pont)`);
+      setTimeout(() => setHintMessage(null), 5000);
+    } catch (err) {
+      console.error('Error getting a hint:', err);
+      showTemporaryError(err.message || 'Hiba történt a segítség kérésekor.');
+    } finally {
+      setHintLoading(false);
+    }
+  }, [isTimeUp, hintLoading, showTemporaryError]);
+
+  // Word curation (ROADMAP 4.1): flag a found or missing word as wrong. Idempotent on
+  // the server, so a double-click just comes back as already_reported — no need to guard
+  // beyond disabling the button once this session has already reported it.
+  const handleReportWord = useCallback(async (word) => {
+    if (reportedWords.has(word)) return;
+    try {
+      await betuAPI.reportWord(word);
+      setReportedWords((prev) => new Set(prev).add(word));
+    } catch (err) {
+      console.error('Error reporting word:', err);
+      showTemporaryError('Hiba történt a szó jelentésekor.');
+    }
+  }, [reportedWords, showTemporaryError]);
 
   const handleSubmit = useCallback(async () => {
     const guess = currentGuess.trim().toUpperCase()
@@ -389,11 +447,6 @@ function App() {
               setCompletionBonus(response.completion_bonus ?? 0)
             }
 
-            // If the target word is guessed, mark as learned
-            if (response.is_target) {
-                recordFailedWord(guess, true);
-            }
-
             if (response.is_full_length || guess.length === scrambledLetters.filter(l => l !== ' ').length) {
               fireExplosion()
             } else {
@@ -431,17 +484,20 @@ function App() {
       if (msg.includes('400') || msg.includes('404')) {
         showTemporaryError('A játék véget ért. Indíts újat!')
         setIsTimeUp(true)
+      } else if (msg.includes('429')) {
+        // Anti-cheat rate limit (ROADMAP 2.2) — not expected at human guessing speed.
+        showTemporaryError('Túl gyorsan mész, lassíts egy kicsit!')
       } else {
         showTemporaryError('Hiba történt a tipp küldésekor.')
       }
-      setCurrentGuess('') 
+      setCurrentGuess('')
       if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus()
       } else {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, recordFailedWord, showTemporaryError])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, showTemporaryError])
 
   // On mount: load which lengths are worth offering and the player's saved preference
   // (ROADMAP 2.3, both no-ops for a first-ever visitor with no cookie yet), then start
@@ -494,7 +550,6 @@ function App() {
     if (!window.confirm('Biztosan feladod? Felfedjük a megoldást.')) return
     try {
       const result = await betuAPI.giveUp()
-      recordFailedWord(result.target_word, false)
       setAllPossibleWords(result.possible_words)
       setScoreAtExpiry(totalScore)
       setIsTimerActive(false)
@@ -504,7 +559,7 @@ function App() {
       console.error('Error giving up:', err)
       showTemporaryError('Hiba történt a feladáskor.')
     }
-  }, [isTimeUp, totalScore, recordFailedWord, showTemporaryError])
+  }, [isTimeUp, totalScore, showTemporaryError])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -797,41 +852,90 @@ function App() {
           </button>
         </div>
 
-        {/* Give up */}
+        {/* Give up + Hint (ROADMAP 3.1) */}
         {!isTimeUp && (
-          <div className="mb-4 flex justify-center">
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
               onClick={handleGiveUp}
               className="text-xs text-gray-500 underline hover:text-red-600"
             >
               🏳️ Feladom (megoldás felfedése)
             </button>
+            <button
+              onClick={handleUseHint}
+              disabled={hintLoading || foundWords.length >= possibleWordsCount}
+              title={`Egy szó első betűjének felfedése (-${HINT_COST} pont)`}
+              className="text-xs text-game-secondary underline hover:text-blue-700 disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
+            >
+              💡 Segítség (-{HINT_COST} pont)
+            </button>
           </div>
         )}
 
-        {/* Failed Words History Button */}
+        {hintMessage && (
+          <div className="mb-4 text-center text-sm font-semibold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+            {hintMessage}
+          </div>
+        )}
+
+        {/* Player stats (ROADMAP 3.3): server-side, replaces the old localStorage
+            "Előzmények" (failed-words) panel. */}
         <div className="mb-6 flex justify-center">
             <button
-                onClick={() => setShowFailedWords(!showFailedWords)}
+                onClick={() => setShowStats(!showStats)}
                 className="text-xs text-game-secondary underline hover:text-blue-700"
             >
-                {showFailedWords ? 'Elrejtés' : 'Előzmények: elhibázott szavak'}
+                {showStats ? 'Elrejtés' : '📊 Statisztikám'}
             </button>
         </div>
 
-        {showFailedWords && failedWordsHistory.length > 0 && (
+        {showStats && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <h4 className="text-sm font-bold mb-2 text-center text-gray-500">Korábbi elhibázott szavak:</h4>
-                <div className="flex flex-wrap gap-2 justify-center">
-                    {failedWordsHistory.map((f, i) => (
-                        <span 
-                            key={i} 
-                            className={`text-xs px-2 py-1 rounded border ${f.learned ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
-                        >
-                            {f.word}
-                        </span>
-                    ))}
-                </div>
+                {statsLoading && <p className="text-xs text-center text-gray-400">Betöltés...</p>}
+                {!statsLoading && stats && stats.games_played === 0 && (
+                    <p className="text-xs text-center text-gray-400">Még nincs befejezett játékod.</p>
+                )}
+                {!statsLoading && stats && stats.games_played > 0 && (
+                    <>
+                        <div className="text-sm text-center text-gray-600 mb-3 space-y-1">
+                            <p>Lejátszott játékok: <span className="font-bold">{stats.games_played}</span></p>
+                            <p>Teljesítési arány: <span className="font-bold">{Math.round(stats.completion_rate * 100)}%</span></p>
+                            {stats.longest_word_found && (
+                                <p>Leghosszabb megtalált szó: <span className="font-bold">{stats.longest_word_found}</span></p>
+                            )}
+                        </div>
+                        {Object.keys(stats.average_score_by_length).length > 0 && (
+                            <div className="text-xs text-center text-gray-500 mb-3">
+                                <p className="font-bold mb-1">Átlagpontszám hosszúságonként:</p>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    {Object.entries(stats.average_score_by_length).map(([len, avg]) => (
+                                        <span key={len} className="px-2 py-1 bg-white rounded border border-gray-200">
+                                            {len} betű: {Math.round(avg)}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {stats.failed_words.length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-bold mb-2 text-center text-gray-500">Nehezebben megtalált szavak:</h4>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    {stats.failed_words.map((f) => (
+                                        <span
+                                            key={f.word}
+                                            className={`text-xs px-2 py-1 rounded border ${f.times_solved > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                                        >
+                                            {f.word} ({f.times_failed}×)
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+                {!statsLoading && !stats && (
+                    <p className="text-xs text-center text-gray-400">Nincs kapcsolat a szerverrel.</p>
+                )}
             </div>
         )}
 
@@ -843,10 +947,19 @@ function App() {
               {[...foundWords].sort((a,b) => a.localeCompare(b, 'hu')).map((word, index) => (
                 <span
                   key={index}
-                  className={`bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
+                  className={`inline-flex items-center gap-1.5 bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
                     ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 scale-110' : ''}`}
                 >
                   {word} ({word.length * word.length} pont)
+                  <button
+                    onClick={() => handleReportWord(word)}
+                    disabled={reportedWords.has(word)}
+                    aria-label={`${word} jelentése hibás szóként`}
+                    title="Jelentés hibás szóként"
+                    className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
+                  >
+                    ⚑
+                  </button>
                 </span>
               ))}
             </div>
@@ -869,8 +982,17 @@ function App() {
                             .filter(word => !foundWords.includes(word))
                             .sort((a,b) => a.localeCompare(b, 'hu'))
                             .map((word, index) => (
-                                <span key={index} className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
+                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
                                     {word}
+                                    <button
+                                        onClick={() => handleReportWord(word)}
+                                        disabled={reportedWords.has(word)}
+                                        aria-label={`${word} jelentése hibás szóként`}
+                                        title="Jelentés hibás szóként"
+                                        className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
+                                    >
+                                        ⚑
+                                    </button>
                                 </span>
                             ))
                         }

@@ -58,6 +58,8 @@ export interface TopScoreEntry {
   display_name: string;
   final_score: number;
   ended_at: number;
+  /** At least one hint was taken during this game (ROADMAP 3.1). */
+  hinted: boolean;
 }
 
 export interface TopScoresResult {
@@ -66,6 +68,28 @@ export interface TopScoresResult {
   period: 'all' | 'week' | 'day';
   top: TopScoreEntry[];
   your_best: { final_score: number; ended_at: number } | null;
+}
+
+export interface HintResult {
+  letter: string;
+  position: number;
+  word_length: number;
+  cost: number;
+  total_score: number;
+}
+
+export interface FailedWordStat {
+  word: string;
+  times_failed: number;
+  times_solved: number;
+}
+
+export interface MyStats {
+  games_played: number;
+  completion_rate: number;
+  average_score_by_length: Record<string, number>;
+  longest_word_found: string | null;
+  failed_words: FailedWordStat[];
 }
 
 class BetuAPIClient {
@@ -149,6 +173,21 @@ class BetuAPIClient {
     return response.json();
   }
 
+  /** Reveals the first letter of a random unfound word (preferring longer ones) and
+   *  deducts its cost from the running score (ROADMAP 3.1). Throws on 400 (no unfound
+   *  words left / game not active) so the caller can show a specific message. */
+  async useHint(): Promise<HintResult> {
+    const gameId = this.requireGameId();
+    const response = await fetch(`${this.baseUrl}/game/${gameId}/hint`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.detail || `Failed to get a hint (${response.status})`);
+    }
+    return response.json();
+  }
+
   async getGameState(): Promise<GameState> {
     const gameId = this.requireGameId();
     const response = await fetch(`${this.baseUrl}/game/${gameId}`);
@@ -181,6 +220,26 @@ class BetuAPIClient {
     const params = new URLSearchParams({ length: String(targetLength) });
     const response = await fetch(`${this.baseUrl}/v1/scores/top?${params.toString()}`);
     if (!response.ok) throw new Error(`Failed to fetch top scores (${response.status})`);
+    return response.json();
+  }
+
+  // Player stats (ROADMAP 3.3): games played, average score per length, longest word,
+  // completion rate, and the server-side failed-words list (replaces localStorage).
+  async getMyStats(): Promise<MyStats> {
+    const response = await fetch('/api/v1/me/stats');
+    if (!response.ok) throw new Error(`Failed to fetch stats (${response.status})`);
+    return response.json();
+  }
+
+  // Word curation (ROADMAP 4.1): flag a found/missing word as wrong. Idempotent — a
+  // repeat report for the same word just comes back as already_reported.
+  async reportWord(word: string, reason?: string): Promise<{ reported: boolean; already_reported: boolean; deactivated: boolean }> {
+    const response = await fetch('/api/v1/words/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reason ? { word, reason } : { word }),
+    });
+    if (!response.ok) throw new Error(`Failed to report word (${response.status})`);
     return response.json();
   }
 }
