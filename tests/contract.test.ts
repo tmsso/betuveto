@@ -173,6 +173,9 @@ async function completeSmallGame(): Promise<{ cookie: string; totalScore: number
     const { json } = await call("POST", `/api/game/${game.game_id}/guess`, { word }, { Cookie: cookie });
     expect(json.valid).toBe(true);
     totalScore = json.total_score;
+    // Spaced out so this sequential loop of legitimate finds doesn't trip the anti-cheat
+    // rate limit (ROADMAP 2.2), which counts correct guesses per second.
+    await new Promise((resolve) => setTimeout(resolve, 400));
   }
   expect(totalScore).toBeGreaterThan(0);
   return { cookie, totalScore };
@@ -323,6 +326,9 @@ describeApi("Betűvető API contract", () => {
       expect(last.json.can_form).toBe(true);
       expect(last.json.already_guessed).toBe(false);
       scoreWithoutBonus += letterCount(word) ** 2;
+      // Spaced out so this sequential loop of legitimate finds doesn't trip the anti-cheat
+      // rate limit (ROADMAP 2.2), which counts correct guesses per second.
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
 
     // The last guess clears the board: the server ends the game itself and folds a
@@ -534,4 +540,122 @@ describeApi("Betűvető API contract", () => {
     expect(json.your_best).not.toBeNull();
     expect(json.your_best.final_score).toBe(totalScore);
   }, 30_000);
+
+  // --- Hints (ROADMAP 3.1) ----------------------------------------------------
+  it("reveals a letter and deducts its cost, floored at 0", async () => {
+    const game = await startUntil((g) => g.possible_count >= 2, 15, 5);
+    const { status, json } = await call("POST", `/api/game/${game.game_id}/hint`);
+    expect(status).toBe(200);
+    expect(typeof json.letter).toBe("string");
+    expect(json.letter).toHaveLength(1);
+    expect(json.position).toBe(1);
+    expect(json.cost).toBeGreaterThan(0);
+    // No guesses scored yet, so the raw score is 0 — floored at 0 regardless of cost.
+    expect(json.total_score).toBe(0);
+  });
+
+  it("deducts the hint cost from a following guess's score, floored at 0", async () => {
+    const game = await startUntil((g) => g.possible_count >= 2, 15, 5);
+    const hint = await call("POST", `/api/game/${game.game_id}/hint`);
+    expect(hint.status).toBe(200);
+
+    const word = findable(game).sort()[0];
+    const { json } = await call("POST", `/api/game/${game.game_id}/guess`, { word });
+    expect(json.total_score).toBe(Math.max(0, letterCount(word) ** 2 - hint.json.cost));
+  });
+
+  it("rejects a hint once the game has ended", async () => {
+    const game = await start();
+    await call("POST", `/api/game/${game.game_id}/give_up`);
+    const { status } = await call("POST", `/api/game/${game.game_id}/hint`);
+    expect(status).toBe(400);
+  });
+
+  it("rejects a hint once every word is already found", async () => {
+    const game = await startUntil((g) => g.possible_count >= 1 && g.possible_count <= 6, 15, 5);
+    for (const word of findable(game)) {
+      await call("POST", `/api/game/${game.game_id}/guess`, { word });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    const { status } = await call("POST", `/api/game/${game.game_id}/hint`);
+    expect(status).toBe(400);
+  }, 30_000);
+
+  // --- Player stats (ROADMAP 3.3) ---------------------------------------------
+  it("me/stats reads as an empty sheet with no identity", async () => {
+    const { json } = await call("GET", "/api/v1/me/stats");
+    expect(json.games_played).toBe(0);
+    expect(json.completion_rate).toBe(0);
+    expect(json.failed_words).toEqual([]);
+    expect(json.longest_word_found).toBeNull();
+  });
+
+  it("records a given-up target as a failed word, visible on me/stats", async () => {
+    const { game, cookie } = await startWithCookie();
+    const giveUp = await call("POST", `/api/game/${game.game_id}/give_up`, undefined, {
+      Cookie: cookie,
+    });
+    expect(giveUp.status).toBe(200);
+
+    const { json } = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
+    expect(json.games_played).toBeGreaterThanOrEqual(1);
+    const entry = json.failed_words.find((f: { word: string }) => f.word === giveUp.json.target_word);
+    expect(entry).toBeTruthy();
+    expect(entry.times_failed).toBeGreaterThanOrEqual(1);
+  });
+
+  // --- Word curation (ROADMAP 4.1) --------------------------------------------
+  //
+  // Deliberately narrow: only the read-only, no-side-effect paths (no identity, unknown
+  // word) are exercised here. This suite is meant to be safe to run repeatedly against
+  // any deployment indefinitely, including a shared, persistent production database
+  // (ROADMAP 1.5 — Production and Preview share one Neon connection by default). A first
+  // draft of this test also asserted the insert/idempotency path with a real dictionary
+  // word — every run mints a fresh player_id, so *separate runs* reporting the same word
+  // is exactly two distinct reporters, which auto-inactivates it (>= 2 distinct players,
+  // lib/word-reports.ts). `findable(game)[0]` is also biased toward short, common words
+  // (first match in wordlist-file order), making a collision across runs likely rather
+  // than remote. Caught before merge by checking the actual DB rather than assuming a
+  // single manual test run proved it safe. The accept-and-record path is covered by
+  // manual verification instead (curl + direct DB queries), not by this committed suite.
+  it("requires identity to report a word, and 404s an unknown word", async () => {
+    const game = await start();
+    const word = findable(game)[0];
+
+    const unauth = await call("POST", "/api/v1/words/report", { word });
+    expect(unauth.status).toBe(401);
+
+    const { cookie } = await startWithCookie();
+    const unknown = await call(
+      "POST",
+      "/api/v1/words/report",
+      { word: "NEMLETEZOSZOXYZ" },
+      { Cookie: cookie },
+    );
+    expect(unknown.status).toBe(404);
+  });
+
+  // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
+  it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {
+    // A board with several findable words fired in one burst — true concurrency, not a
+    // sequential loop, is what a check-then-act rate limit can fail to catch.
+    const game = await startUntil((g) => g.possible_count >= 5, 15, 7);
+    const words = findable(game).slice(0, 5);
+
+    const results = await Promise.all(
+      words.map((word) => call("POST", `/api/game/${game.game_id}/guess`, { word })),
+    );
+
+    const succeeded = results.filter(
+      (r) => r.status === 200 && r.json.valid && r.json.can_form && !r.json.already_guessed,
+    );
+    const limited = results.filter((r) => r.status === 429);
+    expect(limited.length).toBeGreaterThan(0);
+    expect(succeeded.length).toBeLessThan(words.length);
+
+    // found_count must equal the number of distinct guesses that actually scored — a
+    // stale-read race would have let concurrent guesses overwrite each other's increment.
+    const state = await call("GET", `/api/game/${game.game_id}`);
+    expect(state.json.found_count).toBe(succeeded.length);
+  });
 });
