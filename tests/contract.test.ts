@@ -635,6 +635,53 @@ describeApi("Betűvető API contract", () => {
     expect(unknown.status).toBe(404);
   });
 
+  // --- Batch 4.2: suggest a missing word --------------------------------------
+  it("requires identity and validates a suggested word", async () => {
+    const { cookie } = await startWithCookie();
+
+    const unauth = await call("POST", "/api/v1/words/suggest", { word: "PELDASZO" });
+    expect(unauth.status).toBe(401);
+
+    const tooShort = await call("POST", "/api/v1/words/suggest", { word: "AB" }, { Cookie: cookie });
+    expect(tooShort.status).toBe(422);
+
+    // Q/W/X/Y are excluded from the standard Hungarian alphabet this feature curates for.
+    const foreignLetters = await call(
+      "POST",
+      "/api/v1/words/suggest",
+      { word: "WXYTESZT" },
+      { Cookie: cookie },
+    );
+    expect(foreignLetters.status).toBe(422);
+  });
+
+  it("flags an already-known word, accepts a genuinely new one, and is idempotent on repeat", async () => {
+    const { cookie } = await startWithCookie();
+    const hungarianAlphabet = /^[ABCDEFGHIJKLMNOPRSTUVZÁÉÍÓÖŐÚÜŰ]+$/;
+    const known = dictionary.find((word) => hungarianAlphabet.test(word));
+    expect(known).toBeDefined();
+
+    const existing = await call("POST", "/api/v1/words/suggest", { word: known }, { Cookie: cookie });
+    expect(existing.status).toBe(200);
+    expect(existing.json.already_present).toBe(true);
+
+    const alphabet = "BDFGKLMNPRST";
+    let novel = "";
+    do {
+      novel = Array.from({ length: 9 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(
+        "",
+      );
+    } while (dictionary.includes(novel));
+
+    const first = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
+    expect(first.status).toBe(200);
+    expect(first.json.already_present).toBe(false);
+
+    const second = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
+    expect(second.status).toBe(200);
+    expect(second.json.already_present).toBe(true);
+  });
+
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
   it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {
     // A board with several findable words fired in one burst — true concurrency, not a

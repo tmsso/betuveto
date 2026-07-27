@@ -515,15 +515,28 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   Frontend: a ⚑ button on both found-word chips and the end-of-game missing-words list,
   simplified to no reason-collection UI for v1 (the API accepts one, just not surfaced).
 
-### 4.2 `[ ]` Suggest a missing word
-- After a rejected guess ("Nem ismerek ilyen szót"), offer "Szerinted létező szó?
-  Beküldöm" → `POST /api/v1/words/suggest {word, wordlist}`.
+### 4.2 `[x]` Suggest a missing word
+- After a rejected guess ("Nincs ilyen szó"), offer "Szerinted létező szó? Beküldöm" →
+  `POST /api/v1/words/suggest {word, wordlist?}`.
 - Inserts into `words` with `active=false, source='suggested'` + a row in
   `word_suggestions(word_id, player_id, created_at, status)`. Validation: length 3–15,
   Hungarian alphabet only, not already present (case/NFC-normalised).
 - Rate-limit: max 10 suggestions/player/day.
-- Optional delight: when an admin approves a suggestion, the suggesting player sees a
-  "your word was added!" toast on next visit (a `notifications` table, or defer).
+- Optional delight (deferred, not done): when an admin approves a suggestion, the
+  suggesting player sees a "your word was added!" toast on next visit — revisit once
+  Batch 5's review queue exists to actually approve anything.
+- **Shipped 2026-07-27:** `lib/word-suggestions.ts`'s `suggestWord()`, wired as the
+  `words` dispatcher's new `suggest` action (the api/v1/[...path].ts catch-all from the
+  dispatcher-consolidation prep work). Deviates from a literal reading of "not already
+  present" being an error: mirrors 4.1's report endpoint in treating "already in the
+  dictionary" *and* "already suggested by someone else" as the same non-error `{suggested:
+  true, already_present: true}` outcome (200), not a 409 — the player tried to help either
+  way, so there's nothing to flag as wrong. Rate limit uses the same insert-then-count-
+  then-undo-if-over shape as 2.2's guess rate limit, for the same concurrency-safety
+  reason. Frontend: a small "Szerinted létező szó? Beküldöm" prompt appears under the
+  guess input after a rejected guess, replaced by a brief non-error-styled thanks
+  confirmation on submit (deliberately not reusing the red shake error toast — a
+  confirmation isn't a mistake to flag).
 
 ---
 
