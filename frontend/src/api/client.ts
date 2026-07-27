@@ -242,6 +242,19 @@ class BetuAPIClient {
     if (!response.ok) throw new Error(`Failed to report word (${response.status})`);
     return response.json();
   }
+
+  // Word curation (ROADMAP 4.2): suggest a word the dictionary rejected. Idempotent and
+  // non-error either way (already in the dictionary vs. genuinely new) — only bad input,
+  // missing identity, or the daily rate limit come back as a thrown error.
+  async suggestWord(word: string): Promise<{ suggested: boolean; already_present: boolean }> {
+    const response = await fetch('/api/v1/words/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word }),
+    });
+    if (!response.ok) throw new Error(`Failed to suggest word (${response.status})`);
+    return response.json();
+  }
 }
 
 // Export singleton instance
