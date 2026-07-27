@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import AdminApp from './AdminApp.jsx'
 // Self-hosted web fonts (offline-friendly for the PWA). Only the latin + latin-ext
 // subsets are imported: latin-ext carries the Hungarian double-acute letters ő/ű (which
 // the previous system cursive fallback mangled), and skipping the other scripts keeps
@@ -20,8 +21,14 @@ import '@fontsource/baloo-2/latin-800.css'
 import '@fontsource/baloo-2/latin-ext-800.css'
 import './index.css'
 
+// No router library (ROADMAP 5.1): the app has exactly one static top-level split —
+// "/" vs "/admin" — with no nested or dynamic routes, so a pathname check here is
+// simpler than adding react-router for what would be a single always-matching rule.
+// Any tabs within the admin panel are component-local state, not sub-routes.
+const isAdminRoute = window.location.pathname.startsWith('/admin')
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    {isAdminRoute ? <AdminApp /> : <App />}
   </React.StrictMode>,
 )

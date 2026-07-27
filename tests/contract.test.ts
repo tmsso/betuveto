@@ -36,6 +36,9 @@ import {
 // Vitest would overwrite whatever the shell set with "/".
 const BASE_URL = process.env.API_BASE_URL?.replace(/\/$/, "");
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+// Optional: only the negative (401) admin-queue cases run without it, since there's no
+// safe way to guess a real token. Pass it when you have it to also check the 200 path.
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // Skip rather than fail when no deployment is configured: the unit tests still run.
@@ -680,6 +683,24 @@ describeApi("Betűvető API contract", () => {
     const second = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
     expect(second.status).toBe(200);
     expect(second.json.already_present).toBe(true);
+  });
+
+  // --- Batch 5.1: admin review queue -----------------------------------------
+  it("gates the admin review queue behind the admin token", async () => {
+    const noToken = await call("GET", "/api/v1/admin/queue");
+    expect(noToken.status).toBe(401);
+
+    const wrongToken = await call("GET", "/api/v1/admin/queue", undefined, {
+      "x-admin-token": "definitely-not-the-real-token",
+    });
+    expect(wrongToken.status).toBe(401);
+
+    if (!ADMIN_TOKEN) return; // no safe way to test the success path without the real secret
+
+    const ok = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
+    expect(ok.status).toBe(200);
+    expect(Array.isArray(ok.json.reports)).toBe(true);
+    expect(Array.isArray(ok.json.suggestions)).toBe(true);
   });
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
