@@ -411,7 +411,11 @@ describeApi("Betűvető API contract", () => {
   // --- Word endpoints --------------------------------------------------------
   it("reports the imported dictionary", async () => {
     const { json } = await call("GET", "/api/words/count");
-    expect(json.total_words).toBe(dictionary.length);
+    // Not exact equality: an approved suggestion (ROADMAP 4.2/5.2) permanently activates
+    // a word outside the imported file, so a deployment this suite has run "approve" tests
+    // against before can legitimately have more active words than the static file — the
+    // count can only grow from here, never shrink below the full import.
+    expect(json.total_words).toBeGreaterThanOrEqual(dictionary.length);
 
     const lengths = await call("GET", "/api/words/lengths");
     expect(lengths.json.available_lengths).toContain(7);
@@ -701,6 +705,121 @@ describeApi("Betűvető API contract", () => {
     expect(ok.status).toBe(200);
     expect(Array.isArray(ok.json.reports)).toBe(true);
     expect(Array.isArray(ok.json.suggestions)).toBe(true);
+  });
+
+  // --- Batch 5.2: review queue mutations --------------------------------------
+  it("resolves a word report: reject reactivates, accept deactivates, then it's gone from the queue", async () => {
+    if (!ADMIN_TOKEN) return; // every assertion below needs the real token
+
+    const game = await start();
+    const word = findable(game)[0];
+    const { cookie } = await startWithCookie();
+    await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
+
+    const queue = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
+    const entry = queue.json.reports.find((r: any) => r.word === word);
+    expect(entry).toBeDefined();
+
+    const rejected = await call(
+      "POST",
+      `/api/v1/admin/reports/${entry.word_id}/resolve`,
+      { decision: "reject" },
+      { "x-admin-token": ADMIN_TOKEN },
+    );
+    expect(rejected.status).toBe(200);
+    expect(rejected.json.active).toBe(true);
+
+    // No open reports left for this word — resolving again 404s.
+    const again = await call(
+      "POST",
+      `/api/v1/admin/reports/${entry.word_id}/resolve`,
+      { decision: "reject" },
+      { "x-admin-token": ADMIN_TOKEN },
+    );
+    expect(again.status).toBe(404);
+
+    // Invalid decision value is a validation error, not a silent no-op.
+    const invalid = await call(
+      "POST",
+      `/api/v1/admin/reports/${entry.word_id}/resolve`,
+      { decision: "maybe" },
+      { "x-admin-token": ADMIN_TOKEN },
+    );
+    expect(invalid.status).toBe(422);
+  });
+
+  it("reactivates a word directly, independent of report status", async () => {
+    if (!ADMIN_TOKEN) return;
+
+    const game = await startUntil((g) => findable(g).length > 0);
+    const word = findable(game)[0];
+    const { cookie } = await startWithCookie();
+    await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
+
+    const queue = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
+    const entry = queue.json.reports.find((r: any) => r.word === word);
+
+    await call(
+      "POST",
+      `/api/v1/admin/reports/${entry.word_id}/resolve`,
+      { decision: "accept" },
+      { "x-admin-token": ADMIN_TOKEN },
+    ); // deactivates it
+
+    const reactivated = await call(
+      "POST",
+      `/api/v1/admin/words/${entry.word_id}/reactivate`,
+      undefined,
+      { "x-admin-token": ADMIN_TOKEN },
+    );
+    expect(reactivated.status).toBe(200);
+    expect(reactivated.json.active).toBe(true);
+
+    const unknown = await call("POST", "/api/v1/admin/words/999999999/reactivate", undefined, {
+      "x-admin-token": ADMIN_TOKEN,
+    });
+    expect(unknown.status).toBe(404);
+  });
+
+  it("resolves a word suggestion: approve activates it, re-resolving conflicts", async () => {
+    if (!ADMIN_TOKEN) return;
+
+    const { cookie } = await startWithCookie();
+    const alphabet = "BDFGKLMNPRST";
+    let novel = "";
+    do {
+      novel = Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(
+        "",
+      );
+    } while (dictionary.includes(novel));
+
+    const suggested = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
+    expect(suggested.json.already_present).toBe(false);
+
+    const queue = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
+    const entry = queue.json.suggestions.find((s: any) => s.word === novel);
+    expect(entry).toBeDefined();
+
+    const approved = await call(
+      "POST",
+      `/api/v1/admin/suggestions/${entry.id}/resolve`,
+      { decision: "approve" },
+      { "x-admin-token": ADMIN_TOKEN },
+    );
+    expect(approved.status).toBe(200);
+
+    // Now active: suggesting it again reads as already_present, not a fresh suggestion.
+    const again = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
+    expect(again.json.already_present).toBe(true);
+
+    // Already resolved — re-resolving is a conflict, not a silent success.
+    const conflict = await call(
+      "POST",
+      `/api/v1/admin/suggestions/${entry.id}/resolve`,
+      { decision: "approve" },
+      { "x-admin-token": ADMIN_TOKEN },
+    );
+    expect(conflict.status).toBe(409);
   });
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------

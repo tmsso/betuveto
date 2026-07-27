@@ -9,7 +9,12 @@
  * per-route files did, and every external URL keeps working unchanged.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getReviewQueue } from "../../lib/admin-queue.js";
+import {
+  getReviewQueue,
+  reactivateWord,
+  resolveReport,
+  resolveSuggestion,
+} from "../../lib/admin-queue.js";
 import { isAdminAuthorized } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
 import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
@@ -116,6 +121,33 @@ function requireAdmin(logic: (req: VercelRequest) => Promise<Reply>) {
   };
 }
 
+/** A path segment that's a plain non-negative integer, e.g. a `words.id` — undefined for
+ *  anything else so the caller can 404 rather than hand a NaN to a bigint DB parameter. */
+function parseId(segment: string | undefined): number | undefined {
+  if (segment === undefined || !/^\d+$/.test(segment)) return undefined;
+  return Number(segment);
+}
+
+function resolveReportRoute(wordId: number) {
+  return async (req: VercelRequest): Promise<Reply> => {
+    const decision = bodyField(req, "decision");
+    if (decision !== "accept" && decision !== "reject") {
+      return { status: 422, body: { detail: "decision must be 'accept' or 'reject'." } };
+    }
+    return resolveReport(wordId, decision);
+  };
+}
+
+function resolveSuggestionRoute(suggestionId: number) {
+  return async (req: VercelRequest): Promise<Reply> => {
+    const decision = bodyField(req, "decision");
+    if (decision !== "approve" && decision !== "reject") {
+      return { status: 422, body: { detail: "decision must be 'approve' or 'reject'." } };
+    }
+    return resolveSuggestion(suggestionId, decision);
+  };
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -201,8 +233,30 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
     return methodHandler({ GET: scoresTopRoute });
   }
 
-  if (segments.length === 2 && a === "admin" && b === "queue") {
-    return methodHandler({ GET: requireAdmin(() => getReviewQueue()) });
+  if (a === "admin") {
+    if (segments.length === 2 && b === "queue") {
+      return methodHandler({ GET: requireAdmin(() => getReviewQueue()) });
+    }
+
+    if (segments.length === 4 && b === "reports" && d === "resolve") {
+      const wordId = parseId(c);
+      if (wordId === undefined) return undefined;
+      return methodHandler({ POST: requireAdmin(resolveReportRoute(wordId)) });
+    }
+
+    if (segments.length === 4 && b === "words" && d === "reactivate") {
+      const wordId = parseId(c);
+      if (wordId === undefined) return undefined;
+      return methodHandler({ POST: requireAdmin(() => reactivateWord(wordId)) });
+    }
+
+    if (segments.length === 4 && b === "suggestions" && d === "resolve") {
+      const suggestionId = parseId(c);
+      if (suggestionId === undefined) return undefined;
+      return methodHandler({ POST: requireAdmin(resolveSuggestionRoute(suggestionId)) });
+    }
+
+    return undefined;
   }
 
   return undefined;
