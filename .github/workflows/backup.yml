@@ -36,7 +36,11 @@ jobs:
             echo "::error::DATABASE_URL secret is not set — add it under repo Settings > Secrets and variables > Actions."
             exit 1
           fi
-          pg_dump "$DATABASE_URL" --format=custom --file=betuveto-backup.dump
+          # The ubuntu-latest runner image ships postgresql-client-16 pre-installed,
+          # and its /usr/bin/pg_dump keeps winning on PATH even after the PGDG
+          # postgresql-client-18 package above is installed alongside it — so call
+          # the versioned binary directly instead of trusting PATH resolution.
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" --format=custom --file=betuveto-backup.dump
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
