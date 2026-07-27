@@ -168,6 +168,7 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  console.error("DEBUG url=", req.url, "query=", JSON.stringify(req.query));
   const route = matchRoute(pathSegments(req));
   if (!route) {
     res.status(404).json({ detail: "Not found." });
