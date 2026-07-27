@@ -563,10 +563,15 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   forward into this PR so the shell has real data to show rather than a placeholder page.
 
 ### 5.2 `[ ]` Admin features (in priority order)
-1. **Word review queue:** open reports and suggestions; approve/reject; reactivate
+1. `[x]` **Word review queue:** open reports and suggestions; approve/reject; reactivate
    auto-inactivated words; edit/delete words; search the wordlist.
-   _(Read-only listing shipped in 5.1 above, `lib/admin-queue.ts` — approve/reject/
-   reactivate/edit/delete/search are still open.)_
+   **Shipped 2026-07-27** (`lib/admin-queue.ts`): listing (5.1) plus accept/reject on
+   reports (accept deactivates the word and closes its open reports; reject reactivates
+   it and closes them — both in one transaction), a standalone `reactivate` endpoint
+   independent of report status, and approve/reject on suggestions (approve activates the
+   word; reject leaves it inactive). Re-resolving an already-closed report/suggestion is a
+   409, not a silent no-op. **Edit/delete words and search-the-wordlist are still open**
+   (deferred — cutting from the bottom of this list, per the roadmap's own priority order).
 2. **Config editor:** the constants currently hardcoded in `main.py`
    (`FAIL_PROB_INITIAL_MULTIPLIER`, hint cost, timer formula, min word length, rate
    limits) move to a `config` table with typed defaults; admin edits take effect without
@@ -574,7 +579,11 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 3. **Score/player maintenance:** view players, edit/delete suspicious leaderboard
    entries, rename inappropriate display names, merge duplicate players (anonymous + OAuth).
 4. **Dashboard:** games/day, DAU, most-failed words, report queue size.
-- **Audit:** every admin mutation writes to `admin_audit_log(admin_id, action, payload, created_at)`.
+- **Audit:** every admin mutation writes to `admin_audit_log(admin_id, action, payload,
+  created_at)`. **Shipped 2026-07-27** (`migrations/0004_admin_audit_log.sql`) — `admin_id`
+  stays null for now: the interim `ADMIN_TOKEN` auth (5.1) has no per-admin player
+  identity to attribute an action to, only becoming meaningful once Batch 8's Google OAuth
+  gives admins a real logged-in identity.
 
 ---
 
