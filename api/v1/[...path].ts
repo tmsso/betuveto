@@ -34,19 +34,21 @@ import { DEFAULT_TARGET_LENGTH } from "../../lib/words.js";
 type VercelHandler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 /**
- * Segments of the path under /api/v1/, read from req.url rather than the catch-all's
- * query param: this deployment's routing layer populates that param under the literal
- * key "...path" (ellipsis included, not "path" as documented) — parsing the URL directly
- * sidesteps that undocumented quirk entirely, whatever Vercel names it.
+ * Segments of the path under /api/v1/. The legacy /api/game/* and /api/words/* aliases
+ * (vercel.json) rewrite into this route before it's matched, so req.url still shows the
+ * client's original pre-rewrite path — it cannot be trusted here. The query param Vercel
+ * injects from vercel.json's own "/api/v1/:path*" rewrite is authoritative instead: it
+ * reflects the final matched destination regardless of how many rewrite hops preceded it.
+ * (A now-dead codepath is worth knowing about if this ever breaks again: Vercel's *auto*-
+ * generated route for a bare [...path].ts catch-all — used only if the vercel.json rewrite
+ * below is ever removed — both caps at one path segment *and* names the query key "...path"
+ * literally, ellipsis included, not "path". The explicit rewrite exists precisely to
+ * override that broken auto-route with a correct multi-segment one.)
  */
 function pathSegments(req: VercelRequest): string[] {
-  const pathname = (req.url ?? "").split("?")[0] ?? "";
-  const prefix = "/api/v1/";
-  const rest = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
-  return rest
-    .split("/")
-    .filter((segment) => segment.length > 0)
-    .map((segment) => decodeURIComponent(segment));
+  const raw = req.query.path ?? req.query["...path"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value ? value.split("/").filter((segment) => segment.length > 0) : [];
 }
 
 function playerId(req: VercelRequest): string | null {
