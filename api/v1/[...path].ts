@@ -33,10 +33,20 @@ import { DEFAULT_TARGET_LENGTH } from "../../lib/words.js";
 
 type VercelHandler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
+/**
+ * Segments of the path under /api/v1/, read from req.url rather than the catch-all's
+ * query param: this deployment's routing layer populates that param under the literal
+ * key "...path" (ellipsis included, not "path" as documented) — parsing the URL directly
+ * sidesteps that undocumented quirk entirely, whatever Vercel names it.
+ */
 function pathSegments(req: VercelRequest): string[] {
-  const raw = req.query.path;
-  if (raw === undefined) return [];
-  return Array.isArray(raw) ? raw : [raw];
+  const pathname = (req.url ?? "").split("?")[0] ?? "";
+  const prefix = "/api/v1/";
+  const rest = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
+  return rest
+    .split("/")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => decodeURIComponent(segment));
 }
 
 function playerId(req: VercelRequest): string | null {
@@ -168,7 +178,6 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  console.error("DEBUG url=", req.url, "query=", JSON.stringify(req.query));
   const route = matchRoute(pathSegments(req));
   if (!route) {
     res.status(404).json({ detail: "Not found." });
