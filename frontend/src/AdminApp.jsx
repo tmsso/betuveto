@@ -146,10 +146,9 @@ export default function AdminApp() {
                     <tr className="text-left border-b-2 border-game-border bg-blue-50">
                       <th className="py-2 px-2">Szó</th>
                       <th className="py-2 px-2">Szólista</th>
-                      <th className="py-2 px-2">Bejelentések</th>
                       <th className="py-2 px-2">Aktív?</th>
                       <th className="py-2 px-2">Első bejelentés</th>
-                      <th className="py-2 px-2">Művelet</th>
+                      <th className="py-2 px-2">Döntés</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -157,25 +156,33 @@ export default function AdminApp() {
                       const busy = pendingRows.has(`report-${r.word_id}`)
                       return (
                         <tr key={r.word_id} className="border-b border-game-border/40">
-                          <td className="py-2 px-2 font-semibold">{r.word}</td>
+                          <td className="py-2 px-2 font-semibold">
+                            {r.word}
+                            {r.report_count > 1 && (
+                              <span className="ml-1 text-xs font-normal text-game-primary/50">
+                                ({r.report_count}x bejelentve)
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 px-2">{r.wordlist}</td>
-                          <td className="py-2 px-2">{r.report_count}</td>
                           <td className="py-2 px-2">{r.active ? 'igen' : 'nem (kikapcsolva)'}</td>
                           <td className="py-2 px-2">{new Date(r.first_reported_at).toLocaleString('hu-HU')}</td>
                           <td className="py-2 px-2 whitespace-nowrap">
                             <button
                               onClick={() => handleResolveReport(r.word_id, 'accept')}
                               disabled={busy}
-                              className="text-red-600 underline hover:text-red-800 disabled:opacity-40 mr-3"
+                              title="A bejelentés jogos: a szó törlődik a listáról"
+                              className="text-red-600 underline font-semibold hover:text-red-800 disabled:opacity-40 mr-3"
                             >
-                              Rossz szó
+                              Törlöm (rossz szó)
                             </button>
                             <button
                               onClick={() => handleResolveReport(r.word_id, 'reject')}
                               disabled={busy}
-                              className="text-green-700 underline hover:text-green-900 disabled:opacity-40"
+                              title="A bejelentés alaptalan: a szó marad/visszaáll"
+                              className="text-green-700 underline font-semibold hover:text-green-900 disabled:opacity-40"
                             >
-                              Rendben van
+                              Megtartom
                             </button>
                           </td>
                         </tr>
