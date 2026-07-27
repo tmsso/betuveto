@@ -11,6 +11,9 @@ export default function AdminApp() {
   const [queue, setQueue] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  // Keys of rows with a mutation in flight (e.g. "report-12", "suggestion-7"), so only
+  // that row's buttons disable rather than the whole page freezing during one request.
+  const [pendingRows, setPendingRows] = useState(() => new Set())
 
   const loadQueue = useCallback(async (activeToken) => {
     setLoading(true)
@@ -37,6 +40,40 @@ export default function AdminApp() {
   useEffect(() => {
     if (token) loadQueue(token)
   }, [token, loadQueue])
+
+  const runMutation = useCallback(async (rowKey, path, decision) => {
+    setPendingRows((prev) => new Set(prev).add(rowKey))
+    setError(null)
+    try {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'x-admin-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision }),
+      })
+      if (response.status === 401) {
+        localStorage.removeItem(TOKEN_KEY)
+        setToken('')
+        setError('Érvénytelen token.')
+        return
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      await loadQueue(token)
+    } catch (err) {
+      setError(err.message || 'Hiba történt a művelet során.')
+    } finally {
+      setPendingRows((prev) => {
+        const next = new Set(prev)
+        next.delete(rowKey)
+        return next
+      })
+    }
+  }, [token, loadQueue])
+
+  const handleResolveReport = (wordId, decision) =>
+    runMutation(`report-${wordId}`, `/api/v1/admin/reports/${wordId}/resolve`, decision)
+
+  const handleResolveSuggestion = (suggestionId, decision) =>
+    runMutation(`suggestion-${suggestionId}`, `/api/v1/admin/suggestions/${suggestionId}/resolve`, decision)
 
   const handleTokenSubmit = (e) => {
     e.preventDefault()
@@ -112,18 +149,38 @@ export default function AdminApp() {
                       <th className="py-2 px-2">Bejelentések</th>
                       <th className="py-2 px-2">Aktív?</th>
                       <th className="py-2 px-2">Első bejelentés</th>
+                      <th className="py-2 px-2">Művelet</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {queue.reports.map((r) => (
-                      <tr key={r.word_id} className="border-b border-game-border/40">
-                        <td className="py-2 px-2 font-semibold">{r.word}</td>
-                        <td className="py-2 px-2">{r.wordlist}</td>
-                        <td className="py-2 px-2">{r.report_count}</td>
-                        <td className="py-2 px-2">{r.active ? 'igen' : 'nem (kikapcsolva)'}</td>
-                        <td className="py-2 px-2">{new Date(r.first_reported_at).toLocaleString('hu-HU')}</td>
-                      </tr>
-                    ))}
+                    {queue.reports.map((r) => {
+                      const busy = pendingRows.has(`report-${r.word_id}`)
+                      return (
+                        <tr key={r.word_id} className="border-b border-game-border/40">
+                          <td className="py-2 px-2 font-semibold">{r.word}</td>
+                          <td className="py-2 px-2">{r.wordlist}</td>
+                          <td className="py-2 px-2">{r.report_count}</td>
+                          <td className="py-2 px-2">{r.active ? 'igen' : 'nem (kikapcsolva)'}</td>
+                          <td className="py-2 px-2">{new Date(r.first_reported_at).toLocaleString('hu-HU')}</td>
+                          <td className="py-2 px-2 whitespace-nowrap">
+                            <button
+                              onClick={() => handleResolveReport(r.word_id, 'accept')}
+                              disabled={busy}
+                              className="text-red-600 underline hover:text-red-800 disabled:opacity-40 mr-3"
+                            >
+                              Rossz szó
+                            </button>
+                            <button
+                              onClick={() => handleResolveReport(r.word_id, 'reject')}
+                              disabled={busy}
+                              className="text-green-700 underline hover:text-green-900 disabled:opacity-40"
+                            >
+                              Rendben van
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               )}
@@ -141,17 +198,37 @@ export default function AdminApp() {
                       <th className="py-2 px-2">Szólista</th>
                       <th className="py-2 px-2">Javasolta</th>
                       <th className="py-2 px-2">Dátum</th>
+                      <th className="py-2 px-2">Művelet</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {queue.suggestions.map((s) => (
-                      <tr key={s.id} className="border-b border-game-border/40">
-                        <td className="py-2 px-2 font-semibold">{s.word}</td>
-                        <td className="py-2 px-2">{s.wordlist}</td>
-                        <td className="py-2 px-2">{s.suggested_by || 'névtelen'}</td>
-                        <td className="py-2 px-2">{new Date(s.created_at).toLocaleString('hu-HU')}</td>
-                      </tr>
-                    ))}
+                    {queue.suggestions.map((s) => {
+                      const busy = pendingRows.has(`suggestion-${s.id}`)
+                      return (
+                        <tr key={s.id} className="border-b border-game-border/40">
+                          <td className="py-2 px-2 font-semibold">{s.word}</td>
+                          <td className="py-2 px-2">{s.wordlist}</td>
+                          <td className="py-2 px-2">{s.suggested_by || 'névtelen'}</td>
+                          <td className="py-2 px-2">{new Date(s.created_at).toLocaleString('hu-HU')}</td>
+                          <td className="py-2 px-2 whitespace-nowrap">
+                            <button
+                              onClick={() => handleResolveSuggestion(s.id, 'approve')}
+                              disabled={busy}
+                              className="text-green-700 underline hover:text-green-900 disabled:opacity-40 mr-3"
+                            >
+                              Jóváhagyom
+                            </button>
+                            <button
+                              onClick={() => handleResolveSuggestion(s.id, 'reject')}
+                              disabled={busy}
+                              className="text-red-600 underline hover:text-red-800 disabled:opacity-40"
+                            >
+                              Elutasítom
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               )}
