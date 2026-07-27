@@ -411,7 +411,11 @@ describeApi("Betűvető API contract", () => {
   // --- Word endpoints --------------------------------------------------------
   it("reports the imported dictionary", async () => {
     const { json } = await call("GET", "/api/words/count");
-    expect(json.total_words).toBe(dictionary.length);
+    // Not exact equality: an approved suggestion (ROADMAP 4.2/5.2) permanently activates
+    // a word outside the imported file, so a deployment this suite has run "approve" tests
+    // against before can legitimately have more active words than the static file — the
+    // count can only grow from here, never shrink below the full import.
+    expect(json.total_words).toBeGreaterThanOrEqual(dictionary.length);
 
     const lengths = await call("GET", "/api/words/lengths");
     expect(lengths.json.available_lengths).toContain(7);
