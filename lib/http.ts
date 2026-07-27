@@ -42,12 +42,6 @@ export function handler(method: "GET" | "POST", logic: Logic) {
   return methodHandler({ [method]: logic });
 }
 
-/** The `[id]` path segment. */
-export function gameId(req: VercelRequest): string {
-  const id = req.query.id;
-  return Array.isArray(id) ? (id[0] ?? "") : (id ?? "");
-}
-
 /**
  * An integer query parameter. Returns `fallback` when absent (or, with no fallback given,
  * `undefined` — used where "absent" and "explicitly provided" must be told apart, e.g.
