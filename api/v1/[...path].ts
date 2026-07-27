@@ -9,8 +9,11 @@
  * per-route files did, and every external URL keeps working unchanged.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getReviewQueue } from "../../lib/admin-queue.js";
+import { isAdminAuthorized } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
 import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
+import type { Reply } from "../../lib/game.js";
 import {
   getAvailableLengths,
   getPossibleCount,
@@ -102,6 +105,17 @@ function suggestWordRoute(req: VercelRequest) {
   return suggestWord(suggesterId, bodyField(req, "word"), wordlistCode);
 }
 
+/** Wraps an admin logic function so every /api/v1/admin/* route enforces the token check
+ *  the same way, in one place — no future admin route can add itself here and forget it. */
+function requireAdmin(logic: (req: VercelRequest) => Promise<Reply>) {
+  return (req: VercelRequest): Promise<Reply> => {
+    if (!isAdminAuthorized(req)) {
+      return Promise.resolve({ status: 401, body: { detail: "Invalid or missing admin token." } });
+    }
+    return logic(req);
+  };
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -185,6 +199,10 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
   if (segments.length === 2 && a === "scores" && b === "top") {
     return methodHandler({ GET: scoresTopRoute });
+  }
+
+  if (segments.length === 2 && a === "admin" && b === "queue") {
+    return methodHandler({ GET: requireAdmin(() => getReviewQueue()) });
   }
 
   return undefined;

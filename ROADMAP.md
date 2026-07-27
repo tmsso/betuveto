@@ -542,7 +542,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 ## Batch 5 — Admin interface
 
-### 5.1 `[ ]` Admin auth & shell
+### 5.1 `[x]` Admin auth & shell
 - `players.is_admin` flag (set manually in DB for the first admin — Neon's SQL editor / any
   Postgres GUI covers emergency data fixes until this batch ships).
   Admin endpoints under `/api/v1/admin/*` guarded by a check on the flag; **admins must
@@ -550,10 +550,23 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   env (`ADMIN_TOKEN`) sent as a header is acceptable and simple.**
 - UI: a separate route in the existing React app (`/admin`), not a separate deployment.
   Plain tables and forms; do not add a component library for this.
+- **Shipped 2026-07-27:** gates on `ADMIN_TOKEN` alone (`lib/admin.ts`, timing-safe
+  compare, sent as `x-admin-token`) — `players.is_admin` stays unused until Batch 8 makes
+  it per-authenticated-player; there's no admin *session* concept for it to gate yet.
+  `requireAdmin()` wraps every `/api/v1/admin/*` route in the dispatcher at one point, so
+  a future route can't add itself without the check. No `react-router`: the frontend had
+  zero routing before this, and `/` vs `/admin` is one static split with no nested or
+  dynamic routes, so `main.jsx` checks `window.location.pathname` directly — tabs inside
+  the admin panel are component state, not sub-routes. `AdminApp.jsx`: a token-entry form
+  (stored in this browser's `localStorage`, never sent anywhere but the API) gating a
+  read-only view of 5.2 item 1's word review queue (open reports + suggestions), pulled
+  forward into this PR so the shell has real data to show rather than a placeholder page.
 
 ### 5.2 `[ ]` Admin features (in priority order)
 1. **Word review queue:** open reports and suggestions; approve/reject; reactivate
    auto-inactivated words; edit/delete words; search the wordlist.
+   _(Read-only listing shipped in 5.1 above, `lib/admin-queue.ts` — approve/reject/
+   reactivate/edit/delete/search are still open.)_
 2. **Config editor:** the constants currently hardcoded in `main.py`
    (`FAIL_PROB_INITIAL_MULTIPLIER`, hint cost, timer formula, min word length, rate
    limits) move to a `config` table with typed defaults; admin edits take effect without
