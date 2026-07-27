@@ -28,6 +28,7 @@ import { bodyField, bodyWord, intQuery, methodHandler, stringQuery } from "../..
 import { getPreferredLength, setPreferredLength } from "../../lib/players.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
+import { suggestWord } from "../../lib/word-suggestions.js";
 import { getMyStats } from "../../lib/word-stats.js";
 import { DEFAULT_TARGET_LENGTH } from "../../lib/words.js";
 
@@ -93,6 +94,14 @@ function reportWordRoute(req: VercelRequest) {
   return reportWord(reporterId, bodyField(req, "word"), wordlistCode, bodyField(req, "reason"));
 }
 
+function suggestWordRoute(req: VercelRequest) {
+  const secret = process.env.ANON_SESSION_SECRET;
+  const suggesterId = secret ? verifyIdentity(secret, req.headers.cookie) : null;
+  const wordlistField = bodyField(req, "wordlist");
+  const wordlistCode = typeof wordlistField === "string" ? wordlistField : DEFAULT_WORDLIST_CODE;
+  return suggestWord(suggesterId, bodyField(req, "word"), wordlistCode);
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -153,6 +162,8 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
         return methodHandler({ GET: () => getAvailableLengths() });
       case "report":
         return methodHandler({ POST: reportWordRoute });
+      case "suggest":
+        return methodHandler({ POST: suggestWordRoute });
       default:
         return undefined;
     }

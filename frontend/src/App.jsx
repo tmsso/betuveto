@@ -85,6 +85,12 @@ function App() {
   // Word curation (ROADMAP 4.1): session-local, so a flagged chip shows disabled without
   // a round trip — the server itself is the source of truth for "already reported".
   const [reportedWords, setReportedWords] = useState(() => new Set())
+  // Word curation (ROADMAP 4.2): the word from the most recently rejected guess, offered
+  // back to the player as "maybe this is a real word?" — cleared on the next keystroke or
+  // guess so it never lingers on a stale rejection.
+  const [suggestPrompt, setSuggestPrompt] = useState(null)
+  const [suggestLoading, setSuggestLoading] = useState(false)
+  const [suggestThanks, setSuggestThanks] = useState(false)
   const [possibleWordsCount, setPossibleWordsCount] = useState(0)
   const [allPossibleWords, setAllPossibleWords] = useState([])
   const [showRemainingWords, setShowRemainingWords] = useState(false)
@@ -390,8 +396,30 @@ function App() {
     }
   }, [reportedWords, showTemporaryError]);
 
+  // Word curation (ROADMAP 4.2): offer to submit a rejected guess as a possibly-real word
+  // the dictionary is missing. already_present (word turned out to exist, or was already
+  // suggested) and a genuinely new suggestion both read as the same "thanks" confirmation
+  // to the player — the distinction only matters to the Batch 5 review queue, not to them.
+  // A dedicated (non-error-styled) confirmation, not showTemporaryError's red shake box,
+  // since "thanks, noted" is good news, not a mistake to flag.
+  const handleSuggestWord = useCallback(async (word) => {
+    setSuggestLoading(true);
+    try {
+      await betuAPI.suggestWord(word);
+      setSuggestPrompt(null);
+      setSuggestThanks(true);
+      setTimeout(() => setSuggestThanks(false), 2500);
+    } catch (err) {
+      console.error('Error suggesting word:', err);
+      showTemporaryError(err.message?.includes('429') ? 'Túl sok javaslat mára, próbáld holnap.' : 'Hiba történt a javaslat küldésekor.');
+    } finally {
+      setSuggestLoading(false);
+    }
+  }, [showTemporaryError]);
+
   const handleSubmit = useCallback(async () => {
     const guess = currentGuess.trim().toUpperCase()
+    setSuggestPrompt(null)
     if (guess.length < MIN_GUESS_LENGTH) {
       if (guess.length > 0) showTemporaryError(`Legalább ${MIN_GUESS_LENGTH} betűs szót adj meg!`)
       return
@@ -465,6 +493,7 @@ function App() {
         // Not a known word (valid:false). Distinct from a real word that can't
         // be built from the board (valid:true, can_form:false) handled below.
         showTemporaryError(`Nincs ilyen szó: ${guess}`)
+        setSuggestPrompt(guess) // ROADMAP 4.2: maybe it's a real word the dictionary is missing
         setCurrentGuess('')
       } else {
         showTemporaryError('Csak a megadott betűket használd!')
@@ -789,6 +818,7 @@ function App() {
                 // Limit to 15 characters
                 if (val.length <= 15) {
                   setCurrentGuess(val);
+                  setSuggestPrompt(null);
                 }
               }}
               className={
@@ -813,6 +843,29 @@ function App() {
               </button>
             )}
           </div>
+
+          {/* Word curation (ROADMAP 4.2): offer to submit a rejected guess as a word the
+              dictionary might be missing. Replaced by a brief thanks confirmation on submit. */}
+          {(suggestPrompt || suggestThanks) && (
+            <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
+              <span className="text-xs sm:text-sm text-game-primary/70">
+                {suggestThanks ? (
+                  'Köszönjük, elküldve ellenőrzésre! ✅'
+                ) : (
+                  <>
+                    Szerinted létező szó?{' '}
+                    <button
+                      onClick={() => handleSuggestWord(suggestPrompt)}
+                      disabled={suggestLoading}
+                      className="underline font-bold hover:text-game-primary disabled:opacity-50"
+                    >
+                      Beküldöm
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
