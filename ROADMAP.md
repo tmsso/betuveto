@@ -572,6 +572,15 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    word; reject leaves it inactive). Re-resolving an already-closed report/suggestion is a
    409, not a silent no-op. **Edit/delete words and search-the-wordlist are still open**
    (deferred — cutting from the bottom of this list, per the roadmap's own priority order).
+   **User-tested live, one fix applied:** the reports table's first button labels read as
+   status descriptions rather than actions (unlike the suggestions table's clear
+   first-person verbs) — relabeled with an explicit tooltip; backend itself was confirmed
+   correct throughout via direct API calls. **Raised by the user during this testing, not
+   yet actioned:** the shared `ADMIN_TOKEN` header is a burden to retrieve/rotate for
+   day-to-day use — candidate for email+passkey or magic-link admin login (Neon Auth
+   supports Magic Link; see architecture decision 4), which would mean pulling some of
+   Batch 8's Neon Auth integration forward for admins specifically, ahead of player-facing
+   Google OAuth. Not scoped or built yet — a design discussion for a future session.
 2. **Config editor:** the constants currently hardcoded in `main.py`
    (`FAIL_PROB_INITIAL_MULTIPLIER`, hint cost, timer formula, min word length, rate
    limits) move to a `config` table with typed defaults; admin edits take effect without
