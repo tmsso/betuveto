@@ -119,12 +119,13 @@ function suggestWordRoute(req: VercelRequest) {
   return suggestWord(suggesterId, bodyField(req, "word"), wordlistCode);
 }
 
-/** Wraps an admin logic function so every /api/v1/admin/* route enforces the token check
- *  the same way, in one place — no future admin route can add itself here and forget it. */
+/** Wraps an admin logic function so every /api/v1/admin/* route enforces the same check
+ *  (admin token or Neon Auth session — lib/admin.ts) the same way, in one place — no
+ *  future admin route can add itself here and forget it. */
 function requireAdmin(logic: (req: VercelRequest) => Promise<Reply>) {
-  return (req: VercelRequest): Promise<Reply> => {
-    if (!isAdminAuthorized(req)) {
-      return Promise.resolve({ status: 401, body: { detail: "Invalid or missing admin token." } });
+  return async (req: VercelRequest): Promise<Reply> => {
+    if (!(await isAdminAuthorized(req))) {
+      return { status: 401, body: { detail: "Invalid or missing admin credentials." } };
     }
     return logic(req);
   };
