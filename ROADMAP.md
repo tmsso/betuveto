@@ -562,7 +562,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   read-only view of 5.2 item 1's word review queue (open reports + suggestions), pulled
   forward into this PR so the shell has real data to show rather than a placeholder page.
 
-### 5.2 `[~]` Admin features (in priority order)
+### 5.2 `[x]` Admin features (in priority order)
 1. `[x]` **Word review queue:** open reports and suggestions; approve/reject; reactivate
    auto-inactivated words; edit/delete words; search the wordlist.
    **Shipped 2026-07-27** (`lib/admin-queue.ts`): listing (5.1) plus accept/reject on
@@ -624,7 +624,17 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    `status === 'active'` branch in `lib/game.ts` for a new possible value. `lib/scores.ts`
    excludes disqualified games from both the public top-N and `your_best`; the row and its
    `game_guesses` history stay intact, only leaderboard visibility changes.
-4. `[ ]` **Dashboard:** games/day, DAU, most-failed words, report queue size. Not started.
+4. `[x]` **Dashboard:** games/day, DAU, most-failed words, report queue size.
+   **Shipped 2026-07-28** (`lib/admin-dashboard.ts`): read-only, no `admin_audit_log`
+   writes (nothing to attribute). Games/day + DAU as one 30-day zero-filled series —
+   `generate_series` left-joined against `games` on a per-day `started_at` range (not
+   `date_trunc(started_at) = d`), so the query stays index-backed via a new
+   `games_started_at_idx` (`migrations/0007_dashboard_indexes.sql`) instead of a
+   sequential scan. Most-failed words aggregated across `word_stats`
+   (`sum(times_failed)` grouped by word — one word's failures are spread across many
+   players' rows). Queue counts use a second new partial index mirroring
+   `word_reports`'s existing one. Verified with the full contract suite (76/76) against
+   the PR's own preview deployment, then again live in production.
 - **Audit:** every admin mutation writes to `admin_audit_log(admin_id, action, payload,
   created_at)`. **Shipped 2026-07-27** (`migrations/0004_admin_audit_log.sql`) — `admin_id`
   stays null for now: the interim `ADMIN_TOKEN` auth (5.1) has no per-admin player
