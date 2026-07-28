@@ -982,7 +982,8 @@ describeApi("Betűvető API contract", () => {
       adminHeaders,
     );
     expect(restored.status).toBe(200);
-  });
+  }, 15000); // longer than the default: the read-back above polls for up to ~8s to ride
+  // out lib/config.ts's per-instance cache (see that assertion's own comment).
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
   it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {

@@ -69,8 +69,13 @@ export async function getConfig(): Promise<GameConfig> {
  *  module doc comment for why other instances still take up to CACHE_TTL_MS to catch up. */
 export async function setConfigValue(key: keyof GameConfig, value: number): Promise<void> {
   const sql = db();
+  // sql.json(), not a manual JSON.stringify(...)::jsonb cast: postgres.js's own jsonb
+  // serialization already JSON-encodes the parameter, so stringifying it first would
+  // double-encode — the column would end up holding the *string* "99" instead of the
+  // number 99 (caught by querying the table directly after a PATCH silently no-op'd on
+  // read). lib/admin.ts's logAdminAction uses the same helper for its jsonb column.
   await sql`
-    insert into config (key, value) values (${key}, ${JSON.stringify(value)}::jsonb)
+    insert into config (key, value) values (${key}, ${sql.json(value)})
     on conflict (key) do update set value = excluded.value, updated_at = now()
   `;
   cache = null;
