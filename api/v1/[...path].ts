@@ -16,6 +16,7 @@ import {
   resolveSuggestion,
 } from "../../lib/admin-queue.js";
 import { getConfigList, updateConfigValue } from "../../lib/admin-config.js";
+import { getDashboardStats } from "../../lib/admin-dashboard.js";
 import {
   disqualifyGame,
   listLeaderboardEntries,
@@ -277,6 +278,10 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
     if (segments.length === 2 && b === "config") {
       return methodHandler({ GET: requireAdmin(() => getConfigList()) });
+    }
+
+    if (segments.length === 2 && b === "dashboard") {
+      return methodHandler({ GET: requireAdmin(() => getDashboardStats()) });
     }
 
     if (segments.length === 3 && b === "config") {
