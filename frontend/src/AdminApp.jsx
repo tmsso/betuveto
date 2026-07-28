@@ -12,7 +12,7 @@ const TOKEN_KEY = 'bv_admin_token'
 export default function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
   const [tokenInput, setTokenInput] = useState('')
-  const [tab, setTab] = useState('queue')
+  const [tab, setTab] = useState('dashboard')
   const [queue, setQueue] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
