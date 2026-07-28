@@ -583,6 +583,40 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    now enabled in the Neon console (10-minute link expiry, new-user signup allowed) —
    still not scoped/built, and not yet confirmed whether that also fully provisions
    Better Auth itself; a design discussion for a future session, not started this one.
+
+   **Design sketch, 2026-07-28 (design only — not built; adds a new auth capability, so
+   implementation needs a separate explicit go-ahead):**
+   - **Scope boundary vs. Batch 8:** this pulls forward *only* the admin slice of Neon
+     Auth. Add a nullable `players.auth_user_id text unique` column now (small migration),
+     populated only for the handful of admin rows; Batch 8 later reuses the same column
+     for every player via Google OAuth + the anonymous-merge rule already specified there.
+     Naming it generically now (not `admin_auth_user_id`) avoids a rename later.
+   - **Admin accounts stay manually provisioned**, same bootstrap pattern as `is_admin`
+     (5.1: "set manually in DB for the first admin"). No self-service admin signup: an
+     admin's `auth_user_id` is set by direct SQL against Neon Auth's user id after their
+     first magic-link sign-in, not by any in-app flow. Neon Auth's own "new-user signup
+     allowed" toggle only controls who can *authenticate* — it doesn't grant admin
+     capability by itself (see next point), so it can stay on without being a privilege risk.
+   - **Authentication vs. authorization stay separate**, the same shape Batch 8 already
+     uses: Neon Auth proves "this session owns this email"; the app's own check (`is_admin`
+     on the `players` row linked via `auth_user_id`) is what actually gates
+     `/api/v1/admin/*`. Anyone can complete a magic link; only a linked, flagged row can
+     act as admin.
+   - **Transition, not a cutover:** keep `ADMIN_TOKEN` valid in parallel with the new
+     session check in `lib/admin.ts` (`isAdminAuthorized` accepts either) until the new
+     flow is confirmed working end-to-end — a same-day atomic cutover risks locking out
+     the only admin if the new mechanism has an edge case nobody's hit yet. Retire
+     `ADMIN_TOKEN` in a follow-up PR once that's confirmed.
+   - **Biggest open unknown, not resolvable from this repo:** whether the Neon console's
+     Magic Link toggle already exposes a usable hosted flow/API, or whether the app must
+     wire the `better-auth` client SDK itself (request-link + verify-session, session
+     cookie handling) against Neon Auth's endpoint. This has to be checked directly
+     against Neon's console/docs for this project before the work can be estimated or
+     started — treat that check as the literal first step of implementation, not
+     something to assume either way going in.
+   - **Frontend shape:** `AdminApp.jsx`'s token-entry form becomes an email-entry form →
+     "check your email" state → session established when the link is followed (Better
+     Auth's callback presumably redirects back to `/admin` with a session cookie set).
    **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
    `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
    409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/
