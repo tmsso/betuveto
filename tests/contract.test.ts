@@ -1087,7 +1087,9 @@ describeApi("Betűvető API contract", () => {
       adminHeaders,
     );
     expect(unknown.status).toBe(404);
-  });
+  }, 15000); // completeSmallGame() alone paces its guesses 400ms apart to stay under the
+  // anti-cheat rate limit, plus several more round trips here — comfortably over the
+  // suite's default timeout even though nothing is actually stuck.
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
   it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {
