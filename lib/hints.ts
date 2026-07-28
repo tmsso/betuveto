@@ -3,6 +3,7 @@
  * word, preferring longer ones — deducting a flat cost from the game's score. Recorded in
  * `game_hints` so the leaderboard (lib/scores.ts) can flag hinted games.
  */
+import { getConfig } from "./config.js";
 import { db } from "./db.js";
 import {
   NOT_FOUND,
@@ -14,13 +15,9 @@ import {
 } from "./game.js";
 import { letterCount } from "./words.js";
 
-/** Points deducted per hint — a plain constant for now, same as the completion bonus
- *  multiplier in lib/game.ts; becomes admin-editable config in Batch 5. Floors the score
- *  at 0 rather than blocking the hint outright (see lib/game.ts's effectiveScore doc). */
-export const HINT_COST = 10;
-
 export async function useHint(gameId: string): Promise<Reply> {
   const sql = db();
+  const config = await getConfig();
   const game = await loadGame(sql, gameId);
   if (!game) return NOT_FOUND;
 
@@ -32,7 +29,7 @@ export async function useHint(gameId: string): Promise<Reply> {
     select word from game_guesses where game_id = ${game.id} and correct
   `;
   const found = new Set(foundRows.map((row) => row.word));
-  const possible = await findableWords(sql, game.wordlist_id, game.target_word);
+  const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   const unfound = possible.filter((word) => !found.has(word));
 
   if (unfound.length === 0) {
@@ -48,7 +45,7 @@ export async function useHint(gameId: string): Promise<Reply> {
 
   await sql`
     insert into game_hints (game_id, word, position, letter, cost)
-    values (${game.id}, ${word}, 1, ${letter}, ${HINT_COST})
+    values (${game.id}, ${word}, 1, ${letter}, ${config.hint_cost})
   `;
 
   return {
@@ -57,8 +54,8 @@ export async function useHint(gameId: string): Promise<Reply> {
       letter,
       position: 1,
       word_length: letterCount(word),
-      cost: HINT_COST,
-      total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total + HINT_COST),
+      cost: config.hint_cost,
+      total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total + config.hint_cost),
     },
   };
 }

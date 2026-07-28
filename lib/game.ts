@@ -11,11 +11,11 @@
  * adapters in api/ stay trivial and the contract can be tested without a server.
  */
 import type { Sql } from "postgres";
+import { getConfig } from "./config.js";
 import { db, wordlistId } from "./db.js";
 import {
   MAX_TARGET_LENGTH,
   MIN_TARGET_LENGTH,
-  MIN_WORD_LENGTH,
   MIN_WORDS_PER_LENGTH,
   canFormWord,
   durationForLength,
@@ -56,17 +56,6 @@ export const NOT_FOUND: Reply = {
   status: 404,
   body: { detail: "Game not found or expired. Start a new game." },
 };
-
-/** Points per second left on the clock when a board is fully cleared (ROADMAP 3.2). A
- *  plain constant for now — becomes admin-editable config in Batch 5. */
-const COMPLETION_BONUS_MULTIPLIER = 1;
-
-/** Anti-cheat baseline (ROADMAP 2.2): more than this many *correct* guesses from one
- *  player in a second means a script working through a locally-computed word list, not a
- *  human — the scrambled letters are public, so a bot can compute the findable set itself
- *  without ever needing the server to leak it. A plain constant for now, same as the
- *  completion bonus multiplier above. */
-const GUESS_RATE_LIMIT = 3;
 
 /** Seconds since the epoch, as the frontend's countdown expects (it compares to Date.now()/1000). */
 function epochSeconds(at: Date): number {
@@ -109,9 +98,17 @@ export function effectiveStatus(game: GameRow, now: Date): string {
 }
 
 /** The words findable on this board: those whose signature is a sub-multiset of the
- *  board's letters. One indexed lookup, ~99 signatures for a 7-letter board. */
-export async function findableWords(sql: Sql, listId: number, target: string): Promise<string[]> {
-  const signatures = subSignatures(signatureOf(target), MIN_WORD_LENGTH);
+ *  board's letters. One indexed lookup, ~99 signatures for a 7-letter board. `minLength`
+ *  is the admin-editable config value (lib/config.ts) — every caller below fetches config
+ *  once and passes the same value it uses for its own guess-length check, so a board's
+ *  possible-word set and its guess-acceptance threshold never disagree within one request. */
+export async function findableWords(
+  sql: Sql,
+  listId: number,
+  target: string,
+  minLength: number,
+): Promise<string[]> {
+  const signatures = subSignatures(signatureOf(target), minLength);
   const rows = await sql<{ word: string }[]>`
     select word from words
      where wordlist_id = ${listId} and active and signature = any(${signatures})
@@ -171,17 +168,23 @@ export async function startGame(
     return { status: 422, body: { detail: "duration_seconds must be an integer." } };
   }
 
+  const sql = db();
+  const config = await getConfig();
+
   // Longer boards have (combinatorially) many more findable words, so the ceiling itself
-  // scales with length (ROADMAP 2.3: 120 + 15 × (length − 5)). Below that ceiling, clamped
-  // so a client can shorten its own timer (which the tests use to exercise expiry) but
-  // never lengthen it — a shorter clock is only ever a handicap, never an advantage.
-  const maxDuration = durationForLength(targetLength);
+  // scales with length (ROADMAP 2.3, admin-editable via lib/config.ts). Below that ceiling,
+  // clamped so a client can shorten its own timer (which the tests use to exercise expiry)
+  // but never lengthen it — a shorter clock is only ever a handicap, never an advantage.
+  const maxDuration = durationForLength(
+    targetLength,
+    config.timer_base_seconds,
+    config.timer_seconds_per_extra_length,
+  );
   const duration =
     durationSeconds === undefined
       ? maxDuration
       : Math.min(Math.max(durationSeconds, 5), maxDuration);
 
-  const sql = db();
   const listId = await wordlistId();
 
   if (setCookieHeader) {
@@ -205,7 +208,7 @@ export async function startGame(
   }
 
   const target = pick.word;
-  const possible = await findableWords(sql, listId, target);
+  const possible = await findableWords(sql, listId, target, config.min_word_length);
   const scrambled = scrambleWord(target);
   const wasFailedBefore = await hasFailedBefore(playerId, target);
 
@@ -238,6 +241,7 @@ export async function startGame(
 
 export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   const sql = db();
+  const config = await getConfig();
   const game = await loadGame(sql, gameId);
   if (!game) return NOT_FOUND;
 
@@ -279,8 +283,8 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
     },
   });
 
-  if (letterCount(word) < MIN_WORD_LENGTH) {
-    return reject(`Legalább ${MIN_WORD_LENGTH} betűs szót adj meg.`);
+  if (letterCount(word) < config.min_word_length) {
+    return reject(`Legalább ${config.min_word_length} betűs szót adj meg.`);
   }
 
   // The target itself stays guessable even if a word report (ROADMAP 4.1) deactivated it
@@ -326,8 +330,12 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
     };
   }
 
-  // Anti-cheat baseline (ROADMAP 2.2), checked *after* this guess is already committed:
-  // count this player's own correct guesses across the last second, across every game.
+  // Anti-cheat baseline (ROADMAP 2.2): more than config.guess_rate_limit_per_second correct
+  // guesses from one player in a second means a script working through a locally-computed
+  // word list, not a human — the scrambled letters are public, so a bot can compute the
+  // findable set itself without ever needing the server to leak it. Checked *after* this
+  // guess is already committed: count this player's own correct guesses across the last
+  // second, across every game.
   // Checking before inserting is a check-then-act race — concurrent requests (a bot
   // firing many at once, not one-by-one) can all read "0 so far" before any of them have
   // committed. Counting post-insert means every sibling's commit is visible by the time
@@ -341,7 +349,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
        where g.player_id = ${game.player_id} and gg.correct
          and gg.created_at >= now() - interval '1 second'
     `;
-    if (count > GUESS_RATE_LIMIT) {
+    if (count > config.guess_rate_limit_per_second) {
       await sql`delete from game_guesses where id = ${inserted[0].id}`;
       return { status: 429, body: { detail: "Túl sok tipp túl gyorsan. Lassíts egy kicsit." } };
     }
@@ -377,14 +385,14 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
                                        where game_id = games.id and correct)
                                      - (select coalesce(sum(cost)::int, 0) from game_hints
                                          where game_id = games.id)
-                                   ) + ${remainingSeconds * COMPLETION_BONUS_MULTIPLIER}
+                                   ) + ${remainingSeconds * config.completion_bonus_multiplier}
                               else final_score end
      where id = ${game.id}
      returning found_count, (found_count >= possible_count) as game_ended, final_score
   `;
   const foundCount = row.found_count;
   const gameEnded = row.game_ended;
-  const completionBonus = gameEnded ? remainingSeconds * COMPLETION_BONUS_MULTIPLIER : 0;
+  const completionBonus = gameEnded ? remainingSeconds * config.completion_bonus_multiplier : 0;
   // gameEnded's final_score comes straight back from the row just persisted (see the
   // comment above the UPDATE) rather than being recomputed here from the pre-insert
   // `totalScore`, so the response body can never disagree with what actually got saved.
@@ -423,7 +431,8 @@ export async function giveUp(gameId: string): Promise<Reply> {
     if (result.count > 0) await recordFailureIfNeeded(sql, game);
   }
 
-  const possible = await findableWords(sql, game.wordlist_id, game.target_word);
+  const config = await getConfig();
+  const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   return {
     status: 200,
     body: {
@@ -493,7 +502,8 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
     };
   }
 
-  const possible = await findableWords(sql, game.wordlist_id, game.target_word);
+  const config = await getConfig();
+  const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   return { status: 200, body: { possible_words: possible } };
 }
 

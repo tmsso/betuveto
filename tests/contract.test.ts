@@ -907,6 +907,84 @@ describeApi("Betűvető API contract", () => {
     expect(deleteAgain.status).toBe(404);
   });
 
+  // --- Batch 5.2 item 2: config editor ----------------------------------------
+  it("gates the config endpoints behind the admin token", async () => {
+    const noToken = await call("GET", "/api/v1/admin/config");
+    expect(noToken.status).toBe(401);
+
+    const wrongToken = await call("PATCH", "/api/v1/admin/config/hint_cost", { value: 5 }, {
+      "x-admin-token": "definitely-not-the-real-token",
+    });
+    expect(wrongToken.status).toBe(401);
+  });
+
+  it("lists, updates and restores a config value; rejects unknown keys and bad values", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const list = await call("GET", "/api/v1/admin/config", undefined, adminHeaders);
+    expect(list.status).toBe(200);
+    const hintCost = list.json.config.find((row: any) => row.key === "hint_cost");
+    expect(hintCost).toBeDefined();
+    const original = hintCost.value;
+
+    const unknownKey = await call(
+      "PATCH",
+      "/api/v1/admin/config/not_a_real_key",
+      { value: 1 },
+      adminHeaders,
+    );
+    expect(unknownKey.status).toBe(404);
+
+    const badValue = await call(
+      "PATCH",
+      "/api/v1/admin/config/hint_cost",
+      { value: "free" },
+      adminHeaders,
+    );
+    expect(badValue.status).toBe(422);
+
+    const negative = await call(
+      "PATCH",
+      "/api/v1/admin/config/hint_cost",
+      { value: -1 },
+      adminHeaders,
+    );
+    expect(negative.status).toBe(422);
+
+    const updated = await call(
+      "PATCH",
+      "/api/v1/admin/config/hint_cost",
+      { value: original + 1 },
+      adminHeaders,
+    );
+    expect(updated.status).toBe(200);
+    expect(updated.json.value).toBe(original + 1);
+
+    // lib/config.ts caches reads per warm serverless instance for up to 30s, and a PATCH
+    // only clears the cache on the instance that served it — a GET can briefly land on a
+    // different instance still holding the pre-update value, so poll rather than assert
+    // on the first read.
+    let row: { value: number } | undefined;
+    for (let attempt = 0; attempt < 8 && row?.value !== original + 1; attempt++) {
+      const relisted = await call("GET", "/api/v1/admin/config", undefined, adminHeaders);
+      row = relisted.json.config.find((r: any) => r.key === "hint_cost");
+      if (row?.value !== original + 1) await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    expect(row?.value).toBe(original + 1);
+
+    // Restore, so this test doesn't leave the shared preview/production config mutated
+    // for every other test run that depends on the default hint cost.
+    const restored = await call(
+      "PATCH",
+      "/api/v1/admin/config/hint_cost",
+      { value: original },
+      adminHeaders,
+    );
+    expect(restored.status).toBe(200);
+  }, 15000); // longer than the default: the read-back above polls for up to ~8s to ride
+  // out lib/config.ts's per-instance cache (see that assertion's own comment).
+
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
   it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {
     // A board with several findable words fired in one burst — true concurrency, not a

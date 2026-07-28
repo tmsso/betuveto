@@ -18,10 +18,17 @@ export const DEFAULT_TARGET_LENGTH = 7;
 // (Batch 6) or heavy word-curation (Batch 4) leaving some length too thin to pick from.
 export const MIN_WORDS_PER_LENGTH = 500;
 
-/** `duration = 120 + 15 × (length − 5)` (ROADMAP 2.3): longer boards have more findable
- *  words, so they get more time. 150s at the default length of 7. */
-export function durationForLength(length: number): number {
-  return 120 + 15 * (length - MIN_TARGET_LENGTH);
+/** `duration = base + perExtraLength × (length − 5)` (ROADMAP 2.3): longer boards have
+ *  more findable words, so they get more time. 150s at the default length of 7 with the
+ *  compiled-in defaults. `base`/`perExtraLength` are admin-editable (Batch 5.2 item 2,
+ *  lib/config.ts) — callers pass the configured values; the defaults here only matter for
+ *  direct unit tests and any caller that hasn't fetched config. */
+export function durationForLength(
+  length: number,
+  base: number = 120,
+  perExtraLength: number = 15,
+): number {
+  return base + perExtraLength * (length - MIN_TARGET_LENGTH);
 }
 
 /** Trim, NFC-normalise, uppercase. Returns null if the word is out of range. */
