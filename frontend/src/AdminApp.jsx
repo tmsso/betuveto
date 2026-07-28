@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import AdminConfigPanel from './AdminConfigPanel'
+import AdminDashboardPanel from './AdminDashboardPanel'
 import AdminPlayersPanel from './AdminPlayersPanel'
 import AdminWordsPanel from './AdminWordsPanel'
 
@@ -126,7 +127,7 @@ export default function AdminApp() {
     <div className="min-h-screen bg-game-paper p-6">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-extrabold text-game-primary">Betűvető admin — ellenőrzési sor</h1>
+          <h1 className="text-xl font-extrabold text-game-primary">Betűvető admin</h1>
           <button
             onClick={handleLogout}
             className="text-sm underline text-game-primary/70 hover:text-game-primary"
@@ -137,6 +138,7 @@ export default function AdminApp() {
 
         <div className="flex gap-4 mb-6 border-b-2 border-game-border">
           {[
+            ['dashboard', 'Áttekintés'],
             ['queue', 'Ellenőrzési sor'],
             ['words', 'Szavak'],
             ['config', 'Beállítások'],
@@ -156,6 +158,7 @@ export default function AdminApp() {
           ))}
         </div>
 
+        {tab === 'dashboard' && <AdminDashboardPanel token={token} onAuthError={handleLogout} />}
         {tab === 'words' && <AdminWordsPanel token={token} onAuthError={handleLogout} />}
         {tab === 'config' && <AdminConfigPanel token={token} onAuthError={handleLogout} />}
         {tab === 'players' && <AdminPlayersPanel token={token} onAuthError={handleLogout} />}
