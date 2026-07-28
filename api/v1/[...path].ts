@@ -15,6 +15,7 @@ import {
   resolveReport,
   resolveSuggestion,
 } from "../../lib/admin-queue.js";
+import { deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
 import { isAdminAuthorized } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
 import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
@@ -148,6 +149,10 @@ function resolveSuggestionRoute(suggestionId: number) {
   };
 }
 
+function searchWordsRoute(req: VercelRequest) {
+  return searchWords(stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE), stringQuery(req, "q", ""));
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -236,6 +241,19 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
   if (a === "admin") {
     if (segments.length === 2 && b === "queue") {
       return methodHandler({ GET: requireAdmin(() => getReviewQueue()) });
+    }
+
+    if (segments.length === 2 && b === "words") {
+      return methodHandler({ GET: requireAdmin(searchWordsRoute) });
+    }
+
+    if (segments.length === 3 && b === "words") {
+      const wordId = parseId(c);
+      if (wordId === undefined) return undefined;
+      return methodHandler({
+        PATCH: requireAdmin((req) => editWord(wordId, bodyField(req, "word"))),
+        DELETE: requireAdmin(() => deleteWord(wordId)),
+      });
     }
 
     if (segments.length === 4 && b === "reports" && d === "resolve") {

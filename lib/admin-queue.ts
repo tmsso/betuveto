@@ -2,6 +2,7 @@
  * Word review queue (ROADMAP Batch 5.1/5.2 item 1): listing, plus accept/reject/
  * reactivate mutations. Edit/delete words and search-the-wordlist are still a later PR.
  */
+import { logAdminAction } from "./admin.js";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 
@@ -56,15 +57,6 @@ export async function getReviewQueue(): Promise<Reply> {
   `;
 
   return { status: 200, body: { reports, suggestions } };
-}
-
-/** One row per admin mutation, admin_id left null — see the 0004 migration's comment for
- *  why: the interim token auth (5.1) has no per-admin identity to attribute this to yet. */
-async function logAdminAction(action: string, payload: Record<string, string | number>): Promise<void> {
-  const sql = db();
-  await sql`
-    insert into admin_audit_log (action, payload) values (${action}, ${sql.json(payload)})
-  `;
 }
 
 /**
