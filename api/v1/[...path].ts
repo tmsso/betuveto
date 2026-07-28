@@ -16,6 +16,12 @@ import {
   resolveSuggestion,
 } from "../../lib/admin-queue.js";
 import { getConfigList, updateConfigValue } from "../../lib/admin-config.js";
+import {
+  disqualifyGame,
+  listLeaderboardEntries,
+  renamePlayer,
+  searchPlayers,
+} from "../../lib/admin-players.js";
 import { deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
 import { isAdminAuthorized } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
@@ -154,6 +160,18 @@ function searchWordsRoute(req: VercelRequest) {
   return searchWords(stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE), stringQuery(req, "q", ""));
 }
 
+function searchPlayersRoute(req: VercelRequest) {
+  return searchPlayers(stringQuery(req, "q", ""));
+}
+
+function listLeaderboardEntriesRoute(req: VercelRequest) {
+  const length = intQuery(req, "length");
+  return listLeaderboardEntries(
+    stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
+    Number.isNaN(length) ? undefined : length,
+  );
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -267,6 +285,28 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       return methodHandler({
         PATCH: requireAdmin((req) => updateConfigValue(key, bodyField(req, "value"))),
       });
+    }
+
+    if (segments.length === 2 && b === "players") {
+      return methodHandler({ GET: requireAdmin(searchPlayersRoute) });
+    }
+
+    if (segments.length === 3 && b === "players") {
+      if (c === undefined) return undefined;
+      const playerId = c;
+      return methodHandler({
+        PATCH: requireAdmin((req) => renamePlayer(playerId, bodyField(req, "display_name"))),
+      });
+    }
+
+    if (segments.length === 2 && b === "scores") {
+      return methodHandler({ GET: requireAdmin(listLeaderboardEntriesRoute) });
+    }
+
+    if (segments.length === 4 && b === "games" && d === "disqualify") {
+      if (c === undefined) return undefined;
+      const gameId = c;
+      return methodHandler({ POST: requireAdmin(() => disqualifyGame(gameId)) });
     }
 
     if (segments.length === 4 && b === "reports" && d === "resolve") {

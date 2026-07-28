@@ -6,6 +6,9 @@
  * The query shape (wordlist_id, target_length, status='finished', order by final_score
  * desc, limit) is exactly what `games_leaderboard_idx` (migrations/0001_init.sql) was
  * built for; `period` filters on `ended_at` on top of that index scan rather than inside it.
+ * `disqualified_at is null` (ROADMAP 5.2 item 3, migrations/0006) additionally excludes
+ * games an admin removed from the board — the row and its history stay intact, only
+ * visibility here changes.
  */
 import type { Sql } from "postgres";
 import { db, wordlistId } from "./db.js";
@@ -84,6 +87,7 @@ export async function getTopScores(
      where g.wordlist_id = ${listId}
        and g.target_length = ${targetLength}
        and g.status = 'finished'
+       and g.disqualified_at is null
        ${clause}
      order by g.final_score desc
      limit ${TOP_SCORES_LIMIT}
@@ -106,6 +110,7 @@ export async function getTopScores(
        where g.wordlist_id = ${listId}
          and g.target_length = ${targetLength}
          and g.status = 'finished'
+         and g.disqualified_at is null
          and g.player_id = ${playerId}
          ${clause}
        order by g.final_score desc
