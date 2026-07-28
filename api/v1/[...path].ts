@@ -15,6 +15,7 @@ import {
   resolveReport,
   resolveSuggestion,
 } from "../../lib/admin-queue.js";
+import { getConfigList, updateConfigValue } from "../../lib/admin-config.js";
 import { deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
 import { isAdminAuthorized } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
@@ -253,6 +254,18 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       return methodHandler({
         PATCH: requireAdmin((req) => editWord(wordId, bodyField(req, "word"))),
         DELETE: requireAdmin(() => deleteWord(wordId)),
+      });
+    }
+
+    if (segments.length === 2 && b === "config") {
+      return methodHandler({ GET: requireAdmin(() => getConfigList()) });
+    }
+
+    if (segments.length === 3 && b === "config") {
+      if (c === undefined) return undefined;
+      const key = c;
+      return methodHandler({
+        PATCH: requireAdmin((req) => updateConfigValue(key, bodyField(req, "value"))),
       });
     }
 
