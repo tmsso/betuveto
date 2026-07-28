@@ -607,16 +607,45 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
      flow is confirmed working end-to-end — a same-day atomic cutover risks locking out
      the only admin if the new mechanism has an edge case nobody's hit yet. Retire
      `ADMIN_TOKEN` in a follow-up PR once that's confirmed.
-   - **Biggest open unknown, not resolvable from this repo:** whether the Neon console's
-     Magic Link toggle already exposes a usable hosted flow/API, or whether the app must
-     wire the `better-auth` client SDK itself (request-link + verify-session, session
-     cookie handling) against Neon Auth's endpoint. This has to be checked directly
-     against Neon's console/docs for this project before the work can be estimated or
-     started — treat that check as the literal first step of implementation, not
-     something to assume either way going in.
+   - **Resolved 2026-07-28 (checked Neon's docs directly):** the console toggle already
+     exposes a usable hosted flow — no need to run a Better Auth server ourselves.
+     - **Client:** `@neondatabase/auth` (the standalone SDK; `@neondatabase/neon-js` bundles
+       it with a Data API client this project doesn't use — no reason to pull that in
+       alongside the existing `postgres.js` access in `lib/db.ts`).
+       `authClient.signIn.magicLink({ email, callbackURL })` sends the email; confirmed to
+       work with a plain Vite/React client, not Next.js-only.
+     - **Server-side session verification** (the actual unknown): `jose`'s `jwtVerify()`
+       against the auto-injected `NEON_AUTH_JWKS_URL`, checking the issuer against
+       `NEON_AUTH_BASE_URL`. EdDSA public-key verification — no shared secret to manage,
+       which fits this codebase's existing pattern of Vercel functions holding exactly one
+       DB credential and nothing else sensitive.
+     - **Env vars auto-inject** via the same Vercel↔Neon integration that already injects
+       `POSTGRES_URL` (`lib/db.ts`'s existing comment) — confirmed no extra manual wiring
+       beyond what's already in place, including per-preview-branch injection.
+     - **Data lands in `neon_auth.*`** inside this project's own Neon database, not a
+       separate managed store — consistent with the "one Postgres, no separate auth
+       store" shape the rest of this app already has.
+     - Sources: [Neon Auth overview](https://neon.com/docs/auth/overview),
+       [Magic Link plugin guide](https://neon.com/docs/auth/guides/plugins/magic-link),
+       [Neon Functions authentication](https://neon.com/docs/compute/functions/authentication),
+       [Auth in Vercel previews](https://neon.com/blog/auth-that-just-works-in-vercel-previews).
+   - **New risk surfaced by that check, not previously known:** every relevant package is
+     still **beta** as of 2026-07-28 (`@neondatabase/auth` 0.4.2-beta,
+     `@neondatabase/neon-js` 0.6.2-beta, `@neondatabase/auth-ui` 0.2.1-beta — checked via
+     `npm view`, not just docs copy). Shipping production admin auth against a beta SDK
+     carries real API-stability risk. The blast radius is genuinely small here (a handful
+     of admin accounts, `ADMIN_TOKEN` staying as a parallel fallback per the transition
+     plan above), which argues for accepting it — but that's a call for whoever's
+     resourcing this, not a default to wave through silently.
+   - **Soft risk, not a blocker:** the only official worked example
+     (`neondatabase/neon-js`'s `neon-auth-magic-link-example`) is Next.js. The
+     JWKS-verification and client-SDK calls above are framework-agnostic in principle, but
+     nobody's confirmed them working against this repo's hand-rolled
+     `api/v1/[...path].ts` dispatcher specifically — first real implementation PR should
+     expect some trial and error here, not a copy-paste.
    - **Frontend shape:** `AdminApp.jsx`'s token-entry form becomes an email-entry form →
-     "check your email" state → session established when the link is followed (Better
-     Auth's callback presumably redirects back to `/admin` with a session cookie set).
+     "check your email" state → session established when the link is followed (the
+     callback redirects back to `/admin` with a session the client SDK can read).
    **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
    `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
    409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/
