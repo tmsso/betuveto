@@ -28,13 +28,17 @@ export async function getDashboardStats(): Promise<Reply> {
   // day shows as 0 rather than a gap. The join condition is a per-day range on
   // games.started_at (not date_trunc(started_at) = d) specifically so the
   // games_started_at_idx index applies per day instead of forcing a sequential scan.
+  // Day boundaries are Europe/Budapest local, not the DB session's (UTC) day — Neon has
+  // no reason to know the admin's timezone, so "today" is computed explicitly rather than
+  // via a bare date_trunc(now()), which would put midnight up to 2h off from local time.
   const daily = await sql<DailyRow[]>`
-    select d::date::text as date,
+    select (d at time zone 'Europe/Budapest')::date::text as date,
            count(g.id)::int as games,
            count(distinct g.player_id)::int as dau
       from generate_series(
-             date_trunc('day', now()) - make_interval(days => ${DAILY_WINDOW_DAYS - 1}),
-             date_trunc('day', now()),
+             date_trunc('day', now() at time zone 'Europe/Budapest') at time zone 'Europe/Budapest'
+               - make_interval(days => ${DAILY_WINDOW_DAYS - 1}),
+             date_trunc('day', now() at time zone 'Europe/Budapest') at time zone 'Europe/Budapest',
              interval '1 day'
            ) as d
       left join games g
