@@ -8,6 +8,7 @@
  */
 import { timingSafeEqual } from "node:crypto";
 import type { VercelRequest } from "@vercel/node";
+import { db } from "./db.js";
 
 const ADMIN_TOKEN_HEADER = "x-admin-token";
 
@@ -30,4 +31,18 @@ export function isAdminAuthorized(req: VercelRequest): boolean {
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** One row per admin mutation, admin_id left null — see the 0004 migration's comment for
+ *  why: the interim token auth (5.1) has no per-admin identity to attribute this to yet.
+ *  Shared by every admin-mutating module (queue, words, config, players) so every future
+ *  mutation logs the same way without re-implementing this. */
+export async function logAdminAction(
+  action: string,
+  payload: Record<string, string | number>,
+): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into admin_audit_log (action, payload) values (${action}, ${sql.json(payload)})
+  `;
 }

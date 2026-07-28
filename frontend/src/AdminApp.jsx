@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import AdminWordsPanel from './AdminWordsPanel'
 
 // Interim admin auth (ROADMAP 5.1): a shared token, not a real per-admin login — see
 // lib/admin.ts for why. Stored client-side only in this browser's localStorage; never
@@ -8,6 +9,7 @@ const TOKEN_KEY = 'bv_admin_token'
 export default function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
   const [tokenInput, setTokenInput] = useState('')
+  const [tab, setTab] = useState('queue')
   const [queue, setQueue] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -38,8 +40,8 @@ export default function AdminApp() {
   }, [])
 
   useEffect(() => {
-    if (token) loadQueue(token)
-  }, [token, loadQueue])
+    if (token && tab === 'queue' && !queue) loadQueue(token)
+  }, [token, tab, queue, loadQueue])
 
   const runMutation = useCallback(async (rowKey, path, decision) => {
     setPendingRows((prev) => new Set(prev).add(rowKey))
@@ -131,6 +133,29 @@ export default function AdminApp() {
           </button>
         </div>
 
+        <div className="flex gap-4 mb-6 border-b-2 border-game-border">
+          {[
+            ['queue', 'Ellenőrzési sor'],
+            ['words', 'Szavak'],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`pb-2 px-1 font-semibold ${
+                tab === id
+                  ? 'text-game-primary border-b-2 border-game-primary -mb-0.5'
+                  : 'text-game-primary/50 hover:text-game-primary'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'words' && <AdminWordsPanel token={token} onAuthError={handleLogout} />}
+
+        {tab === 'queue' && (
+        <>
         {loading && <p className="text-sm text-game-primary/70">Betöltés...</p>}
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
@@ -241,6 +266,8 @@ export default function AdminApp() {
               )}
             </section>
           </>
+        )}
+        </>
         )}
       </div>
     </div>
