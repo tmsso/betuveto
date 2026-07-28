@@ -615,13 +615,21 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
        `authClient.signIn.magicLink({ email, callbackURL })` sends the email; confirmed to
        work with a plain Vite/React client, not Next.js-only.
      - **Server-side session verification** (the actual unknown): `jose`'s `jwtVerify()`
-       against the auto-injected `NEON_AUTH_JWKS_URL`, checking the issuer against
-       `NEON_AUTH_BASE_URL`. EdDSA public-key verification — no shared secret to manage,
-       which fits this codebase's existing pattern of Vercel functions holding exactly one
-       DB credential and nothing else sensitive.
-     - **Env vars auto-inject** via the same Vercel↔Neon integration that already injects
-       `POSTGRES_URL` (`lib/db.ts`'s existing comment) — confirmed no extra manual wiring
-       beyond what's already in place, including per-preview-branch injection.
+       against `NEON_AUTH_JWKS_URL`, checking the issuer against `NEON_AUTH_BASE_URL`.
+       EdDSA public-key verification — no shared secret to manage, which fits this
+       codebase's existing pattern of Vercel functions holding exactly one DB credential
+       and nothing else sensitive.
+     - **Correction, checked directly against this project's Vercel setup:** env vars do
+       **not** auto-inject here. That behavior depends on the Vercel↔Neon *marketplace*
+       integration, which this project doesn't have — `DATABASE_URL`/`DATABASE_URL_UNPOOLED`
+       are plain manually-set env vars (`vercel env ls` / `vercel integration ls` confirmed
+       no installed resources), not integration-managed. `NEON_AUTH_JWKS_URL` and
+       `NEON_AUTH_BASE_URL` have to be copied from the Neon console's Auth section and set
+       by hand (`vercel env add`), same as `DATABASE_URL` always has been. Both values are
+       public (a JWKS endpoint and an issuer URL, not secrets), so this is low-stakes, just
+       manual. Installing the marketplace integration instead was considered and rejected —
+       it would also change how `DATABASE_URL` itself is provisioned on a project that
+       already works, a real infra change for convenience this doesn't need.
      - **Data lands in `neon_auth.*`** inside this project's own Neon database, not a
        separate managed store — consistent with the "one Postgres, no separate auth
        store" shape the rest of this app already has.
@@ -643,9 +651,40 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
      nobody's confirmed them working against this repo's hand-rolled
      `api/v1/[...path].ts` dispatcher specifically — first real implementation PR should
      expect some trial and error here, not a copy-paste.
-   - **Frontend shape:** `AdminApp.jsx`'s token-entry form becomes an email-entry form →
-     "check your email" state → session established when the link is followed (the
-     callback redirects back to `/admin` with a session the client SDK can read).
+   - **Frontend shape (not yet built, see blocker below):** `AdminApp.jsx`'s token-entry
+     form becomes an email-entry form → "check your email" state → session established
+     when the link is followed. Cross-origin matters here: Neon Auth's base URL is a
+     different registrable domain from `betuveto.vercel.app`, so a session cookie the
+     callback sets is never attached to `/api/v1/admin/*` fetches automatically — the
+     client reads the session token via the SDK's `getJWTToken()` and sends it explicitly
+     as `Authorization: Bearer <token>`, the same shape `AdminPlayersPanel.jsx` already
+     uses for `x-admin-token`.
+
+   **Backend verification prep shipped 2026-07-28** (PR #33, `0264bd9`):
+   `migrations/0008_players_auth_user_id.sql`, `lib/neon-auth.ts` (the `jose`/JWKS
+   verification above), `lib/admin.ts`'s `isAdminAuthorized` split into token-or-session
+   (both independent — a missing/misconfigured `ADMIN_TOKEN` no longer denies the Neon Auth
+   branch, and vice versa). Contract test added: a garbage `Authorization: Bearer` value
+   401s the same as a wrong `x-admin-token`. None of this touches account creation or
+   linking, so it isn't on the vulnerability below — verified live in production
+   (migration applied, both no-credential and garbage-bearer-token requests 401).
+
+   **Frontend flow deliberately held back, same session:** installing
+   `@neondatabase/auth` in `frontend/` (needed for the client-side magic-link trigger)
+   pulled in a **critical, currently unpatched** advisory —
+   [GHSA-qq9h-g4jm-xgf3](https://github.com/advisories/GHSA-qq9h-g4jm-xgf3), account
+   takeover via pre-account hijacking on magic-link/email-OTP sign-in, in the `better-auth`
+   version this SDK bundles (vulnerable range `>=1.1.3 <1.6.22`; installed via
+   `@neondatabase/auth@0.4.2-beta` was `1.4.18`; `npm audit` reports no fix without a
+   semver-major SDK bump). Attack shape per the advisory: an attacker registers an account
+   for the victim's email via email+password sign-up *before* the victim ever completes a
+   magic link; the passwordless flow later verifies that email without stripping the
+   attacker's pre-set password or revoking their session. **Confirmed with the user
+   2026-07-28: hold the frontend piece** until `better-auth` patches past 1.6.21 (or
+   Neon's SDK bumps its pin) rather than accept this specific CVE — a materially different,
+   more specific risk than the general beta-API-stability risk accepted earlier in the same
+   conversation. `@neondatabase/auth` was installed, found vulnerable, and removed from
+   `frontend/package.json` again in the same session — never merged.
    **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
    `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
    409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/
