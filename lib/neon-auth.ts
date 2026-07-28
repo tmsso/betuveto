@@ -1,0 +1,41 @@
+/**
+ * Server-side verification for Neon Auth (Managed Better Auth) session tokens — the
+ * Magic Link admin login (ROADMAP 5.2 item 2 follow-up design). Deliberately the raw
+ * JWKS-verification path (`jose`), not `@neondatabase/auth/next/server`'s `createNeonAuth`
+ * — that helper is Next.js-only (its own signed-cookie session, middleware, RSC support),
+ * none of which applies to this project's Vite frontend + hand-rolled Vercel dispatcher.
+ * The client instead calls `getJWTToken()` and sends it as a Bearer header — Neon Auth's
+ * base URL is a different registrable domain from this app's, so a session cookie the
+ * callback sets would never be attached to a same-site check against our own API anyway.
+ */
+import { createRemoteJWKSet, jwtVerify } from "jose";
+
+let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
+  const jwksUrl = process.env.NEON_AUTH_JWKS_URL;
+  if (!jwksUrl) return null;
+  if (!jwks) jwks = createRemoteJWKSet(new URL(jwksUrl));
+  return jwks;
+}
+
+/**
+ * Verifies a bearer token against Neon's published JWKS for this project and returns the
+ * token's `sub` claim (the Neon Auth user id) on success, or null on any failure —
+ * expired, malformed, wrong signature, or the feature not configured at all
+ * (`NEON_AUTH_JWKS_URL` unset, e.g. before the Neon console values are wired up).
+ * Issuer is checked when `NEON_AUTH_BASE_URL` is set; skipped (not failed) when it isn't,
+ * since the JWKS signature check alone already ties the token to this Neon project's keys.
+ */
+export async function verifyNeonAuthToken(token: string): Promise<{ userId: string } | null> {
+  const set = getJwks();
+  if (!set) return null;
+
+  try {
+    const issuer = process.env.NEON_AUTH_BASE_URL;
+    const { payload } = await jwtVerify(token, set, issuer ? { issuer } : {});
+    return typeof payload.sub === "string" ? { userId: payload.sub } : null;
+  } catch {
+    return null;
+  }
+}

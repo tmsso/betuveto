@@ -689,6 +689,18 @@ describeApi("Betűvető API contract", () => {
     expect(second.json.already_present).toBe(true);
   });
 
+  // --- Magic Link admin login (backend prep only, not yet wired to a frontend) ---
+  it("rejects a garbage bearer token the same as a missing admin token", async () => {
+    // No live Neon Auth issuer to test a real session against yet (NEON_AUTH_JWKS_URL
+    // unset in every environment so far) — this only proves a malformed/unverifiable
+    // token can't slip through as if it were a valid session, same shape as the existing
+    // wrong-x-admin-token case below.
+    const garbageBearer = await call("GET", "/api/v1/admin/queue", undefined, {
+      Authorization: "Bearer this-is-not-a-real-jwt",
+    });
+    expect(garbageBearer.status).toBe(401);
+  });
+
   // --- Batch 5.1: admin review queue -----------------------------------------
   it("gates the admin review queue behind the admin token", async () => {
     const noToken = await call("GET", "/api/v1/admin/queue");
