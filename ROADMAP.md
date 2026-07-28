@@ -870,35 +870,54 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 ---
 
-## Batch 10 — Backlog / ideas (unordered; pull into batches as desired)
+## Batch 10 — Backlog / ideas
 
-- `[ ]` **Daily puzzle + streaks** (see 7.2 note — arguably belongs before multiplayer).
-- `[ ]` **Difficulty rating per word** — % of games where the target was found; feed back
-  into word selection ("easy mode" picks well-known words). Data starts accruing the
-  moment Batch 1 lands, so log now, build later.
-- `[ ]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
-  distinctive learning feature; once server-side (Batch 1), expose it: "words you're
-  practising" panel, per-word progress.
-- `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without hints…).
-- `[ ]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
-  focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake).
-- `[ ]` **Sound effects + toggle.**
-- `[ ]` **Dark mode** (Tailwind `dark:` variants; persist per player).
-- `[ ]` **Definition lookup** — link found/missed words to a dictionary (e.g. Wiktionary)
-  at game end; big learning value, trivial to add.
-- `[ ]` **Privacy page + data deletion endpoint** — required once accounts/OAuth exist
-  (GDPR: you're storing EU-user data); `DELETE /api/v1/me` wipes the player row and
+**Sequencing agreed with the user 2026-07-28/29** (was "unordered; pull into batches as
+desired" — now ordered below). Rationale: lead with the daily puzzle rather than cheaper
+items first, because the roadmap's own 7.2 note already frames it as the best
+value/effort ratio in this whole list (~10% of multiplayer's effort, delivers much of its
+social value, creates a retention loop that nothing else here does) — cheap-but-smaller
+items shouldn't bury the one item that's both cheap *and* high-value. Order isn't a hard
+dependency chain (most items are independent); it's a priority queue, revisit freely.
+
+1. `[ ]` **Daily puzzle + streaks** (see 7.2 note — arguably belongs before multiplayer).
+2. `[ ]` **Difficulty rating per word** — % of games where the target was found; feed back
+   into word selection ("easy mode" picks well-known words). Data starts accruing the
+   moment Batch 1 lands, so log now, build later. Pairs naturally with the 5.2 item 4
+   dashboard already shipped — a "hardest words" view is a small extension of the
+   existing "most-failed words" query in `lib/admin-dashboard.ts`.
+3. `[ ]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
+   distinctive learning feature; once server-side (Batch 1), expose it: "words you're
+   practising" panel, per-word progress. Purely UI — `lib/word-stats.ts`'s `getMyStats`
+   already serves this data, nothing new to build server-side.
+4. `[ ]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
+   focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake). A
+   correctness gap, not a nice-to-have — cheaper the sooner it's done.
+5. `[ ]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
+   in CI; catches the "white screen" class of regressions that has already happened once
+   in this repo's history.
+6. `[ ]` **Definition lookup** — link found/missed words to a dictionary (e.g. Wiktionary)
+   at game end; big learning value, trivial to add.
+7. `[ ]` **Dark mode** (Tailwind `dark:` variants; persist per player). Good vehicle to
+   finally do the frontend refactor below, since it touches most of `App.jsx` anyway.
+8. `[ ]` **Sound effects + toggle.**
+9. `[ ]` **Observability** — structured logging + error tracking (Sentry free tier).
+   Originally scoped as "before multiplayer debugging is needed" — moved up: bugs
+   already slipping through unnoticed in production cost something *now*, not just once
+   Batch 7 starts, and it's a few lines to wire.
+10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
+    hints…) — needs real schema/design work, no blockers, moderate value.
+- **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
+  `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
+  Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
+  above substantially touches `App.jsx` first (daily puzzle or dark mode are the two
+  likeliest candidates) — never standalone (those go badly with AI implementers; always
+  pair refactors with a feature that exercises them).
+- **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
+  constraint, not priority) — not urgent while identity is anonymous-only, but must land
+  no later than **Batch 8** (Google OAuth): that's the moment real email addresses start
+  being stored and GDPR actually applies. `DELETE /api/v1/me` wipes the player row and
   anonymises games.
-- `[ ]` **Observability** — structured logging + error tracking (Sentry free tier) before
-  multiplayer debugging is needed.
-- `[ ]` **Frontend refactor** — `App.jsx` is a 640-line single component; when Batch 2's
-  UI work starts, split into `components/` (Board, GuessInput, Timer, Scoreboard,
-  Modal…) and a `useGame` hook. Do it *as part of* that batch, not as a standalone
-  "refactor everything" task (those go badly with AI implementers — always pair
-  refactors with a feature that exercises them).
-- `[ ]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
-  in CI; catches the "white screen" class of regressions that has already happened once
-  in this repo's history.
 
 ---
 
