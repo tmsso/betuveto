@@ -1091,6 +1091,47 @@ describeApi("Betűvető API contract", () => {
   // anti-cheat rate limit, plus several more round trips here — comfortably over the
   // suite's default timeout even though nothing is actually stuck.
 
+  // --- Batch 5.2 item 4: admin dashboard ---------------------------------------
+  it("gates the admin dashboard behind the admin token", async () => {
+    const noToken = await call("GET", "/api/v1/admin/dashboard");
+    expect(noToken.status).toBe(401);
+
+    const wrongToken = await call("GET", "/api/v1/admin/dashboard", undefined, {
+      "x-admin-token": "definitely-not-the-real-token",
+    });
+    expect(wrongToken.status).toBe(401);
+  });
+
+  it("returns 30 days of zero-filled daily stats, most-failed words and queue sizes", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    // Play and fail one game first so there's at least one word_stats row: a fresh Neon
+    // branch/preview could otherwise leave most_failed_words empty and this test would
+    // only be checking the shape, never the aggregation itself.
+    const game = await startUntil((g) => g.possible_count >= 1, 15, 7);
+    await call("POST", `/api/game/${game.game_id}/give_up`);
+
+    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
+    expect(dashboard.status).toBe(200);
+
+    expect(dashboard.json.daily).toHaveLength(30);
+    // Today is always the last row, and a game just started today, so it's never zero —
+    // the one non-tautological assertion the zero-filled series admits without a clean DB.
+    const today = dashboard.json.daily[29];
+    expect(today.games).toBeGreaterThan(0);
+    expect(today.dau).toBeGreaterThan(0);
+
+    expect(Array.isArray(dashboard.json.most_failed_words)).toBe(true);
+    expect(dashboard.json.most_failed_words.length).toBeGreaterThan(0);
+    for (const row of dashboard.json.most_failed_words) {
+      expect(row.times_failed).toBeGreaterThan(0);
+    }
+
+    expect(dashboard.json.queue_size.reports).toBeGreaterThanOrEqual(0);
+    expect(dashboard.json.queue_size.suggestions).toBeGreaterThanOrEqual(0);
+  });
+
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
   it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {
     // A board with several findable words fired in one burst — true concurrency, not a
