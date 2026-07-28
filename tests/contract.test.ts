@@ -161,7 +161,7 @@ async function startWithCookie(
  *  guessable in a handful of requests, then clears it — so the resulting `finished`
  *  game's score is known without depending on any other data in the (shared, persistent)
  *  preview database. */
-async function completeSmallGame(): Promise<{ cookie: string; totalScore: number }> {
+async function completeSmallGame(): Promise<{ cookie: string; totalScore: number; gameId: string }> {
   let cookie: string | undefined;
   let game: StartResult | undefined;
   for (let attempt = 0; attempt < 20 && !game; attempt++) {
@@ -181,7 +181,7 @@ async function completeSmallGame(): Promise<{ cookie: string; totalScore: number
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   expect(totalScore).toBeGreaterThan(0);
-  return { cookie, totalScore };
+  return { cookie, totalScore, gameId: game.game_id };
 }
 
 /** A board whose letters spell exactly one full-length word — so that word is provably
@@ -984,6 +984,112 @@ describeApi("Betűvető API contract", () => {
     expect(restored.status).toBe(200);
   }, 15000); // longer than the default: the read-back above polls for up to ~8s to ride
   // out lib/config.ts's per-instance cache (see that assertion's own comment).
+
+  // --- Batch 5.2 item 3: player and leaderboard maintenance -------------------
+  it("gates player/score maintenance behind the admin token", async () => {
+    const noToken = await call("GET", "/api/v1/admin/players?q=xyz");
+    expect(noToken.status).toBe(401);
+
+    const wrongToken = await call("GET", "/api/v1/admin/scores", undefined, {
+      "x-admin-token": "definitely-not-the-real-token",
+    });
+    expect(wrongToken.status).toBe(401);
+  });
+
+  it("searches and renames a player", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    // game/start's response echoes player_id directly (lib/game.ts's startGame) — no need
+    // to parse the signed cookie ourselves to find this test's own player row.
+    const { game } = await startWithCookie();
+    const playerId = (game as unknown as { player_id: string }).player_id;
+    expect(playerId).toBeTruthy();
+
+    const uniqueName = `Teszt Játékos ${Math.random().toString(36).slice(2, 8)}`;
+    const renamed = await call(
+      "PATCH",
+      `/api/v1/admin/players/${playerId}`,
+      { display_name: uniqueName },
+      adminHeaders,
+    );
+    expect(renamed.status).toBe(200);
+    expect(renamed.json.display_name).toBe(uniqueName);
+
+    const found = await call(
+      "GET",
+      `/api/v1/admin/players?q=${encodeURIComponent(uniqueName)}`,
+      undefined,
+      adminHeaders,
+    );
+    expect(found.status).toBe(200);
+    expect(found.json.players.some((p: any) => p.id === playerId)).toBe(true);
+
+    // Too long — the admin tool's own sanity cap, not tied to any existing player-facing limit.
+    const tooLong = await call(
+      "PATCH",
+      `/api/v1/admin/players/${playerId}`,
+      { display_name: "x".repeat(21) },
+      adminHeaders,
+    );
+    expect(tooLong.status).toBe(422);
+
+    const unknown = await call(
+      "PATCH",
+      "/api/v1/admin/players/00000000-0000-0000-0000-000000000000",
+      { display_name: "nope" },
+      adminHeaders,
+    );
+    expect(unknown.status).toBe(404);
+  });
+
+  it("lists leaderboard entries and disqualifies one", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    // completeSmallGame's own game_id, not "the top of the listing" — this is a shared,
+    // persistent database, so a low-scoring small board isn't guaranteed to rank inside
+    // the (limited, real-score-ordered) admin listing at all; disqualify targets it
+    // directly by id instead of depending on where it ranks.
+    const { totalScore, gameId } = await completeSmallGame();
+    expect(totalScore).toBeGreaterThan(0);
+
+    const entries = await call("GET", "/api/v1/admin/scores?length=5", undefined, adminHeaders);
+    expect(entries.status).toBe(200);
+    expect(Array.isArray(entries.json.entries)).toBe(true);
+
+    const disqualified = await call(
+      "POST",
+      `/api/v1/admin/games/${gameId}/disqualify`,
+      undefined,
+      adminHeaders,
+    );
+    expect(disqualified.status).toBe(200);
+
+    // Gone from the admin listing (disqualified_at is null filter) ...
+    const afterEntries = await call("GET", "/api/v1/admin/scores?length=5", undefined, adminHeaders);
+    expect(afterEntries.json.entries.some((e: any) => e.id === gameId)).toBe(false);
+
+    // ... already-disqualified is a conflict, not a silent no-op ...
+    const again = await call(
+      "POST",
+      `/api/v1/admin/games/${gameId}/disqualify`,
+      undefined,
+      adminHeaders,
+    );
+    expect(again.status).toBe(409);
+
+    // ... and an unknown game id 404s.
+    const unknown = await call(
+      "POST",
+      "/api/v1/admin/games/00000000-0000-0000-0000-000000000000/disqualify",
+      undefined,
+      adminHeaders,
+    );
+    expect(unknown.status).toBe(404);
+  }, 15000); // completeSmallGame() alone paces its guesses 400ms apart to stay under the
+  // anti-cheat rate limit, plus several more round trips here — comfortably over the
+  // suite's default timeout even though nothing is actually stuck.
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------
   it("bounds truly concurrent correct guesses and keeps found_count consistent", async () => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import AdminConfigPanel from './AdminConfigPanel'
+import AdminPlayersPanel from './AdminPlayersPanel'
 import AdminWordsPanel from './AdminWordsPanel'
 
 // Interim admin auth (ROADMAP 5.1): a shared token, not a real per-admin login — see
@@ -139,6 +140,7 @@ export default function AdminApp() {
             ['queue', 'Ellenőrzési sor'],
             ['words', 'Szavak'],
             ['config', 'Beállítások'],
+            ['players', 'Játékosok'],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -156,6 +158,7 @@ export default function AdminApp() {
 
         {tab === 'words' && <AdminWordsPanel token={token} onAuthError={handleLogout} />}
         {tab === 'config' && <AdminConfigPanel token={token} onAuthError={handleLogout} />}
+        {tab === 'players' && <AdminPlayersPanel token={token} onAuthError={handleLogout} />}
 
         {tab === 'queue' && (
         <>

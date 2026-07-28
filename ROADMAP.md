@@ -562,7 +562,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   read-only view of 5.2 item 1's word review queue (open reports + suggestions), pulled
   forward into this PR so the shell has real data to show rather than a placeholder page.
 
-### 5.2 `[ ]` Admin features (in priority order)
+### 5.2 `[~]` Admin features (in priority order)
 1. `[x]` **Word review queue:** open reports and suggestions; approve/reject; reactivate
    auto-inactivated words; edit/delete words; search the wordlist.
    **Shipped 2026-07-27** (`lib/admin-queue.ts`): listing (5.1) plus accept/reject on
@@ -570,8 +570,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    it and closes them — both in one transaction), a standalone `reactivate` endpoint
    independent of report status, and approve/reject on suggestions (approve activates the
    word; reject leaves it inactive). Re-resolving an already-closed report/suggestion is a
-   409, not a silent no-op. **Edit/delete words and search-the-wordlist are still open**
-   (deferred — cutting from the bottom of this list, per the roadmap's own priority order).
+   409, not a silent no-op.
    **User-tested live, one fix applied:** the reports table's first button labels read as
    status descriptions rather than actions (unlike the suggestions table's clear
    first-person verbs) — relabeled with an explicit tooltip; backend itself was confirmed
@@ -580,19 +579,59 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    day-to-day use — candidate for email+passkey or magic-link admin login (Neon Auth
    supports Magic Link; see architecture decision 4), which would mean pulling some of
    Batch 8's Neon Auth integration forward for admins specifically, ahead of player-facing
-   Google OAuth. Not scoped or built yet — a design discussion for a future session.
-2. **Config editor:** the constants currently hardcoded in `main.py`
-   (`FAIL_PROB_INITIAL_MULTIPLIER`, hint cost, timer formula, min word length, rate
-   limits) move to a `config` table with typed defaults; admin edits take effect without
-   redeploy.
-3. **Score/player maintenance:** view players, edit/delete suspicious leaderboard
-   entries, rename inappropriate display names, merge duplicate players (anonymous + OAuth).
-4. **Dashboard:** games/day, DAU, most-failed words, report queue size.
+   Google OAuth. **Confirmed 2026-07-28:** Managed Better Auth + the Magic Link plugin are
+   now enabled in the Neon console (10-minute link expiry, new-user signup allowed) —
+   still not scoped/built, and not yet confirmed whether that also fully provisions
+   Better Auth itself; a design discussion for a future session, not started this one.
+   **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
+   `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
+   409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/
+   suggestions). Both refuse to touch a word that is the *current* target of an active
+   game (scoped by wordlist_id): `games.target_word` is a text snapshot, not a foreign
+   key, so mutating the `words` row would silently strand that game.
+2. `[x]` **Config editor:** hint cost, completion bonus multiplier, guess rate limit, min
+   word length, and the timer formula move from hardcoded constants to an admin-editable
+   `config` table; edits take effect without redeploy.
+   **Shipped 2026-07-28** (`lib/config.ts`, `migrations/0005_config.sql`): reads cached at
+   module scope for 30s so the guess/hint/start hot paths don't hit the DB every request —
+   an edit propagates to other warm instances within that window, not instantly everywhere
+   (a PATCH only clears the cache on the instance that served it). Falls back to the
+   compiled-in default for any missing/malformed key. `lib/words.ts`'s `durationForLength`
+   and `lib/game.ts`'s `findableWords` now take the relevant values as parameters instead
+   of reading module constants, keeping `words.ts` DB-free per its own stated invariant.
+   **Real bug caught before merge:** the first version wrote
+   `JSON.stringify(value)::jsonb`, which double-JSON-encoded the value (postgres.js's own
+   jsonb parameter serialization already encodes it) — a PATCH looked like it succeeded
+   but the column silently held the *string* `"99"` instead of the number `99`, so every
+   read fell back to the default. Caught by querying the preview DB directly after a PATCH
+   kept reading back stale well past the 30s cache TTL; fixed with `sql.json(value)`, the
+   same helper `lib/admin.ts`'s `logAdminAction` already used for its own jsonb column.
+3. `[x]` **Score/player maintenance:** view players, edit/delete suspicious leaderboard
+   entries, rename inappropriate display names. **Shipped 2026-07-28**
+   (`lib/admin-players.ts`): player search/list with a games-played + best-score
+   aggregate per row, rename (20-char cap — not tied to any existing enforced limit, since
+   the player-facing "name yourself" input this number came from was never built);
+   leaderboard-entry listing broader than the public per-length top-10, and a `disqualify`
+   action per game. **Deliberately not built: merging duplicate players (anonymous +
+   OAuth).** That's the exact operation Batch 8's Google OAuth merge rule already
+   specifies (orphaned-anonymous-player stats merge additively into the Google-linked
+   player) — building a separate version here would either duplicate that logic or
+   pre-empt a design that batch hasn't landed yet. Revisit as part of Batch 8, not before.
+   **Design choice:** disqualifying a game sets a new nullable `games.disqualified_at`
+   (`migrations/0006_games_disqualified.sql`) rather than a new `status` enum value —
+   keeps the game's real lifecycle status distinct from an admin's later leaderboard
+   decision, and avoids touching the `games_status_check` constraint or auditing every
+   `status === 'active'` branch in `lib/game.ts` for a new possible value. `lib/scores.ts`
+   excludes disqualified games from both the public top-N and `your_best`; the row and its
+   `game_guesses` history stay intact, only leaderboard visibility changes.
+4. `[ ]` **Dashboard:** games/day, DAU, most-failed words, report queue size. Not started.
 - **Audit:** every admin mutation writes to `admin_audit_log(admin_id, action, payload,
   created_at)`. **Shipped 2026-07-27** (`migrations/0004_admin_audit_log.sql`) — `admin_id`
   stays null for now: the interim `ADMIN_TOKEN` auth (5.1) has no per-admin player
   identity to attribute an action to, only becoming meaningful once Batch 8's Google OAuth
-  gives admins a real logged-in identity.
+  gives admins a real logged-in identity. `logAdminAction` moved to `lib/admin.ts` on
+  2026-07-28 so every admin-mutating module (queue, words, config, players) shares one
+  writer instead of reimplementing it per file.
 
 ---
 
