@@ -54,7 +54,7 @@ interface StartResult {
 }
 
 async function call(
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   route: string,
   body?: unknown,
   extraHeaders?: Record<string, string>,
@@ -820,6 +820,91 @@ describeApi("Betűvető API contract", () => {
       { "x-admin-token": ADMIN_TOKEN },
     );
     expect(conflict.status).toBe(409);
+  });
+
+  // --- Batch 5.2 item 1: word search, edit, delete -----------------------------
+  it("gates word search/edit/delete behind the admin token", async () => {
+    const noToken = await call("GET", "/api/v1/admin/words?q=xyz");
+    expect(noToken.status).toBe(401);
+
+    const wrongToken = await call("PATCH", "/api/v1/admin/words/1", { word: "X" }, {
+      "x-admin-token": "definitely-not-the-real-token",
+    });
+    expect(wrongToken.status).toBe(401);
+  });
+
+  it("searches, edits and deletes a word", async () => {
+    if (!ADMIN_TOKEN) return; // every assertion below needs the real token
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const { cookie } = await startWithCookie();
+    const alphabet = "BDFGKLMNPRST";
+    const randomWord = () =>
+      Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+    let novel = randomWord();
+    while (dictionary.includes(novel)) novel = randomWord();
+
+    await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
+
+    const found = await call(
+      "GET",
+      `/api/v1/admin/words?q=${novel}`,
+      undefined,
+      adminHeaders,
+    );
+    expect(found.status).toBe(200);
+    const row = found.json.words.find((w: any) => w.word === novel);
+    expect(row).toBeDefined();
+    expect(row.active).toBe(false);
+    expect(row.source).toBe("suggested");
+
+    // Editing to a spelling already in the dictionary conflicts rather than silently
+    // merging two rows into one.
+    const conflict = await call(
+      "PATCH",
+      `/api/v1/admin/words/${row.id}`,
+      { word: dictionary[0] },
+      adminHeaders,
+    );
+    expect(conflict.status).toBe(409);
+
+    // Too short to be a real word — the same 3-15 letter rule words.ts enforces everywhere.
+    const tooShort = await call("PATCH", `/api/v1/admin/words/${row.id}`, { word: "AB" }, adminHeaders);
+    expect(tooShort.status).toBe(422);
+
+    let renamed = randomWord();
+    while (dictionary.includes(renamed) || renamed === novel) renamed = randomWord();
+    const edited = await call(
+      "PATCH",
+      `/api/v1/admin/words/${row.id}`,
+      { word: renamed },
+      adminHeaders,
+    );
+    expect(edited.status).toBe(200);
+    expect(edited.json.word).toBe(renamed);
+
+    const afterEdit = await call(
+      "GET",
+      `/api/v1/admin/words?q=${renamed}`,
+      undefined,
+      adminHeaders,
+    );
+    expect(afterEdit.json.words.some((w: any) => w.word === renamed)).toBe(true);
+
+    const deleted = await call("DELETE", `/api/v1/admin/words/${row.id}`, undefined, adminHeaders);
+    expect(deleted.status).toBe(200);
+
+    const afterDelete = await call(
+      "GET",
+      `/api/v1/admin/words?q=${renamed}`,
+      undefined,
+      adminHeaders,
+    );
+    expect(afterDelete.json.words.some((w: any) => w.word === renamed)).toBe(false);
+
+    // Already gone — a second delete/edit 404s rather than silently no-op'ing.
+    const deleteAgain = await call("DELETE", `/api/v1/admin/words/${row.id}`, undefined, adminHeaders);
+    expect(deleteAgain.status).toBe(404);
   });
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------

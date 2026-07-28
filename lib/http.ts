@@ -7,7 +7,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { Reply } from "./game.js";
 
 type Logic = (req: VercelRequest) => Promise<Reply>;
-type Method = "GET" | "POST" | "PATCH";
+type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
 /**
  * Dispatch to one logic function per HTTP method, serialise the reply, and turn an
