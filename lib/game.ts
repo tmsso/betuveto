@@ -12,7 +12,7 @@
  */
 import type { Sql } from "postgres";
 import { getConfig } from "./config.js";
-import { db, wordlistId } from "./db.js";
+import { DEFAULT_WORDLIST_CODE, db, wordlistId } from "./db.js";
 import {
   MAX_TARGET_LENGTH,
   MIN_TARGET_LENGTH,
@@ -140,7 +140,7 @@ async function recordFailureIfNeeded(sql: Sql, game: GameRow): Promise<void> {
      where game_id = ${game.id} and word = ${game.target_word} and correct
      limit 1
   `;
-  if (!solved) await recordFailed(sql, game.player_id, game.target_word);
+  if (!solved) await recordFailed(sql, game.player_id, game.wordlist_id, game.target_word);
 }
 
 export async function startGame(
@@ -150,6 +150,7 @@ export async function startGame(
   // Only set when the caller minted a fresh identity this request — signals both "create
   // the players row" and "echo the Set-Cookie back", so the two can never drift apart.
   setCookieHeader?: string,
+  wordlistCode?: string,
 ): Promise<Reply> {
   if (
     !Number.isInteger(targetLength) ||
@@ -185,7 +186,7 @@ export async function startGame(
       ? maxDuration
       : Math.min(Math.max(durationSeconds, 5), maxDuration);
 
-  const listId = await wordlistId();
+  const listId = await wordlistId(wordlistCode);
 
   if (setCookieHeader) {
     // Explicit id: the column default (gen_random_uuid()) exists for callers that don't
@@ -210,7 +211,7 @@ export async function startGame(
   const target = pick.word;
   const possible = await findableWords(sql, listId, target, config.min_word_length);
   const scrambled = scrambleWord(target);
-  const wasFailedBefore = await hasFailedBefore(playerId, target);
+  const wasFailedBefore = await hasFailedBefore(playerId, listId, target);
 
   const [game] = await sql<{ id: string; ends_at: Date }[]>`
     insert into games (player_id, wordlist_id, target_word, target_length, scrambled_letters,
@@ -224,6 +225,7 @@ export async function startGame(
     status: 200,
     body: {
       game_id: game.id,
+      wordlist: wordlistCode ?? DEFAULT_WORDLIST_CODE,
       scrambled_letters: scrambled,
       target_length: targetLength,
       game_active: true,
@@ -358,7 +360,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   // The target word itself, found for the first time — record it as solved (ROADMAP 3.3)
   // regardless of whether this same guess also happens to clear the whole board.
   if (word === game.target_word) {
-    await recordSolved(sql, game.player_id, word);
+    await recordSolved(sql, game.player_id, game.wordlist_id, word);
   }
 
   const totalScore = effectiveScore(game.raw_guess_score + score, game.hint_cost_total);
@@ -514,9 +516,9 @@ export async function getPossibleCount(gameId: string): Promise<Reply> {
   return { status: 200, body: { possible_count: game.possible_count } };
 }
 
-export async function getWordCount(): Promise<Reply> {
+export async function getWordCount(wordlistCode?: string): Promise<Reply> {
   const sql = db();
-  const listId = await wordlistId();
+  const listId = await wordlistId(wordlistCode);
   const [row] = await sql<{ count: number }[]>`
     select count(*)::int as count from words where wordlist_id = ${listId} and active
   `;
@@ -525,10 +527,11 @@ export async function getWordCount(): Promise<Reply> {
 
 /** Board lengths worth offering in the start-screen selector (ROADMAP 2.3): within the
  *  playable range and backed by enough candidate targets that a game start won't run dry
- *  or repeat the same handful of words. */
-export async function getAvailableLengths(): Promise<Reply> {
+ *  or repeat the same handful of words. Scoped per wordlist (ROADMAP 6.1) — a length that
+ *  clears the threshold in one language may not in another. */
+export async function getAvailableLengths(wordlistCode?: string): Promise<Reply> {
   const sql = db();
-  const listId = await wordlistId();
+  const listId = await wordlistId(wordlistCode);
   const rows = await sql<{ length: number }[]>`
     select length from words
      where wordlist_id = ${listId} and active

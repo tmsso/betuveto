@@ -749,7 +749,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 ## Batch 6 — Internationalisation: English (and the door to more languages)
 
-### 6.1 `[ ]` Wordlist plumbing (mostly done in Batch 1 schema)
+### 6.1 `[x]` Wordlist plumbing (mostly done in Batch 1 schema)
 - Add `en` wordlist. **Source & licence matter:** use a public-domain/free list —
   ENABLE (public domain) or SCOWL (permissive) are the standard choices; filter to 3–15
   letters, lowercase-only entries (drops proper nouns), no diacritics. Document the
@@ -757,6 +757,30 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   existing Hungarian list* — currently unstated in the repo.
 - Language selector on the start screen; game rows already carry `wordlist_id`;
   leaderboards are per wordlist+length (already keyed that way from Batch 2).
+- **Shipped 2026-07-29:** `data/english-words.txt` — the `word-list` npm package
+  (sindresorhus, MIT, SCOWL-derived, 4.1.0), chosen over ENABLE/raw SCOWL because it's
+  already exactly the shape 6.1 asks for (lowercase-only, no proper nouns, no diacritics,
+  word-game-oriented) and its licence is unambiguous; full attribution and the Hungarian
+  list's honest "provenance unknown, licence unverified" status (Batch 0.9's TODO,
+  confirmed still unresolvable) both in `data/README.md`. `game/start`, `words/count`, and
+  `words/lengths` now take a `?wordlist=` param (defaulting to `hu`); a start-screen
+  selector added alongside the existing length selector, restarting only when it's safe to
+  (mirroring the length selector's own rule) and re-fetching available lengths per
+  wordlist (English clears the >=500-candidate bar at every length 5–10, same as Hungarian).
+  **Two pre-existing gaps surfaced and fixed while wiring this up, not introduced by it:**
+  (1) `word_stats` was keyed only on `(player_id, word)` since Batch 1.1 — harmless with
+  one wordlist, but a spelling common to two languages (1,970 exist between these two
+  lists, e.g. "ALMA") would have merged its failed/solved counts across languages the
+  moment a second wordlist existed. Fixed in `migrations/0009` — added `wordlist_id`,
+  widened the primary key to `(player_id, wordlist_id, word)`, existing rows backfilled to
+  `hu`. Not covered by an automated regression test: forcing the *same* spelling to land as
+  the server's randomly-chosen target in both an independent hu draw and an independent en
+  draw isn't practically triggerable through the black-box contract suite without enough
+  retries to make it slow and flaky; the fix follows directly from the primary-key change
+  and was reviewed at the migration/code level instead. (2) `lib/db.ts`'s `wordlistId()`
+  cache held only its last-seen code — harmless when 'hu' was the only code ever requested,
+  but would have thrashed (missed on every call) once 'hu' and 'en' requests interleave
+  within one warm serverless instance. Changed to a `Map`.
 
 ### 6.2 `[ ]` UI string i18n
 - All user-facing strings are currently hardcoded Hungarian in `App.jsx` **and in backend

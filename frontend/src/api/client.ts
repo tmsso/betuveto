@@ -11,6 +11,7 @@ const API_BASE_URL = '/api';
 
 export interface StartGameResult {
   game_id: string;
+  wordlist: string;
   scrambled_letters: string;
   target_length: number;
   game_active: boolean;
@@ -110,14 +111,16 @@ class BetuAPIClient {
   }
 
   // Word statistics
-  async getWordStats(): Promise<{ total_words: number }> {
-    const response = await fetch(`${this.baseUrl}/words/count`);
+  async getWordStats(wordlist?: string): Promise<{ total_words: number }> {
+    const params = wordlist ? `?${new URLSearchParams({ wordlist }).toString()}` : '';
+    const response = await fetch(`${this.baseUrl}/words/count${params}`);
     if (!response.ok) throw new Error('Failed to fetch word stats');
     return response.json();
   }
 
-  async getAvailableLengths(): Promise<number[]> {
-    const response = await fetch(`${this.baseUrl}/words/lengths`);
+  async getAvailableLengths(wordlist?: string): Promise<number[]> {
+    const params = wordlist ? `?${new URLSearchParams({ wordlist }).toString()}` : '';
+    const response = await fetch(`${this.baseUrl}/words/lengths${params}`);
     if (!response.ok) throw new Error('Failed to fetch available lengths');
     const data = await response.json();
     return data.available_lengths;
@@ -142,8 +145,9 @@ class BetuAPIClient {
   }
 
   // Game management
-  async startGame(targetLength: number = 7): Promise<StartGameResult> {
+  async startGame(targetLength: number = 7, wordlist?: string): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });
+    if (wordlist) params.set('wordlist', wordlist);
     const response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
       method: 'POST',
     });
@@ -216,8 +220,9 @@ class BetuAPIClient {
   // High scores (ROADMAP Batch 2.2). No game_id needed: "your best" is resolved
   // server-side from the same anon-identity cookie /game/start already relies on, sent
   // automatically by the browser on this same-origin request.
-  async getTopScores(targetLength: number = 7): Promise<TopScoresResult> {
+  async getTopScores(targetLength: number = 7, wordlist?: string): Promise<TopScoresResult> {
     const params = new URLSearchParams({ length: String(targetLength) });
+    if (wordlist) params.set('wordlist', wordlist);
     const response = await fetch(`${this.baseUrl}/v1/scores/top?${params.toString()}`);
     if (!response.ok) throw new Error(`Failed to fetch top scores (${response.status})`);
     return response.json();

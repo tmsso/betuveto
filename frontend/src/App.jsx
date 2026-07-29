@@ -27,6 +27,13 @@ const MIN_GUESS_LENGTH = 3;
 const MIN_TARGET_LENGTH = 5;
 const MAX_TARGET_LENGTH = 10;
 const DEFAULT_TARGET_LENGTH = 7;
+// Wordlist/language selector (ROADMAP 6.1). UI text stays Hungarian for now — full i18n
+// (translated labels, alphabet-driven keyboard whitelist) is ROADMAP 6.2, a separate item.
+const DEFAULT_WORDLIST = 'hu';
+const WORDLISTS = [
+  { code: 'hu', label: 'Magyar' },
+  { code: 'en', label: 'English' },
+];
 // Mirrors lib/words.ts's durationForLength (ROADMAP 2.3) — duplicated here the same way
 // canFormWord/calculateScore already are in api/client.ts, since the frontend build
 // doesn't share modules with the API's lib/. Only used before the first /start response
@@ -107,6 +114,15 @@ function App() {
       (_, i) => MIN_TARGET_LENGTH + i,
     )
   )
+  // Wordlist/language selector (ROADMAP 6.1) — which dictionary the target word is drawn
+  // from. Not persisted server-side (unlike selectedLength): the roadmap only asks for a
+  // start-screen selector here, no preference column for it. selectedWordlist is the
+  // choice for the *next* game (mirrors selectedLength); gameWordlist is the just-started
+  // game's actual wordlist, echoed back by the server (mirrors targetLength) — the
+  // leaderboard panel below must key off the latter or it can show the wrong language's
+  // scores for a few seconds after switching the selector but before starting a new game.
+  const [selectedWordlist, setSelectedWordlist] = useState(DEFAULT_WORDLIST)
+  const [gameWordlist, setGameWordlist] = useState(DEFAULT_WORDLIST)
 
   // Confetti ref
   const confettiRef = useRef(null);
@@ -166,10 +182,10 @@ function App() {
   // Server high scores (ROADMAP 2.2): global top 10 + this player's best, for the
   // current board length. Refetched whenever a game ends, so a just-finished game's
   // score (and a fresh "your best") shows up without a page reload.
-  const fetchServerScores = useCallback(async (length) => {
+  const fetchServerScores = useCallback(async (length, wordlist) => {
     setServerScoresLoading(true);
     try {
-      const result = await betuAPI.getTopScores(length);
+      const result = await betuAPI.getTopScores(length, wordlist);
       setServerScores(result);
     } catch (err) {
       console.error('Error fetching high scores:', err);
@@ -180,8 +196,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchServerScores(targetLength);
-  }, [targetLength, isTimeUp, fetchServerScores]);
+    fetchServerScores(targetLength, gameWordlist);
+  }, [targetLength, gameWordlist, isTimeUp, fetchServerScores]);
 
   // Player stats (ROADMAP 3.3): refetched whenever a game ends, same as the high-score
   // panel, so a just-finished game's outcome (and any newly-failed word) shows up
@@ -296,13 +312,14 @@ function App() {
     animate()
   }, [isAnimatingLetters, scrambledLetters])
 
-  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH) => {
+  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST) => {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await betuAPI.startGame(length)
+      const response = await betuAPI.startGame(length, wordlist)
       setScrambledLetters(response.scrambled_letters.split(' '))
       setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
+      setGameWordlist(response.wordlist ?? wordlist)
       setFoundWords([])
       setCurrentGuess('')
       setGuessCount(0)
@@ -344,7 +361,7 @@ function App() {
     if (foundWords.length > 0 && !isTimeUp) {
       setIsNewGameModalOpen(true);
     } else {
-      startNewGame(selectedLength);
+      startNewGame(selectedLength, selectedWordlist);
     }
   };
 
@@ -358,9 +375,29 @@ function App() {
       console.error('Error saving length preference:', err)
     })
     if (foundWords.length === 0 || isTimeUp) {
-      startNewGame(length)
+      startNewGame(length, selectedWordlist)
     }
-  }, [foundWords.length, isTimeUp, startNewGame])
+  }, [foundWords.length, isTimeUp, selectedWordlist, startNewGame])
+
+  // Wordlist/language selector (ROADMAP 6.1): same "only restart if safe" rule as the
+  // length selector. Available lengths differ per wordlist (a length that clears the
+  // >=500-candidate threshold in one language may not in another — lib/game.ts's
+  // getAvailableLengths is now wordlist-scoped), so this also re-fetches that list and
+  // falls back to the default length if the current selection isn't offered anymore.
+  const handleWordlistChange = useCallback(async (wordlist) => {
+    setSelectedWordlist(wordlist)
+    try {
+      const lengths = await betuAPI.getAvailableLengths(wordlist)
+      setAvailableLengths(lengths)
+      const nextLength = lengths.includes(selectedLength) ? selectedLength : DEFAULT_TARGET_LENGTH
+      setSelectedLength(nextLength)
+      if (foundWords.length === 0 || isTimeUp) {
+        startNewGame(nextLength, wordlist)
+      }
+    } catch (err) {
+      console.error('Error loading lengths for wordlist:', err)
+    }
+  }, [foundWords.length, isTimeUp, selectedLength, startNewGame])
 
   // Hints (ROADMAP 3.1): reveals the first letter of a random unfound word and deducts
   // its cost. Disabled client-side once there's nothing left to hint at or the score
@@ -692,6 +729,28 @@ function App() {
           >
             {availableLengths.map((length) => (
               <option key={length} value={length}>{length} betű</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Wordlist/language selector (ROADMAP 6.1) — which dictionary the target word
+            comes from; same "restart only if safe" rule as the length selector above.
+            Labels stay Hungarian here (the surrounding UI is still Hungarian-only until
+            ROADMAP 6.2's i18n pass). */}
+        <div className="flex items-center justify-center gap-2 mb-4 text-sm">
+          <label htmlFor="wordlist-select" className="text-gray-500 font-semibold">
+            Szótár:
+          </label>
+          <select
+            id="wordlist-select"
+            value={selectedWordlist}
+            disabled={isLoading}
+            onChange={(e) => handleWordlistChange(e.target.value)}
+            aria-label="Szótár kiválasztása a következő játékhoz"
+            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+          >
+            {WORDLISTS.map(({ code, label }) => (
+              <option key={code} value={code}>{label}</option>
             ))}
           </select>
         </div>
@@ -1067,7 +1126,7 @@ function App() {
       <ConfirmationModal 
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
-        onConfirm={() => startNewGame(selectedLength)}
+        onConfirm={() => startNewGame(selectedLength, selectedWordlist)}
         message="A jelenlegi pontszámod elvész."
       />
     </div>

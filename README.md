@@ -9,7 +9,8 @@ finding every possible word clears the board.
 - **Frontend:** React 19 + Vite 7 + Tailwind CSS 3 (PWA-enabled)
 - **API:** TypeScript Vercel serverless functions, server-authoritative, no in-process state
 - **Database:** Neon serverless Postgres
-- **Dictionary:** ~161k Hungarian words (`data/magyar-szavak.txt`)
+- **Dictionaries:** ~161k Hungarian words (`data/magyar-szavak.txt`) and ~270k English
+  words (`data/english-words.txt`) — see [Word lists](#word-lists) below
 
 > A batch-by-batch plan for where this project is headed (accounts, multiplayer, i18n,
 > admin tools, Android) lives in [`ROADMAP.md`](./ROADMAP.md). Realtime (Ably) arrives
@@ -122,13 +123,16 @@ CI runs all of the above on every pull request (`.github/workflows/ci.yml`).
 Vercel builds and deploys the whole app (frontend + `api/`) from its GitHub integration on
 every push — there is no separate backend deployment.
 
-## Word list
+## Word lists
 
-`data/magyar-szavak.txt` is the single source of truth for the dictionary
-(one word per line). **TODO:** confirm and document the source and licence of
-this list before public distribution.
+Two dictionaries as of ROADMAP Batch 6.1: `data/magyar-szavak.txt` (`hu`) and
+`data/english-words.txt` (`en`), each imported with
+`npm run db:import -- <file> --code <code> --name <name>`. Provenance and licence for
+each are documented in [`data/README.md`](./data/README.md) — the Hungarian list's remain
+unverified (a pre-existing TODO, still open); the English list is MIT-licensed and fully
+attributed there.
 
 ## License
 
-Code is released under the MIT License — see [`LICENSE`](./LICENSE). The word
-list's licence is tracked separately (see above).
+Code is released under the MIT License — see [`LICENSE`](./LICENSE). Word list licences
+are tracked separately (see [`data/README.md`](./data/README.md)).

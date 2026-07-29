@@ -3,37 +3,58 @@
  * frontend's localStorage "Előzmények" list, and the same data the failed-word
  * reappearance weighting (ROADMAP Batch 10) will read from later. `lib/game.ts` writes
  * to this on every game-ending transition; this module also serves GET /api/v1/me/stats.
+ *
+ * Keyed per (player, wordlist, word) since migrations/0009 (ROADMAP 6.1) — a spelling
+ * common to two languages must not merge its failed/solved counts across them.
  */
 import type { Sql } from "postgres";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 
 /** A correct guess of the target word — recorded once, the instant it happens. */
-export async function recordSolved(sql: Sql, playerId: string | null, word: string): Promise<void> {
+export async function recordSolved(
+  sql: Sql,
+  playerId: string | null,
+  wordlistId: number,
+  word: string,
+): Promise<void> {
   if (!playerId) return;
   await sql`
-    insert into word_stats (player_id, word, times_solved)
-    values (${playerId}, ${word}, 1)
-    on conflict (player_id, word) do update set times_solved = word_stats.times_solved + 1
+    insert into word_stats (player_id, wordlist_id, word, times_solved)
+    values (${playerId}, ${wordlistId}, ${word}, 1)
+    on conflict (player_id, wordlist_id, word)
+    do update set times_solved = word_stats.times_solved + 1
   `;
 }
 
 /** A game that ended (expired / given up) without the target ever being found. */
-export async function recordFailed(sql: Sql, playerId: string | null, word: string): Promise<void> {
+export async function recordFailed(
+  sql: Sql,
+  playerId: string | null,
+  wordlistId: number,
+  word: string,
+): Promise<void> {
   if (!playerId) return;
   await sql`
-    insert into word_stats (player_id, word, times_failed)
-    values (${playerId}, ${word}, 1)
-    on conflict (player_id, word) do update set times_failed = word_stats.times_failed + 1
+    insert into word_stats (player_id, wordlist_id, word, times_failed)
+    values (${playerId}, ${wordlistId}, ${word}, 1)
+    on conflict (player_id, wordlist_id, word)
+    do update set times_failed = word_stats.times_failed + 1
   `;
 }
 
 /** Whether this player has ever failed this word before — feeds `is_previously_failed`
  *  on game/start (ROADMAP 0.1's flag, previously always false pre-Batch-3.3). */
-export async function hasFailedBefore(playerId: string, word: string): Promise<boolean> {
+export async function hasFailedBefore(
+  playerId: string,
+  wordlistId: number,
+  word: string,
+): Promise<boolean> {
   const sql = db();
   const [row] = await sql<{ x: number }[]>`
-    select 1 as x from word_stats where player_id = ${playerId} and word = ${word} and times_failed > 0
+    select 1 as x from word_stats
+     where player_id = ${playerId} and wordlist_id = ${wordlistId}
+       and word = ${word} and times_failed > 0
   `;
   return !!row;
 }

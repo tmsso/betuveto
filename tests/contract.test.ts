@@ -81,23 +81,42 @@ async function call(
 /** The dictionary as imported, so the tests can reason about a board the way the API does. */
 let dictionary: string[] = [];
 let bySignature = new Map<string, string[]>();
+// English (ROADMAP 6.1) — loaded the same way, for the wordlist-scoping tests below.
+let enDictionary: string[] = [];
+let enBySignature = new Map<string, string[]>();
 
-beforeAll(async () => {
-  if (!BASE_URL) return;
-  const raw = await readFile(path.join(REPO_ROOT, "data", "magyar-szavak.txt"), "utf-8");
+function loadDictionary(raw: string): { words: string[]; bySignature: Map<string, string[]> } {
   // De-duplicate exactly as the importer does: the file has repeated lines, and the API's
   // count and solution lists reflect the de-duplicated table, not the raw file.
   const seen = new Set<string>();
+  const words: string[] = [];
+  const bySig = new Map<string, string[]>();
   for (const line of raw.split(/\r?\n/)) {
     const word = normalizeWord(line);
     if (!word || seen.has(word)) continue;
     seen.add(word);
-    dictionary.push(word);
+    words.push(word);
     const signature = signatureOf(word);
-    const bucket = bySignature.get(signature);
+    const bucket = bySig.get(signature);
     if (bucket) bucket.push(word);
-    else bySignature.set(signature, [word]);
+    else bySig.set(signature, [word]);
   }
+  return { words, bySignature: bySig };
+}
+
+beforeAll(async () => {
+  if (!BASE_URL) return;
+  const hu = loadDictionary(
+    await readFile(path.join(REPO_ROOT, "data", "magyar-szavak.txt"), "utf-8"),
+  );
+  dictionary = hu.words;
+  bySignature = hu.bySignature;
+
+  const en = loadDictionary(
+    await readFile(path.join(REPO_ROOT, "data", "english-words.txt"), "utf-8"),
+  );
+  enDictionary = en.words;
+  enBySignature = en.bySignature;
 });
 
 /** The board's letters, recovered from the space-separated display form. */
@@ -178,6 +197,56 @@ async function completeSmallGame(): Promise<{ cookie: string; totalScore: number
     totalScore = json.total_score;
     // Spaced out so this sequential loop of legitimate finds doesn't trip the anti-cheat
     // rate limit (ROADMAP 2.2), which counts correct guesses per second.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  expect(totalScore).toBeGreaterThan(0);
+  return { cookie, totalScore, gameId: game.game_id };
+}
+
+// --- English (ROADMAP 6.1) wordlist-scoping helpers, mirroring the hu ones above ------
+
+function findableEn(start: StartResult): string[] {
+  const board = lettersOf(start);
+  return enDictionary.filter(
+    (word) => letterCount(word) <= letterCount(board) && canFormWord(word, board),
+  );
+}
+
+async function startWithCookieEn(
+  targetLength = 5,
+  cookie?: string,
+): Promise<{ game: StartResult; cookie: string }> {
+  const query = new URLSearchParams({ target_length: String(targetLength), wordlist: "en" });
+  const { status, json, headers } = await call(
+    "POST",
+    `/api/v1/game/start?${query}`,
+    undefined,
+    cookie ? { Cookie: cookie } : undefined,
+  );
+  expect(status).toBe(200);
+  const setCookie = headers.get("set-cookie");
+  const cookieValue = cookie ?? setCookie?.split(";", 1)[0];
+  if (!cookieValue) throw new Error("No identity cookie minted or supplied.");
+  return { game: json as StartResult, cookie: cookieValue };
+}
+
+async function completeSmallGameEn(
+  existingCookie?: string,
+): Promise<{ cookie: string; totalScore: number; gameId: string }> {
+  let cookie: string | undefined = existingCookie;
+  let game: StartResult | undefined;
+  for (let attempt = 0; attempt < 20 && !game; attempt++) {
+    const result = await startWithCookieEn(5, cookie);
+    cookie = result.cookie;
+    if (result.game.possible_count <= 10) game = result.game;
+  }
+  if (!game || !cookie) throw new Error("No small-enough 5-letter English board found after 20 tries.");
+
+  let totalScore = 0;
+  for (const word of findableEn(game)) {
+    const { json } = await call("POST", `/api/game/${game.game_id}/guess`, { word }, { Cookie: cookie });
+    expect(json.valid).toBe(true);
+    totalScore = json.total_score;
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   expect(totalScore).toBeGreaterThan(0);
@@ -421,6 +490,55 @@ describeApi("Betűvető API contract", () => {
     expect(lengths.json.available_lengths).toContain(7);
   });
 
+  // --- English wordlist (ROADMAP 6.1) ----------------------------------------
+  it("wordlist=en counts and lengths are scoped separately from the default (hu)", async () => {
+    const huCount = await call("GET", "/api/words/count");
+    const enCount = await call("GET", "/api/v1/words/count?wordlist=en");
+    expect(enCount.json.total_words).toBeGreaterThanOrEqual(enDictionary.length);
+    // Not just "both present" — they must be different tables, not the same one twice.
+    expect(enCount.json.total_words).not.toBe(huCount.json.total_words);
+
+    const enLengths = await call("GET", "/api/v1/words/lengths?wordlist=en");
+    // English has thousands of words at every length 5-10 too (verified via the dry-run
+    // import above), so it should clear the >=500 bar the same way hu does.
+    expect(enLengths.json.available_lengths).toEqual([5, 6, 7, 8, 9, 10]);
+  });
+
+  it("wordlist=en starts a board only spellable from the English dictionary", async () => {
+    const game = await startWithCookieEn(5).then((r) => r.game);
+    const findableWords = findableEn(game);
+    expect(findableWords.length).toBeGreaterThan(0);
+    // Every one of this board's findable words must actually be in the English list —
+    // proof the game was drawn from wordlist_id='en', not silently falling back to hu.
+    for (const word of findableWords) expect(enDictionary).toContain(word);
+  });
+
+  it("keeps leaderboards wordlist-scoped: a hu score and an en score for the same player don't cross-contaminate (ROADMAP 6.1)", async () => {
+    const hu = await completeSmallGame();
+    // Reuse the same identity cookie so "your_best" is genuinely testing scoping, not just
+    // two different anonymous players.
+    const en = await completeSmallGameEn(hu.cookie);
+
+    const huTop = await call(
+      "GET",
+      "/api/v1/scores/top?length=5&wordlist=hu",
+      undefined,
+      { Cookie: hu.cookie },
+    );
+    const enTop = await call(
+      "GET",
+      "/api/v1/scores/top?length=5&wordlist=en",
+      undefined,
+      { Cookie: hu.cookie },
+    );
+    expect(huTop.json.your_best.final_score).toBe(hu.totalScore);
+    expect(enTop.json.your_best.final_score).toBe(en.totalScore);
+    // completeSmallGame(Both variants) pace their guesses 400ms apart to dodge the
+    // anti-cheat rate limit — running two of them plus several more requests reliably
+    // blows past Vitest's 5s default testTimeout even though nothing is stuck (a gotcha
+    // already hit once before, ROADMAP memory).
+  }, 15000);
+
   // --- Word length option (ROADMAP 2.3) --------------------------------------
   it("only offers board lengths in the playable 5-10 range (ROADMAP 2.3)", async () => {
     const { json } = await call("GET", "/api/words/lengths");
@@ -606,6 +724,29 @@ describeApi("Betűvető API contract", () => {
 
     const { json } = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
     expect(json.games_played).toBeGreaterThanOrEqual(1);
+    const entry = json.failed_words.find((f: { word: string }) => f.word === giveUp.json.target_word);
+    expect(entry).toBeTruthy();
+    expect(entry.times_failed).toBeGreaterThanOrEqual(1);
+  });
+
+  // word_stats gained a wordlist_id dimension in migrations/0009 (ROADMAP 6.1) so a
+  // spelling shared between languages can't merge its failed count across them — this
+  // exercises the write path end-to-end (insert now requires wordlist_id to satisfy the
+  // new (player_id, wordlist_id, word) primary key) rather than the specific cross-language
+  // non-collision, which isn't practically forceable through this black-box surface: the
+  // target word is drawn server-side at random, and forcing the *same* spelling to land as
+  // the target in both an independent hu draw and an independent en draw would need
+  // enough retries to make the test slow and flaky. The non-collision itself follows
+  // directly from the primary key change, reviewed at the migration/code level instead.
+  it("records a given-up English target as a failed word, visible on me/stats (ROADMAP 6.1)", async () => {
+    const { game, cookie } = await startWithCookieEn();
+    const giveUp = await call("POST", `/api/game/${game.game_id}/give_up`, undefined, {
+      Cookie: cookie,
+    });
+    expect(giveUp.status).toBe(200);
+    expect(enDictionary).toContain(giveUp.json.target_word);
+
+    const { json } = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
     const entry = json.failed_words.find((f: { word: string }) => f.word === giveUp.json.target_word);
     expect(entry).toBeTruthy();
     expect(entry.times_failed).toBeGreaterThanOrEqual(1);
