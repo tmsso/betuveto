@@ -7,15 +7,28 @@
  * treating a repeat report as a no-op rather than a 409. Only bad input, missing
  * identity, and the rate limit are real errors.
  */
-import { db, wordlistId } from "./db.js";
+import { db, wordlistAlphabet, wordlistId } from "./db.js";
 import type { Reply } from "./game.js";
 import { letterCount, normalizeWord, signatureOf } from "./words.js";
 
-// Q, W, X, Y excluded on purpose: they appear only in foreign loanwords/proper nouns, not
-// the standard 40-letter Hungarian alphabet this curation feature is meant to protect.
-const HUNGARIAN_ALPHABET = /^[ABCDEFGHIJKLMNOPRSTUVZÁÉÍÓÖŐÚÜŰ]+$/;
-
 const MAX_SUGGESTIONS_PER_DAY = 10;
+
+// Deliberately distinct from wordlists.alphabet (ROADMAP 6.1/6.2), which drives the
+// on-screen-keyboard whitelist and must accept every letter a real target word can
+// contain — Hungarian target words commonly use Y (the gy/ly/ny/ty digraphs are
+// everyday vocabulary, not exotic). Suggestion curation is a stricter, separate policy:
+// Q, W, X, Y are excluded on purpose here because they appear almost exclusively in
+// foreign loanwords/proper nouns, not the standard 40-letter Hungarian alphabet this
+// feature is meant to protect against. Falls back to the wordlist's own keyboard
+// alphabet for any language (e.g. en) with no curation override of its own.
+const SUGGESTION_ALPHABET_OVERRIDES: Record<string, string> = {
+  hu: "ABCDEFGHIJKLMNOPRSTUVZÁÉÍÓÖŐÚÜŰ",
+};
+
+async function suggestionAlphabetPattern(wordlistCode: string): Promise<RegExp> {
+  const alphabet = SUGGESTION_ALPHABET_OVERRIDES[wordlistCode] ?? (await wordlistAlphabet(wordlistCode));
+  return new RegExp(`^[${alphabet}]+$`);
+}
 
 export async function suggestWord(
   playerId: string | null,
@@ -29,10 +42,15 @@ export async function suggestWord(
     return { status: 422, body: { detail: "word must be a string." } };
   }
   const word = normalizeWord(rawWord);
-  if (!word || !HUNGARIAN_ALPHABET.test(word)) {
+  // Wordlist-aware (ROADMAP 6.1), not a hardcoded Hungarian-only regex — a real bug this
+  // would otherwise be for English suggestions (e.g. "QUIZ" has letters outside the old
+  // Hungarian-only whitelist). See suggestionAlphabetPattern's own comment for why this
+  // is a distinct, stricter alphabet than the wordlist's general keyboard one.
+  const alphabetPattern = await suggestionAlphabetPattern(wordlistCode);
+  if (!word || !alphabetPattern.test(word)) {
     return {
       status: 422,
-      body: { detail: "word must be 3-15 letters of the Hungarian alphabet." },
+      body: { detail: "word must be 3-15 letters of this wordlist's alphabet." },
     };
   }
 

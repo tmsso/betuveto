@@ -22,7 +22,8 @@ export async function useHint(gameId: string): Promise<Reply> {
   if (!game) return NOT_FOUND;
 
   if (effectiveStatus(game, new Date()) !== "active") {
-    return { status: 400, body: { detail: "Game is not active." } };
+    // ROADMAP 6.2: a code, not display text — the frontend maps this to localised copy.
+    return { status: 400, body: { detail: "game_not_active" } };
   }
 
   const foundRows = await sql<{ word: string }[]>`
@@ -33,7 +34,7 @@ export async function useHint(gameId: string): Promise<Reply> {
   const unfound = possible.filter((word) => !found.has(word));
 
   if (unfound.length === 0) {
-    return { status: 400, body: { detail: "Nincs több felfedhető szó." } };
+    return { status: 400, body: { detail: "no_hintable_words" } };
   }
 
   // "Prefer longer words": pick uniformly among whichever unfound words are longest,

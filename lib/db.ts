@@ -35,22 +35,38 @@ export function db(): Sql {
 /** The wordlist a game is played against. One per language; 'hu' is the only one until Batch 6. */
 export const DEFAULT_WORDLIST_CODE = "hu";
 
+interface WordlistMeta {
+  id: number;
+  alphabet: string;
+}
+
 // One entry per code, not just the last-seen one — with a second live wordlist (Batch
 // 6.1), requests for 'hu' and 'en' interleave within the same warm instance, and a
 // single-slot cache would evict and miss on every call instead of ever hitting.
-const wordlistIdCache = new Map<string, number>();
+const wordlistCache = new Map<string, WordlistMeta>();
 
-/** Cached per warm instance — the id never changes for a given code. */
-export async function wordlistId(code: string = DEFAULT_WORDLIST_CODE): Promise<number> {
-  const cached = wordlistIdCache.get(code);
-  if (cached !== undefined) return cached;
+async function loadWordlistMeta(code: string): Promise<WordlistMeta> {
+  const cached = wordlistCache.get(code);
+  if (cached) return cached;
 
   const sql = db();
-  const [row] = await sql<{ id: number }[]>`
-    select id from wordlists where code = ${code} and active
+  const [row] = await sql<WordlistMeta[]>`
+    select id, alphabet from wordlists where code = ${code} and active
   `;
   if (!row) throw new Error(`Wordlist '${code}' not found. Run: npm run db:import`);
 
-  wordlistIdCache.set(code, row.id);
-  return row.id;
+  wordlistCache.set(code, row);
+  return row;
+}
+
+/** Cached per warm instance — the id never changes for a given code. */
+export async function wordlistId(code: string = DEFAULT_WORDLIST_CODE): Promise<number> {
+  return (await loadWordlistMeta(code)).id;
+}
+
+/** Accepted on-screen-keyboard/suggestion letters for this language (ROADMAP 6.1/6.2) —
+ *  e.g. "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for en, replacing what used to be a Hungarian-only
+ *  hardcoded whitelist. */
+export async function wordlistAlphabet(code: string = DEFAULT_WORDLIST_CODE): Promise<string> {
+  return (await loadWordlistMeta(code)).alphabet;
 }
