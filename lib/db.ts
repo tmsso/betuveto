@@ -35,11 +35,15 @@ export function db(): Sql {
 /** The wordlist a game is played against. One per language; 'hu' is the only one until Batch 6. */
 export const DEFAULT_WORDLIST_CODE = "hu";
 
-let wordlistIdCache: { code: string; id: number } | null = null;
+// One entry per code, not just the last-seen one — with a second live wordlist (Batch
+// 6.1), requests for 'hu' and 'en' interleave within the same warm instance, and a
+// single-slot cache would evict and miss on every call instead of ever hitting.
+const wordlistIdCache = new Map<string, number>();
 
 /** Cached per warm instance — the id never changes for a given code. */
 export async function wordlistId(code: string = DEFAULT_WORDLIST_CODE): Promise<number> {
-  if (wordlistIdCache?.code === code) return wordlistIdCache.id;
+  const cached = wordlistIdCache.get(code);
+  if (cached !== undefined) return cached;
 
   const sql = db();
   const [row] = await sql<{ id: number }[]>`
@@ -47,6 +51,6 @@ export async function wordlistId(code: string = DEFAULT_WORDLIST_CODE): Promise<
   `;
   if (!row) throw new Error(`Wordlist '${code}' not found. Run: npm run db:import`);
 
-  wordlistIdCache = { code, id: row.id };
+  wordlistIdCache.set(code, row.id);
   return row.id;
 }
