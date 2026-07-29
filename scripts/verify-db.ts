@@ -12,7 +12,14 @@ import postgres from "postgres";
 import { MIN_WORD_LENGTH, canFormWord, normalizeWord, signatureOf, subSignatures } from "../lib/words.js";
 
 const TABLES = ["players", "wordlists", "words", "games", "game_guesses", "word_stats"];
-const EXPECTED_WORDS = 155107;
+// The count as originally imported (Batch 1.1/1.5) — a floor, not an exact match. An
+// approved word suggestion (ROADMAP 4.2/5.2) permanently activates a word outside the
+// imported file, so a deployment this has ever approved a suggestion against legitimately
+// holds more active words than this. Same relaxation the contract suite's own
+// "reports the imported dictionary" test already made; this script's exact check was
+// pre-existing and just hadn't been updated to match (caught live in production while
+// verifying Batch 6.1, unrelated to that batch's own change).
+const MIN_EXPECTED_HU_WORDS = 155107;
 const BOARD = "HANGKÖZ"; // a 7-letter target with no repeated letters
 
 let failures = 0;
@@ -20,6 +27,12 @@ function check(label: string, actual: unknown, expected: unknown): void {
   const ok = String(actual) === String(expected);
   if (!ok) failures++;
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}: ${actual}${ok ? "" : ` (expected ${expected})`}`);
+}
+
+function checkAtLeast(label: string, actual: number, min: number): void {
+  const ok = actual >= min;
+  if (!ok) failures++;
+  console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}: ${actual}${ok ? "" : ` (expected >= ${min})`}`);
 }
 
 async function main(): Promise<void> {
@@ -43,10 +56,10 @@ async function main(): Promise<void> {
       select id, code, name from wordlists where code = 'hu'
     `;
     check("wordlist 'hu' present", list?.code, "hu");
-    const [{ total }] = await sql<{ total: string }[]>`
-      select count(*)::text as total from words where wordlist_id = ${list.id}
+    const [{ total }] = await sql<{ total: number }[]>`
+      select count(*)::int as total from words where wordlist_id = ${list.id}
     `;
-    check("total words", total, EXPECTED_WORDS);
+    checkAtLeast("total words", total, MIN_EXPECTED_HU_WORDS);
     const [{ bad }] = await sql<{ bad: string }[]>`
       select count(*)::text as bad from words
        where wordlist_id = ${list.id}
