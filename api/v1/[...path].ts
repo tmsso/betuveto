@@ -100,6 +100,7 @@ function startGameRoute(req: VercelRequest) {
     intQuery(req, "duration_seconds"),
     resolvedPlayerId,
     setCookieHeader,
+    stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
   );
 }
 
@@ -229,9 +230,13 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
   if (segments.length === 2 && a === "words") {
     switch (b) {
       case "count":
-        return methodHandler({ GET: () => getWordCount() });
+        return methodHandler({
+          GET: (req) => getWordCount(stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE)),
+        });
       case "lengths":
-        return methodHandler({ GET: () => getAvailableLengths() });
+        return methodHandler({
+          GET: (req) => getAvailableLengths(stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE)),
+        });
       case "report":
         return methodHandler({ POST: reportWordRoute });
       case "suggest":

@@ -14,12 +14,17 @@
  * so serverless/one-shot connections go through Neon's pooler:
  *
  *   DATABASE_URL='<neon pooled connection string>' \
- *     npm run db:import -- [path/to/wordlist.txt] [--code hu] [--name "Magyar"]
+ *     npm run db:import -- [path/to/wordlist.txt] [--code hu] [--name "Magyar"] \
+ *       [--alphabet "ABC..."]
  *
  *   # Validate parsing/normalisation without any database:
  *   npm run db:import -- --dry-run
  *
- * Defaults: file = data/magyar-szavak.txt, code = hu, name = Magyar.
+ * Defaults: file = data/magyar-szavak.txt, code = hu, name = Magyar. --alphabet (the
+ * on-screen-keyboard whitelist, wordlists.alphabet — ROADMAP 6.1/migrations/0009) is
+ * required the first time a new code is imported; an existing wordlist keeps its current
+ * alphabet if this is omitted on a re-run. 'hu' has a built-in default so existing usage
+ * without --alphabet keeps working unchanged.
  */
 import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -37,24 +42,36 @@ export interface Args {
   file: string;
   code: string;
   name: string;
+  // Accepted on-screen-keyboard letters for this language (wordlists.alphabet, ROADMAP
+  // 6.1/migrations/0009) — only required the first time a code is imported; an existing
+  // wordlist row keeps its current alphabet if this is omitted on a re-run.
+  alphabet: string | undefined;
   dryRun: boolean;
 }
+
+// The only wordlist that predates the alphabet column (migrations/0009 backfilled it for
+// 'hu' directly) — every other code must pass --alphabet explicitly.
+const DEFAULT_ALPHABET_BY_CODE: Record<string, string> = {
+  hu: "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÖŐÚÜŰ",
+};
 
 export function parseArgs(argv: string[]): Args {
   let file = path.join(REPO_ROOT, "data", "magyar-szavak.txt");
   let code = "hu";
   let name = "Magyar";
+  let alphabet: string | undefined;
   let dryRun = false;
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--code") code = argv[++i];
     else if (arg === "--name") name = argv[++i];
+    else if (arg === "--alphabet") alphabet = argv[++i];
     else if (arg === "--dry-run") dryRun = true;
     else positional.push(arg);
   }
   if (positional[0]) file = path.resolve(positional[0]);
-  return { file, code, name, dryRun };
+  return { file, code, name, alphabet: alphabet ?? DEFAULT_ALPHABET_BY_CODE[code], dryRun };
 }
 
 export interface WordRow {
@@ -115,7 +132,12 @@ async function runDryRun(file: string, code: string): Promise<void> {
   for (const s of samples) console.log(`  ${s.word} -> ${s.signature}`);
 }
 
-async function runImport(file: string, code: string, name: string): Promise<void> {
+async function runImport(
+  file: string,
+  code: string,
+  name: string,
+  alphabet: string | undefined,
+): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     console.error(
@@ -133,10 +155,25 @@ async function runImport(file: string, code: string, name: string): Promise<void
   const sql = postgres(databaseUrl, { onnotice: () => {}, prepare: false });
 
   try {
-    // Upsert the wordlist row and get its id.
+    const [existing] = await sql<{ id: number; alphabet: string }[]>`
+      select id, alphabet from wordlists where code = ${code}
+    `;
+    const resolvedAlphabet = alphabet ?? existing?.alphabet;
+    if (!resolvedAlphabet) {
+      console.error(
+        `ERROR: wordlist '${code}' doesn't exist yet — pass --alphabet "<letters>" the ` +
+          "first time a language is imported (e.g. ABCDEFGHIJKLMNOPQRSTUVWXYZ for en).",
+      );
+      process.exit(1);
+    }
+
+    // Upsert the wordlist row and get its id. alphabet is only set from the INSERT
+    // branch (a genuinely new code) — the ON CONFLICT branch never touches it, so a
+    // re-import without --alphabet can't accidentally null out an existing language's
+    // keyboard whitelist.
     const [wordlist] = await sql<{ id: number }[]>`
-      insert into wordlists (code, name)
-      values (${code}, ${name})
+      insert into wordlists (code, name, alphabet)
+      values (${code}, ${name}, ${resolvedAlphabet})
       on conflict (code) do update set name = excluded.name
       returning id
     `;
@@ -178,9 +215,9 @@ async function runImport(file: string, code: string, name: string): Promise<void
 }
 
 async function main() {
-  const { file, code, name, dryRun } = parseArgs(process.argv.slice(2));
+  const { file, code, name, alphabet, dryRun } = parseArgs(process.argv.slice(2));
   if (dryRun) await runDryRun(file, code);
-  else await runImport(file, code, name);
+  else await runImport(file, code, name, alphabet);
 }
 
 /**
