@@ -20,6 +20,11 @@ const TABLES = ["players", "wordlists", "words", "games", "game_guesses", "word_
 // pre-existing and just hadn't been updated to match (caught live in production while
 // verifying Batch 6.1, unrelated to that batch's own change).
 const MIN_EXPECTED_HU_WORDS = 155107;
+// English wordlist (ROADMAP 6.1) floor: this script previously only asserted anything
+// about 'hu', so a deployment where the 'en' import silently failed or was never run
+// would still print ALL CHECKS PASSED — caught during the 6.2 follow-up review, not by
+// this script itself.
+const MIN_EXPECTED_EN_WORDS = 269746;
 const BOARD = "HANGKÖZ"; // a 7-letter target with no repeated letters
 
 let failures = 0;
@@ -66,6 +71,18 @@ async function main(): Promise<void> {
          and (length <> char_length(word) or signature is null or length < 3 or length > 15)
     `;
     check("rows with a bad length/signature", bad, 0);
+
+    console.log("\nWordlist 'en' (ROADMAP 6.1)");
+    const [enList] = await sql<{ id: number; code: string }[]>`
+      select id, code from wordlists where code = 'en'
+    `;
+    check("wordlist 'en' present", enList?.code, "en");
+    if (enList) {
+      const [{ total: enTotal }] = await sql<{ total: number }[]>`
+        select count(*)::int as total from words where wordlist_id = ${enList.id}
+      `;
+      checkAtLeast("total words", enTotal, MIN_EXPECTED_EN_WORDS);
+    }
 
     console.log(`\nSignature-subset query (board '${BOARD}' — the Batch 1.2 hot path)`);
     const board = normalizeWord(BOARD)!;

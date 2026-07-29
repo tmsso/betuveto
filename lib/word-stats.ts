@@ -75,6 +75,7 @@ interface LongestWordRow {
 
 interface FailedWordRow {
   word: string;
+  wordlist: string;
   times_failed: number;
   times_solved: number;
 }
@@ -120,11 +121,17 @@ export async function getMyStats(playerId: string | null): Promise<Reply> {
      limit 1
   `;
 
+  // Joined to wordlists for its code (ROADMAP 6.1 widened this table's key to
+  // (player_id, wordlist_id, word), so a spelling shared by two languages, e.g. "ALMA",
+  // is now two distinct rows here — the code lets the frontend key/label them apart
+  // instead of colliding on `word` alone, which is a duplicate React key, not a display
+  // choice).
   const failedWords = await sql<FailedWordRow[]>`
-    select word, times_failed, times_solved
-      from word_stats
-     where player_id = ${playerId} and times_failed > 0
-     order by times_failed desc, word
+    select ws.word, wl.code as wordlist, ws.times_failed, ws.times_solved
+      from word_stats ws
+      join wordlists wl on wl.id = ws.wordlist_id
+     where ws.player_id = ${playerId} and ws.times_failed > 0
+     order by ws.times_failed desc, ws.word
      limit 50
   `;
 

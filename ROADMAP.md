@@ -831,7 +831,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   `handleUseHint`, etc.) is only ever an event-handler prop, never an effect dependency, so
   those safely call `t()` directly and list it in their own deps.
 
-### 6.3 `[ ]` Further languages (design note, no build work)
+### 6.3 `[x]` Further languages (design note, no build work — nothing to ship, closed 2026-07-30)
 - After 6.1/6.2, a new language = wordlist file + import + JSON catalog. German/Spanish
   need no code. **Warning for future implementers:** languages with digraph collation
   (Hungarian already: `cs`, `sz`…) are handled letter-by-letter here by design — do not
