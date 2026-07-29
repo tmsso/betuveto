@@ -1103,7 +1103,7 @@ function App() {
                                 <div className="flex flex-wrap gap-2 justify-center">
                                     {stats.failed_words.map((f) => (
                                         <span
-                                            key={f.word}
+                                            key={`${f.wordlist}-${f.word}`}
                                             className={`text-xs px-2 py-1 rounded border ${f.times_solved > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
                                         >
                                             {f.word} ({f.times_failed}×)
@@ -1125,7 +1125,7 @@ function App() {
           <div className="mt-8 border-t-2 border-game-border pt-6">
             <h3 className="text-2xl font-bold text-game-primary mb-4 text-center">{t('foundWords.header')}</h3>
             <div className="flex flex-wrap gap-3 justify-center">
-              {[...foundWords].sort((a, b) => a.localeCompare(b, i18n.language)).map((word, index) => (
+              {[...foundWords].sort((a, b) => a.localeCompare(b, gameWordlist)).map((word, index) => (
                 <span
                   key={index}
                   className={`inline-flex items-center gap-1.5 bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
@@ -1163,7 +1163,7 @@ function App() {
                     <div className="mt-4 flex flex-wrap gap-2 justify-center">
                         {allPossibleWords
                             .filter(word => !foundWords.includes(word))
-                            .sort((a, b) => a.localeCompare(b, i18n.language))
+                            .sort((a, b) => a.localeCompare(b, gameWordlist))
                             .map((word, index) => (
                                 <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
                                     {word}

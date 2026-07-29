@@ -27,7 +27,8 @@ export interface GameResult {
   can_form: boolean;
   already_guessed: boolean;
   score: number;
-  message: string;
+  /** Machine-readable outcome code (ROADMAP 6.2) — frontend maps this to localised copy. */
+  result: string;
   game_ended?: boolean;
   is_full_length?: boolean;
   is_target?: boolean;
@@ -35,6 +36,8 @@ export interface GameResult {
   found_count?: number;
   /** Time-remaining bonus folded into total_score once game_ended (ROADMAP 3.2). Server-computed. */
   completion_bonus?: number;
+  /** Only present when result === 'too_short'. */
+  min_length?: number;
 }
 
 export interface GameState {
@@ -53,7 +56,6 @@ export interface GameState {
 export interface GiveUpResult {
   target_word: string;
   possible_words: string[];
-  message: string;
 }
 
 export interface TopScoreEntry {
@@ -227,7 +229,7 @@ class BetuAPIClient {
     return data.possible_words;
   }
 
-  async rescrambleLetters(): Promise<{ scrambled_letters: string; message: string }> {
+  async rescrambleLetters(): Promise<{ scrambled_letters: string }> {
     const gameId = this.requireGameId();
     const response = await fetch(`${this.baseUrl}/game/${gameId}/rescramble`, {
       method: 'POST',
