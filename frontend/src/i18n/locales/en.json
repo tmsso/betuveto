@@ -1,0 +1,118 @@
+{
+  "app": { "title": "Betűvető" },
+  "loading": { "screen": "Loading...", "startingGame": "Starting game..." },
+  "errorScreen": { "title": "Error!", "retry": "Restart" },
+  "failedWordBadge": "Previously missed word",
+  "lengthSelector": {
+    "label": "Word length:",
+    "ariaLabel": "Choose word length for the next game",
+    "option": "{{length}} letters"
+  },
+  "wordlistSelector": {
+    "label": "Wordlist:",
+    "ariaLabel": "Choose wordlist for the next game"
+  },
+  "languageSelector": {
+    "ariaLabel": "Choose interface language"
+  },
+  "score": {
+    "pointsSuffix": "points",
+    "ariaLabel": "Score: {{score}} points",
+    "progress": "{{found}} / {{total}} words found • {{guesses}} guesses",
+    "timerAriaLabel": "Time remaining: {{time}}"
+  },
+  "highScores": {
+    "show": "🏆 Leaderboard ({{length}} letters)",
+    "hide": "Hide leaderboard",
+    "panelTitle": "Best — {{length}}-letter words",
+    "loading": "Loading...",
+    "empty": "No scores recorded yet for this length.",
+    "yourBest": "Your best score:",
+    "offlineWithLocal": "No connection to the server — your local scores:",
+    "offlineNone": "No connection to the server."
+  },
+  "board": {
+    "ariaLabel": "Available letters",
+    "letterAriaLabel": "letter {{letter}}"
+  },
+  "guessInput": {
+    "ariaLabel": "Enter your guess",
+    "placeholder": "guess",
+    "clearAriaLabel": "Clear guess"
+  },
+  "suggestion": {
+    "prompt": "Think this is a real word?",
+    "submit": "Submit",
+    "thanks": "Thanks, sent for review! ✅"
+  },
+  "actions": {
+    "newGame": "New game",
+    "newGameAriaLabel": "New game",
+    "scramble": "Shuffle",
+    "scrambleAriaLabel": "Shuffle letters",
+    "submit": "OK",
+    "submitAriaLabel": "Submit guess"
+  },
+  "giveUpHint": {
+    "giveUp": "🏳️ Give up (reveal solution)",
+    "confirmGiveUp": "Are you sure you want to give up? The solution will be revealed.",
+    "hint": "💡 Hint (-{{cost}} pts)",
+    "hintTitle": "Reveal a word's first letter (-{{cost}} pts)"
+  },
+  "hintMessage": "💡 Start of a {{length}}-letter word: \"{{letter}}\" (-{{cost}} pts)",
+  "stats": {
+    "show": "📊 My stats",
+    "hide": "Hide",
+    "loading": "Loading...",
+    "noGames": "You haven't finished a game yet.",
+    "gamesPlayed": "Games played:",
+    "completionRate": "Completion rate:",
+    "longestWord": "Longest word found:",
+    "avgScoreHeader": "Average score by length:",
+    "avgScoreEntry": "{{length}} letters: {{avg}}",
+    "failedWordsHeader": "Words you've struggled with:",
+    "offline": "No connection to the server."
+  },
+  "foundWords": {
+    "header": "Words found:",
+    "points": "{{points}} pts",
+    "reportAriaLabel": "Report {{word}} as wrong",
+    "reportTitle": "Report as wrong"
+  },
+  "remainingWords": {
+    "show": "🔽 Show missing words ({{count}} words)",
+    "hide": "🔼 Hide missing words"
+  },
+  "confirmModal": {
+    "title": "Start a new game?",
+    "message": "Your current score will be lost.",
+    "cancel": "Cancel",
+    "confirm": "New game"
+  },
+  "install": {
+    "prompt": "📲 Install the app!",
+    "install": "Install",
+    "dismissAriaLabel": "Close"
+  },
+  "offline": "📡 No internet connection — Betűvető needs a live server, reconnect to keep playing.",
+  "errors": {
+    "startGame": "Something went wrong starting the game.",
+    "tooShort": "Enter at least {{count}} letters!",
+    "notOnlyGivenLetters": "Only use the given letters!",
+    "alreadyGuessed": "You already found this word: {{word}}",
+    "notInDictionary": "No such word: {{word}}",
+    "gameEndedRetry": "The game has ended. Start a new one!",
+    "rateLimited": "Slow down a little!",
+    "submitFailed": "Something went wrong submitting your guess.",
+    "timeExpired": "Time's up.",
+    "revealed": "The full word was: {{word}}",
+    "scrambleFailed": "Something went wrong shuffling the letters.",
+    "giveUpFailed": "Something went wrong giving up.",
+    "hintFailed": "Something went wrong getting a hint.",
+    "gameNotActive": "The game isn't active.",
+    "noHintableWords": "No more words to reveal.",
+    "reportFailed": "Something went wrong reporting the word.",
+    "suggestRateLimited": "Too many suggestions today, try tomorrow.",
+    "suggestFailed": "Something went wrong sending the suggestion."
+  }
+}

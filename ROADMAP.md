@@ -782,7 +782,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   but would have thrashed (missed on every call) once 'hu' and 'en' requests interleave
   within one warm serverless instance. Changed to a `Map`.
 
-### 6.2 `[ ]` UI string i18n
+### 6.2 `[x]` UI string i18n
 - All user-facing strings are currently hardcoded Hungarian in `App.jsx` **and in backend
   response `message` fields.** Two rules for the implementer:
   1. Backend stops sending display strings — it returns machine-readable codes
@@ -793,6 +793,43 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 - Keyboard handling: the accepted-keys whitelist in `App.jsx` hardcodes the Hungarian
   alphabet — derive it from the active wordlist's alphabet (serve alphabet metadata with
   the wordlist).
+- **Shipped 2026-07-29/30:** `lib/game.ts`'s `guess()` now returns a `result` code
+  (`time_expired | too_short | not_in_dictionary | cannot_form | already_guessed | correct`,
+  the last two also carrying `total_score`/`min_length` since those were previously only
+  readable from the now-removed prose); `giveUp()`/`rescramble()` drop `message` entirely
+  (their other fields — `target_word`, `scrambled_letters` — already carry everything the
+  frontend needs). `lib/hints.ts`'s two displayed 400s (`game_not_active`,
+  `no_hintable_words`) became codes in the existing `detail` field rather than a new one,
+  since that's the only `detail` the frontend actually reads (`client.ts`'s `getHint()`).
+  Every other `detail` field across the API was left as English prose on purpose — a
+  repo-wide audit (`client.ts`'s error handling) found the frontend never surfaces them to
+  the player at all, so translating unseen text isn't this item's job.
+  `frontend/src/i18n/` (`react-i18next` + `i18next`, no `-browser-languagedetector`: the
+  existing mount effect that already resolves `preferred_length` now also resolves
+  `preferred_language` the same way — player preference, then `navigator.language`, then
+  `hu` — one fewer dependency for a single comparison). `players.preferred_language`
+  (`migrations/0010`, independent of a game's wordlist per the roadmap's own separation of
+  6.1 vs 6.2) read/written via the existing `/me/preferences` route. `wordlists.alphabet`
+  (added in 6.1's migration 0009) now also served on `game/start` and drives the keyboard
+  whitelist directly, replacing the hardcoded Hungarian one.
+  **Real, adjacent bug caught and fixed while wiring the alphabet through, not a planned
+  part of this item:** `lib/word-suggestions.ts` validated every suggested word against a
+  hardcoded Hungarian-only alphabet regardless of `wordlistCode` — a real functional bug
+  once English suggestions became possible (e.g. "QUIZ" would have 422'd). Fixed to
+  validate against the target wordlist's own `alphabet` column instead.
+  **Two pieces of dead/vestigial frontend logic found and simplified while touching this
+  code, not new scope:** the bottom-of-page inline error banner was unreachable in
+  practice (the full-page error screen above it always intercepts first, since
+  `startNewGame`'s catch sets `error` and `isLoading` in the same React batch) — kept
+  as a safety net but its `error.includes('újrakeverve')` styling check (which nothing had
+  set for a long time) was removed rather than translated meaninglessly.
+  **Deliberate architecture note:** `startNewGame` stores a translation *key* in `error`
+  state (not pre-translated text) and stays a dependency-free, stable `useCallback` — it's
+  relied on as a `useEffect` dependency (the mount effect), and letting it depend on `t`
+  would mean every language switch recreates it, re-fires that effect, and silently
+  restarts the player's in-progress game. Every other handler (`handleSubmit`,
+  `handleUseHint`, etc.) is only ever an event-handler prop, never an effect dependency, so
+  those safely call `t()` directly and list it in their own deps.
 
 ### 6.3 `[ ]` Further languages (design note, no build work)
 - After 6.1/6.2, a new language = wordlist file + import + JSON catalog. German/Spanish

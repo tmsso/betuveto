@@ -12,7 +12,7 @@
  */
 import type { Sql } from "postgres";
 import { getConfig } from "./config.js";
-import { DEFAULT_WORDLIST_CODE, db, wordlistId } from "./db.js";
+import { DEFAULT_WORDLIST_CODE, db, wordlistAlphabet, wordlistId } from "./db.js";
 import {
   MAX_TARGET_LENGTH,
   MIN_TARGET_LENGTH,
@@ -187,6 +187,9 @@ export async function startGame(
       : Math.min(Math.max(durationSeconds, 5), maxDuration);
 
   const listId = await wordlistId(wordlistCode);
+  // Free — wordlistId() and wordlistAlphabet() share the same per-code cache entry
+  // (lib/db.ts), so this doesn't cost a second query once the id above has been resolved.
+  const alphabet = await wordlistAlphabet(wordlistCode);
 
   if (setCookieHeader) {
     // Explicit id: the column default (gen_random_uuid()) exists for callers that don't
@@ -226,6 +229,9 @@ export async function startGame(
     body: {
       game_id: game.id,
       wordlist: wordlistCode ?? DEFAULT_WORDLIST_CODE,
+      // Accepted on-screen-keyboard letters for this game's language (ROADMAP 6.2) —
+      // replaces the frontend's old hardcoded Hungarian-only whitelist.
+      alphabet,
       scrambled_letters: scrambled,
       target_length: targetLength,
       game_active: true,
@@ -259,7 +265,9 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
         can_form: false,
         already_guessed: false,
         score: 0,
-        message: "Lejárt az idő.",
+        // ROADMAP 6.2: the backend returns a machine-readable code, not display text —
+        // the frontend maps result -> localised copy via its i18n catalog.
+        result: "time_expired",
         game_ended: true,
         total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total),
         found_count: game.found_count,
@@ -273,20 +281,21 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
 
   const word = normalizeGuess(rawWord);
   // `valid` = "this is a real word"; `can_form` = "and this board can spell it".
-  const reject = (message: string, valid = false): Reply => ({
+  const reject = (result: string, valid = false, extra?: Record<string, unknown>): Reply => ({
     status: 200,
     body: {
       valid,
       can_form: false,
       already_guessed: false,
       score: 0,
-      message,
+      result,
       game_ended: false,
+      ...extra,
     },
   });
 
   if (letterCount(word) < config.min_word_length) {
-    return reject(`Legalább ${config.min_word_length} betűs szót adj meg.`);
+    return reject("too_short", false, { min_length: config.min_word_length });
   }
 
   // The target itself stays guessable even if a word report (ROADMAP 4.1) deactivated it
@@ -299,11 +308,11 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
      where wordlist_id = ${game.wordlist_id} and word = ${word}
        and (active or word = ${game.target_word})
   `;
-  if (!known) return reject(`Nem ismerek ilyen szót: ${word}`);
+  if (!known) return reject("not_in_dictionary");
 
   if (!canFormWord(word, game.target_word)) {
     // A real word, just not one this board can spell: valid, but not formable.
-    return reject(`Ezekből a betűkből nem rakható ki: ${word}`, true);
+    return reject("cannot_form", true);
   }
 
   const score = scoreFor(word);
@@ -326,7 +335,10 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
         can_form: true,
         already_guessed: true,
         score: 0,
-        message: `Ezért a szóért már kaptál pontot. Pontszámod továbbra is ${effectiveScore(game.raw_guess_score, game.hint_cost_total)}.`,
+        result: "already_guessed",
+        // Previously only carried in the now-removed display string — the frontend needs
+        // the number itself to render "you scored N already" in either language.
+        total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total),
         game_ended: false,
       },
     };
@@ -407,7 +419,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
       can_form: true,
       already_guessed: false,
       score,
-      message: `Helyes! ${score} pont, összesen eddig ${totalScore}.`,
+      result: "correct",
       game_ended: gameEnded,
       is_full_length: letterCount(word) === game.target_length,
       is_target: word === game.target_word,
@@ -435,12 +447,14 @@ export async function giveUp(gameId: string): Promise<Reply> {
 
   const config = await getConfig();
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
+  // No display string (ROADMAP 6.2): target_word is already in the body, and "the full
+  // word was X" is exactly one sentence shape the frontend can build itself from that
+  // plus its i18n catalog — no server-side code needed for a single, unvarying outcome.
   return {
     status: 200,
     body: {
       target_word: game.target_word,
       possible_words: possible,
-      message: `A teljes szó: ${game.target_word}`,
     },
   };
 }
@@ -459,7 +473,7 @@ export async function rescramble(gameId: string): Promise<Reply> {
 
   return {
     status: 200,
-    body: { scrambled_letters: scrambled, message: "Betűk újrakeverve!" },
+    body: { scrambled_letters: scrambled },
   };
 }
 

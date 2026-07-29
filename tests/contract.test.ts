@@ -342,7 +342,10 @@ describeApi("Betűvető API contract", () => {
     const game = await start();
     const { json } = await call("POST", `/api/game/${game.game_id}/guess`, { word: "AB" });
     expect(json.valid).toBe(false);
-    expect(json.message).toContain("Legalább");
+    // ROADMAP 6.2: a machine-readable result code + the threshold, not display text — the
+    // frontend maps this to localised copy in either language.
+    expect(json.result).toBe("too_short");
+    expect(json.min_length).toBe(3);
   });
 
   // --- Input validation & unknown games ------------------------------------

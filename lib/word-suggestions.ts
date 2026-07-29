@@ -7,13 +7,9 @@
  * treating a repeat report as a no-op rather than a 409. Only bad input, missing
  * identity, and the rate limit are real errors.
  */
-import { db, wordlistId } from "./db.js";
+import { db, wordlistAlphabet, wordlistId } from "./db.js";
 import type { Reply } from "./game.js";
 import { letterCount, normalizeWord, signatureOf } from "./words.js";
-
-// Q, W, X, Y excluded on purpose: they appear only in foreign loanwords/proper nouns, not
-// the standard 40-letter Hungarian alphabet this curation feature is meant to protect.
-const HUNGARIAN_ALPHABET = /^[ABCDEFGHIJKLMNOPRSTUVZÁÉÍÓÖŐÚÜŰ]+$/;
 
 const MAX_SUGGESTIONS_PER_DAY = 10;
 
@@ -29,10 +25,15 @@ export async function suggestWord(
     return { status: 422, body: { detail: "word must be a string." } };
   }
   const word = normalizeWord(rawWord);
-  if (!word || !HUNGARIAN_ALPHABET.test(word)) {
+  // Validated against the target wordlist's own alphabet (ROADMAP 6.1's wordlists.alphabet),
+  // not a hardcoded Hungarian-only regex — a real bug this would otherwise be for English
+  // suggestions (e.g. "QUIZ" has letters outside the old Hungarian-only whitelist).
+  const alphabet = await wordlistAlphabet(wordlistCode);
+  const alphabetPattern = new RegExp(`^[${alphabet}]+$`);
+  if (!word || !alphabetPattern.test(word)) {
     return {
       status: 422,
-      body: { detail: "word must be 3-15 letters of the Hungarian alphabet." },
+      body: { detail: "word must be 3-15 letters of this wordlist's alphabet." },
     };
   }
 

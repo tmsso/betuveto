@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
 import ConfirmationModal from './ConfirmationModal'
@@ -27,10 +28,16 @@ const MIN_GUESS_LENGTH = 3;
 const MIN_TARGET_LENGTH = 5;
 const MAX_TARGET_LENGTH = 10;
 const DEFAULT_TARGET_LENGTH = 7;
-// Wordlist/language selector (ROADMAP 6.1). UI text stays Hungarian for now — full i18n
-// (translated labels, alphabet-driven keyboard whitelist) is ROADMAP 6.2, a separate item.
+// Wordlist selector (ROADMAP 6.1) — which dictionary the target word is drawn from.
+// Labels are endonyms (a language names itself the same way regardless of UI language,
+// like most language pickers), so these aren't run through the i18n catalog.
 const DEFAULT_WORDLIST = 'hu';
 const WORDLISTS = [
+  { code: 'hu', label: 'Magyar' },
+  { code: 'en', label: 'English' },
+];
+// UI language selector (ROADMAP 6.2) — independent of the wordlist above (migrations/0010).
+const UI_LANGUAGES = [
   { code: 'hu', label: 'Magyar' },
   { code: 'en', label: 'English' },
 ];
@@ -46,6 +53,8 @@ const GAME_DURATION_SECONDS = durationForLength(DEFAULT_TARGET_LENGTH);
 const HINT_COST = 10;
 
 function App() {
+  const { t, i18n } = useTranslation()
+
   // Game state
   const [currentGuess, setCurrentGuess] = useState('')
   const [foundWords, setFoundWords] = useState([])
@@ -123,6 +132,11 @@ function App() {
   // scores for a few seconds after switching the selector but before starting a new game.
   const [selectedWordlist, setSelectedWordlist] = useState(DEFAULT_WORDLIST)
   const [gameWordlist, setGameWordlist] = useState(DEFAULT_WORDLIST)
+  // Accepted on-screen-keyboard letters for the active game's wordlist (ROADMAP 6.2) —
+  // echoed back by game/start (lib/game.ts), replacing the old hardcoded Hungarian-only
+  // whitelist. Seeded with hu's own alphabet so the very first render (before any
+  // response has arrived) still matches the default wordlist.
+  const [gameAlphabet, setGameAlphabet] = useState('ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÖŐÚÜŰ')
 
   // Confetti ref
   const confettiRef = useRef(null);
@@ -320,6 +334,7 @@ function App() {
       setScrambledLetters(response.scrambled_letters.split(' '))
       setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
       setGameWordlist(response.wordlist ?? wordlist)
+      if (response.alphabet) setGameAlphabet(response.alphabet)
       setFoundWords([])
       setCurrentGuess('')
       setGuessCount(0)
@@ -350,7 +365,11 @@ function App() {
         document.getElementById('guess-input')?.focus();
       }
     } catch (err) {
-      setError('Hiba történt az új játék indításakor.')
+      // A translation KEY, not translated text: startNewGame must stay a stable,
+      // dependency-free useCallback (the mount effect below relies on that to avoid
+      // restarting the game every time the UI language changes elsewhere) — the JSX
+      // below translates this with the render's own (always-current) `t`.
+      setError('errors.startGame')
       console.error('Error starting game:', err)
     } finally {
       setIsLoading(false)
@@ -399,25 +418,45 @@ function App() {
     }
   }, [foundWords.length, isTimeUp, selectedLength, startNewGame])
 
+  // UI language selector (ROADMAP 6.2) — independent of the wordlist above; never
+  // restarts a game, since it only changes how text renders, not any game state.
+  const handleLanguageChange = useCallback((language) => {
+    i18n.changeLanguage(language)
+    betuAPI.setPreferredLanguage(language).catch((err) => {
+      console.error('Error saving language preference:', err)
+    })
+  }, [i18n])
+
   // Hints (ROADMAP 3.1): reveals the first letter of a random unfound word and deducts
   // its cost. Disabled client-side once there's nothing left to hint at or the score
   // can't usefully absorb the cost — see hintPenalty/HINT_COST above for why the server
   // remains the real authority on both.
+  // ROADMAP 6.2: lib/hints.ts's 400s now return a machine-readable code in `detail`
+  // (game_not_active / no_hintable_words), which client.ts's getHint() throws as
+  // err.message — map known codes to localised copy, falling back to a generic message
+  // for anything else (a genuine network/server error, whose err.message is an English
+  // "Failed to get a hint (500)"-style string, not one of these codes).
+  const hintErrorMessage = useCallback((code) => {
+    if (code === 'game_not_active') return t('errors.gameNotActive');
+    if (code === 'no_hintable_words') return t('errors.noHintableWords');
+    return t('errors.hintFailed');
+  }, [t]);
+
   const handleUseHint = useCallback(async () => {
     if (isTimeUp || hintLoading) return;
     setHintLoading(true);
     try {
       const result = await betuAPI.useHint();
       setHintPenalty((prev) => prev + result.cost);
-      setHintMessage(`💡 Egy ${result.word_length} betűs szó eleje: "${result.letter}" (-${result.cost} pont)`);
+      setHintMessage(t('hintMessage', { length: result.word_length, letter: result.letter, cost: result.cost }));
       setTimeout(() => setHintMessage(null), 5000);
     } catch (err) {
       console.error('Error getting a hint:', err);
-      showTemporaryError(err.message || 'Hiba történt a segítség kérésekor.');
+      showTemporaryError(hintErrorMessage(err.message));
     } finally {
       setHintLoading(false);
     }
-  }, [isTimeUp, hintLoading, showTemporaryError]);
+  }, [isTimeUp, hintLoading, showTemporaryError, hintErrorMessage, t]);
 
   // Word curation (ROADMAP 4.1): flag a found or missing word as wrong. Idempotent on
   // the server, so a double-click just comes back as already_reported — no need to guard
@@ -429,9 +468,9 @@ function App() {
       setReportedWords((prev) => new Set(prev).add(word));
     } catch (err) {
       console.error('Error reporting word:', err);
-      showTemporaryError('Hiba történt a szó jelentésekor.');
+      showTemporaryError(t('errors.reportFailed'));
     }
-  }, [reportedWords, showTemporaryError]);
+  }, [reportedWords, showTemporaryError, t]);
 
   // Word curation (ROADMAP 4.2): offer to submit a rejected guess as a possibly-real word
   // the dictionary is missing. already_present (word turned out to exist, or was already
@@ -448,17 +487,17 @@ function App() {
       setTimeout(() => setSuggestThanks(false), 2500);
     } catch (err) {
       console.error('Error suggesting word:', err);
-      showTemporaryError(err.message?.includes('429') ? 'Túl sok javaslat mára, próbáld holnap.' : 'Hiba történt a javaslat küldésekor.');
+      showTemporaryError(err.message?.includes('429') ? t('errors.suggestRateLimited') : t('errors.suggestFailed'));
     } finally {
       setSuggestLoading(false);
     }
-  }, [showTemporaryError]);
+  }, [showTemporaryError, t]);
 
   const handleSubmit = useCallback(async () => {
     const guess = currentGuess.trim().toUpperCase()
     setSuggestPrompt(null)
     if (guess.length < MIN_GUESS_LENGTH) {
-      if (guess.length > 0) showTemporaryError(`Legalább ${MIN_GUESS_LENGTH} betűs szót adj meg!`)
+      if (guess.length > 0) showTemporaryError(t('errors.tooShort', { count: MIN_GUESS_LENGTH }))
       return
     }
 
@@ -476,13 +515,13 @@ function App() {
     }
 
     if (!canFormClientSide) {
-      showTemporaryError('Csak a megadott betűket használd!')
+      showTemporaryError(t('errors.notOnlyGivenLetters'))
       return
     }
 
     try {
       const response = await betuAPI.makeGuess(guess)
-      
+
       setGuessCount((prevCount) => prevCount + 1);
 
       // The game ended for a reason other than scoring the final word
@@ -494,8 +533,10 @@ function App() {
         setIsTimeUp(true)
         setScoreAtExpiry(totalScore)
         setIsTimerActive(false)
-        if (response.message) {
-          showTemporaryError(response.message)
+        // The only game-ending, non-scoring result is a server-side timer expiry
+        // (ROADMAP 6.2: result is a code, not display text — see lib/game.ts's guess()).
+        if (response.result === 'time_expired') {
+          showTemporaryError(t('errors.timeExpired'))
         }
         return
       }
@@ -523,22 +564,22 @@ function App() {
           }
           setCurrentGuess('')
         } else {
-          showTemporaryError(`Ezt a szót már kitaláltad: ${guess}`)
+          showTemporaryError(t('errors.alreadyGuessed', { word: guess }))
           setCurrentGuess('')
         }
       } else if (!response.valid) {
         // Not a known word (valid:false). Distinct from a real word that can't
         // be built from the board (valid:true, can_form:false) handled below.
-        showTemporaryError(`Nincs ilyen szó: ${guess}`)
+        showTemporaryError(t('errors.notInDictionary', { word: guess }))
         setSuggestPrompt(guess) // ROADMAP 4.2: maybe it's a real word the dictionary is missing
         setCurrentGuess('')
       } else {
-        showTemporaryError('Csak a megadott betűket használd!')
+        showTemporaryError(t('errors.notOnlyGivenLetters'))
         setCurrentGuess('')
       }
 
       if (window.innerWidth >= 640) {
-        document.getElementById('guess-input')?.focus() 
+        document.getElementById('guess-input')?.focus()
       } else {
         document.getElementById('guess-input')?.blur()
       }
@@ -548,13 +589,13 @@ function App() {
       // is over on the server — reflect that in the UI.
       const msg = err.message || err.toString() || ''
       if (msg.includes('400') || msg.includes('404')) {
-        showTemporaryError('A játék véget ért. Indíts újat!')
+        showTemporaryError(t('errors.gameEndedRetry'))
         setIsTimeUp(true)
       } else if (msg.includes('429')) {
         // Anti-cheat rate limit (ROADMAP 2.2) — not expected at human guessing speed.
-        showTemporaryError('Túl gyorsan mész, lassíts egy kicsit!')
+        showTemporaryError(t('errors.rateLimited'))
       } else {
-        showTemporaryError('Hiba történt a tipp küldésekor.')
+        showTemporaryError(t('errors.submitFailed'))
       }
       setCurrentGuess('')
       if (window.innerWidth >= 640) {
@@ -563,7 +604,7 @@ function App() {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, showTemporaryError])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, showTemporaryError, t])
 
   // On mount: load which lengths are worth offering and the player's saved preference
   // (ROADMAP 2.3, both no-ops for a first-ever visitor with no cookie yet), then start
@@ -574,15 +615,27 @@ function App() {
     const init = async () => {
       let initialLength = DEFAULT_TARGET_LENGTH
       try {
-        const [lengths, preferred] = await Promise.all([
+        const [lengths, preferred, preferredLanguage] = await Promise.all([
           betuAPI.getAvailableLengths(),
           betuAPI.getPreferredLength(),
+          betuAPI.getPreferredLanguage(),
         ])
         if (cancelled) return
         setAvailableLengths(lengths)
         if (preferred && lengths.includes(preferred)) initialLength = preferred
+
+        // UI language (ROADMAP 6.2): player preference first, then the browser's own
+        // language, then i18n's configured default (hu) — same fallback order
+        // preferred_length already uses (server preference, else a sensible default).
+        const supportedCodes = UI_LANGUAGES.map((l) => l.code)
+        const browserLanguage = navigator.language?.slice(0, 2)
+        const resolvedLanguage =
+          (preferredLanguage && supportedCodes.includes(preferredLanguage) && preferredLanguage) ||
+          (browserLanguage && supportedCodes.includes(browserLanguage) && browserLanguage) ||
+          i18n.language
+        if (resolvedLanguage !== i18n.language) i18n.changeLanguage(resolvedLanguage)
       } catch (err) {
-        console.error('Error loading length preferences:', err)
+        console.error('Error loading length/language preferences:', err)
       }
       if (cancelled) return
       setSelectedLength(initialLength)
@@ -590,7 +643,7 @@ function App() {
     }
     init()
     return () => { cancelled = true }
-  }, [startNewGame])
+  }, [startNewGame, i18n])
 
 
   const handleLetterClick = useCallback((letter) => {
@@ -607,33 +660,38 @@ function App() {
       setCurrentGuess('')
     } catch (err) {
       console.error('Error scrambling letters:', err)
-      showTemporaryError('Hiba történt a betűk keverésekor.')
+      showTemporaryError(t('errors.scrambleFailed'))
     }
-  }, [showTemporaryError])
+  }, [showTemporaryError, t])
 
   const handleGiveUp = useCallback(async () => {
     if (isTimeUp) return
-    if (!window.confirm('Biztosan feladod? Felfedjük a megoldást.')) return
+    if (!window.confirm(t('giveUpHint.confirmGiveUp'))) return
     try {
       const result = await betuAPI.giveUp()
       setAllPossibleWords(result.possible_words)
       setScoreAtExpiry(totalScore)
       setIsTimerActive(false)
       setIsTimeUp(true)
-      showTemporaryError(result.message)
+      // ROADMAP 6.2: giveUp() no longer sends a display string — target_word is already
+      // in the body, which is all "the full word was X" needs.
+      showTemporaryError(t('errors.revealed', { word: result.target_word }))
     } catch (err) {
       console.error('Error giving up:', err)
-      showTemporaryError('Hiba történt a feladáskor.')
+      showTemporaryError(t('errors.giveUpFailed'))
     }
-  }, [isTimeUp, totalScore, showTemporaryError])
+  }, [isTimeUp, totalScore, showTemporaryError, t])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.id !== 'guess-input') {
-        const acceptedKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÖŐÚÜŰ '
+        // ROADMAP 6.2: derived from the active game's wordlist (gameAlphabet), not a
+        // hardcoded Hungarian-only whitelist — this only gated the "letter key while not
+        // focused in the input" shortcut path, never the input field itself.
+        const acceptedKeys = gameAlphabet + ' '
         if (acceptedKeys.includes(e.key.toUpperCase())) {
             handleLetterClick(e.key.toUpperCase())
-            e.preventDefault(); 
+            e.preventDefault();
         }
       }
       if (e.key === 'Backspace') {
@@ -648,7 +706,7 @@ function App() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [handleLetterClick, handleSubmit])
+  }, [handleLetterClick, handleSubmit, gameAlphabet])
 
   const usedLetters = useMemo(() => {
     const used = Array(scrambledLetters.length).fill(false)
@@ -666,8 +724,8 @@ function App() {
         <OfflineNotice />
         <InstallPrompt />
         <div className="text-center">
-          <div className="animate-pulse text-4xl text-game-secondary mb-4">Betöltés...</div>
-          <p className="text-gray-600">Játék indítása...</p>
+          <div className="animate-pulse text-4xl text-game-secondary mb-4">{t('loading.screen')}</div>
+          <p className="text-gray-600">{t('loading.startingGame')}</p>
         </div>
       </div>
     )
@@ -679,14 +737,14 @@ function App() {
             <OfflineNotice />
             <InstallPrompt />
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
-                <strong className="font-bold">Hiba!</strong>
-                <span className="block sm:inline"> {error}</span>
+                <strong className="font-bold">{t('errorScreen.title')}</strong>
+                <span className="block sm:inline"> {t(error)}</span>
                 <div className="mt-4">
                     <button
                         onClick={startNewGame}
                         className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                     >
-                        Újraindítás
+                        {t('errorScreen.retry')}
                     </button>
                 </div>
             </div>
@@ -701,15 +759,28 @@ function App() {
       <ReactCanvasConfetti ref={getInstance} style={canvasStyles} />
       
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-display leading-tight">🔤 Betűvető</h1>
+      <div className="text-center mb-8 w-full flex flex-col items-center">
+        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-display leading-tight">{t('app.title')}</h1>
+        {/* UI language selector (ROADMAP 6.2) — independent of the wordlist selector below;
+            never restarts a game. Labels are endonyms, same convention as the wordlist
+            selector's labels. */}
+        <select
+          value={i18n.language}
+          onChange={(e) => handleLanguageChange(e.target.value)}
+          aria-label={t('languageSelector.ariaLabel')}
+          className="mt-1 text-xs border border-game-border rounded-lg px-2 py-0.5 text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary"
+        >
+          {UI_LANGUAGES.map(({ code, label }) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
         {/* Failed word indicator */}
         {isFailedWord && (
             <div className="absolute top-0 right-0 p-2 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-yellow-200">
-                ⚠️ Korábban elhibázott szó
+                ⚠️ {t('failedWordBadge')}
             </div>
         )}
 
@@ -717,36 +788,34 @@ function App() {
             mid-game is only saved and applied once the current game ends or restarts. */}
         <div className="flex items-center justify-center gap-2 mb-4 text-sm">
           <label htmlFor="length-select" className="text-gray-500 font-semibold">
-            Szóhossz:
+            {t('lengthSelector.label')}
           </label>
           <select
             id="length-select"
             value={selectedLength}
             disabled={isLoading}
             onChange={(e) => handleLengthChange(Number(e.target.value))}
-            aria-label="Szóhossz kiválasztása a következő játékhoz"
+            aria-label={t('lengthSelector.ariaLabel')}
             className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
           >
             {availableLengths.map((length) => (
-              <option key={length} value={length}>{length} betű</option>
+              <option key={length} value={length}>{t('lengthSelector.option', { length })}</option>
             ))}
           </select>
         </div>
 
-        {/* Wordlist/language selector (ROADMAP 6.1) — which dictionary the target word
-            comes from; same "restart only if safe" rule as the length selector above.
-            Labels stay Hungarian here (the surrounding UI is still Hungarian-only until
-            ROADMAP 6.2's i18n pass). */}
+        {/* Wordlist selector (ROADMAP 6.1) — which dictionary the target word comes from;
+            same "restart only if safe" rule as the length selector above. */}
         <div className="flex items-center justify-center gap-2 mb-4 text-sm">
           <label htmlFor="wordlist-select" className="text-gray-500 font-semibold">
-            Szótár:
+            {t('wordlistSelector.label')}
           </label>
           <select
             id="wordlist-select"
             value={selectedWordlist}
             disabled={isLoading}
             onChange={(e) => handleWordlistChange(e.target.value)}
-            aria-label="Szótár kiválasztása a következő játékhoz"
+            aria-label={t('wordlistSelector.ariaLabel')}
             className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
           >
             {WORDLISTS.map(({ code, label }) => (
@@ -761,19 +830,19 @@ function App() {
             <div
               className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600' : 'text-game-primary'}`}
               aria-live="polite"
-              aria-label={`Pontszám: ${displayScore} pont`}
+              aria-label={t('score.ariaLabel', { score: displayScore })}
             >
-              🏆 {displayScore} <span className="hidden sm:inline">pont</span>
+              🏆 {displayScore} <span className="hidden sm:inline">{t('score.pointsSuffix')}</span>
             </div>
             <div className={`text-md text-gray-500 transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
-              {foundWords.length} / {possibleWordsCount} talált szó • {guessCount} tipp {allPossibleWordsFound && '✨'}
+              {t('score.progress', { found: foundWords.length, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && '✨'}
             </div>
           </div>
           <div className="flex items-center justify-center space-x-2">
             <div
               className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}
               role="timer"
-              aria-label={`Hátralévő idő: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`}
+              aria-label={t('score.timerAriaLabel', { time: `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` })}
             >
               ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </div>
@@ -786,17 +855,17 @@ function App() {
             onClick={() => setShowHighScores(!showHighScores)}
             className="text-xs text-game-secondary underline hover:text-blue-700"
           >
-            {showHighScores ? 'Ranglista elrejtése' : `🏆 Ranglista (${targetLength} betűs)`}
+            {showHighScores ? t('highScores.hide') : t('highScores.show', { length: targetLength })}
           </button>
         </div>
 
         {showHighScores && (
           <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <h4 className="text-sm font-bold mb-2 text-center text-gray-500">
-              Legjobbak — {targetLength} betűs szavak
+              {t('highScores.panelTitle', { length: targetLength })}
             </h4>
             {serverScoresLoading && (
-              <p className="text-xs text-center text-gray-400">Betöltés...</p>
+              <p className="text-xs text-center text-gray-400">{t('highScores.loading')}</p>
             )}
             {!serverScoresLoading && serverScores && serverScores.top.length > 0 && (
               <ol className="text-sm space-y-1 max-w-xs mx-auto">
@@ -809,16 +878,16 @@ function App() {
               </ol>
             )}
             {!serverScoresLoading && serverScores && serverScores.top.length === 0 && (
-              <p className="text-xs text-center text-gray-400">Még nincs rögzített pontszám ezen a hosszon.</p>
+              <p className="text-xs text-center text-gray-400">{t('highScores.empty')}</p>
             )}
             {!serverScoresLoading && serverScores?.your_best && (
               <p className="text-xs text-center mt-3 text-gray-500">
-                Legjobb pontszámod: <span className="font-bold">{serverScores.your_best.final_score}</span>
+                {t('highScores.yourBest')} <span className="font-bold">{serverScores.your_best.final_score}</span>
               </p>
             )}
             {!serverScoresLoading && !serverScores && highScores.length > 0 && (
               <>
-                <p className="text-xs text-center text-gray-400 mb-2">Nincs kapcsolat a szerverrel — helyi pontjaid:</p>
+                <p className="text-xs text-center text-gray-400 mb-2">{t('highScores.offlineWithLocal')}</p>
                 <div className="flex gap-4 justify-center text-xs text-gray-400">
                   {highScores.map((s, i) => (
                     <span key={i} className="font-bold">#{i + 1}: {s.score}</span>
@@ -827,19 +896,19 @@ function App() {
               </>
             )}
             {!serverScoresLoading && !serverScores && highScores.length === 0 && (
-              <p className="text-xs text-center text-gray-400">Nincs kapcsolat a szerverrel.</p>
+              <p className="text-xs text-center text-gray-400">{t('highScores.offlineNone')}</p>
             )}
           </div>
         )}
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
-          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label="Kirakható betűk">
+          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label={t('board.ariaLabel')}>
             {scrambledLetters.map((letter, index) => (
               <button
                 key={index}
                 onClick={() => handleLetterClick(letter)}
-                aria-label={`${letter} betű`}
+                aria-label={t('board.letterAriaLabel', { letter })}
                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold shadow-md transition-all transform active:scale-90 focus:outline-none focus:ring-2 focus:ring-opacity-50
                 ${currentAnimatingIndex === index 
                   ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10' 
@@ -870,7 +939,7 @@ function App() {
             <input
               id="guess-input"
               type="text"
-              aria-label="Tipp beírása"
+              aria-label={t('guessInput.ariaLabel')}
               value={currentGuess}
               onChange={(e) => {
                 const val = e.target.value.toUpperCase();
@@ -886,7 +955,7 @@ function App() {
                 ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 ' : 'border-game-border'}
                 ${currentGuess.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'}`
               }
-              placeholder="tipp"
+              placeholder={t('guessInput.placeholder')}
               autoComplete="off"
               autoCorrect="off"
               spellCheck="false"
@@ -895,7 +964,7 @@ function App() {
             {currentGuess && (
               <button
                 onClick={() => setCurrentGuess('')}
-                aria-label="Tipp törlése"
+                aria-label={t('guessInput.clearAriaLabel')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 hover:bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 text-xl"
               >
                 ✖️
@@ -909,16 +978,16 @@ function App() {
             <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
               <span className="text-xs sm:text-sm text-game-primary/70">
                 {suggestThanks ? (
-                  'Köszönjük, elküldve ellenőrzésre! ✅'
+                  t('suggestion.thanks')
                 ) : (
                   <>
-                    Szerinted létező szó?{' '}
+                    {t('suggestion.prompt')}{' '}
                     <button
                       onClick={() => handleSuggestWord(suggestPrompt)}
                       disabled={suggestLoading}
                       className="underline font-bold hover:text-game-primary disabled:opacity-50"
                     >
-                      Beküldöm
+                      {t('suggestion.submit')}
                     </button>
                   </>
                 )}
@@ -932,26 +1001,26 @@ function App() {
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={handleNewGameClick}
-              aria-label="Új játék"
+              aria-label={t('actions.newGameAriaLabel')}
               className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-secondary text-white text-sm sm:text-base font-semibold hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
               <span>🎲</span>
-              <span className="max-[420px]:hidden">Új játék</span>
+              <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
             </button>
             <button
               onClick={handleScramble}
               className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-white border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
-              aria-label="Betűk keverése"
-              title="Betűk keverése"
+              aria-label={t('actions.scrambleAriaLabel')}
+              title={t('actions.scrambleAriaLabel')}
             >
               <span>🔀</span>
-              <span className="max-[420px]:hidden">Kever</span>
+              <span className="max-[420px]:hidden">{t('actions.scramble')}</span>
             </button>
           </div>
 
           <button
             onClick={handleSubmit}
-            aria-label="Tipp beküldése"
+            aria-label={t('actions.submitAriaLabel')}
             disabled={!currentGuess.trim()}
             className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
@@ -960,7 +1029,7 @@ function App() {
               }`}
           >
             <span>✅</span>
-            <span className="max-[360px]:hidden">OK</span>
+            <span className="max-[360px]:hidden">{t('actions.submit')}</span>
           </button>
         </div>
 
@@ -971,15 +1040,15 @@ function App() {
               onClick={handleGiveUp}
               className="text-xs text-gray-500 underline hover:text-red-600"
             >
-              🏳️ Feladom (megoldás felfedése)
+              {t('giveUpHint.giveUp')}
             </button>
             <button
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
-              title={`Egy szó első betűjének felfedése (-${HINT_COST} pont)`}
+              title={t('giveUpHint.hintTitle', { cost: HINT_COST })}
               className="text-xs text-game-secondary underline hover:text-blue-700 disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
             >
-              💡 Segítség (-{HINT_COST} pont)
+              {t('giveUpHint.hint', { cost: HINT_COST })}
             </button>
           </div>
         )}
@@ -997,32 +1066,32 @@ function App() {
                 onClick={() => setShowStats(!showStats)}
                 className="text-xs text-game-secondary underline hover:text-blue-700"
             >
-                {showStats ? 'Elrejtés' : '📊 Statisztikám'}
+                {showStats ? t('stats.hide') : t('stats.show')}
             </button>
         </div>
 
         {showStats && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                {statsLoading && <p className="text-xs text-center text-gray-400">Betöltés...</p>}
+                {statsLoading && <p className="text-xs text-center text-gray-400">{t('stats.loading')}</p>}
                 {!statsLoading && stats && stats.games_played === 0 && (
-                    <p className="text-xs text-center text-gray-400">Még nincs befejezett játékod.</p>
+                    <p className="text-xs text-center text-gray-400">{t('stats.noGames')}</p>
                 )}
                 {!statsLoading && stats && stats.games_played > 0 && (
                     <>
                         <div className="text-sm text-center text-gray-600 mb-3 space-y-1">
-                            <p>Lejátszott játékok: <span className="font-bold">{stats.games_played}</span></p>
-                            <p>Teljesítési arány: <span className="font-bold">{Math.round(stats.completion_rate * 100)}%</span></p>
+                            <p>{t('stats.gamesPlayed')} <span className="font-bold">{stats.games_played}</span></p>
+                            <p>{t('stats.completionRate')} <span className="font-bold">{Math.round(stats.completion_rate * 100)}%</span></p>
                             {stats.longest_word_found && (
-                                <p>Leghosszabb megtalált szó: <span className="font-bold">{stats.longest_word_found}</span></p>
+                                <p>{t('stats.longestWord')} <span className="font-bold">{stats.longest_word_found}</span></p>
                             )}
                         </div>
                         {Object.keys(stats.average_score_by_length).length > 0 && (
                             <div className="text-xs text-center text-gray-500 mb-3">
-                                <p className="font-bold mb-1">Átlagpontszám hosszúságonként:</p>
+                                <p className="font-bold mb-1">{t('stats.avgScoreHeader')}</p>
                                 <div className="flex flex-wrap gap-2 justify-center">
                                     {Object.entries(stats.average_score_by_length).map(([len, avg]) => (
                                         <span key={len} className="px-2 py-1 bg-white rounded border border-gray-200">
-                                            {len} betű: {Math.round(avg)}
+                                            {t('stats.avgScoreEntry', { length: len, avg: Math.round(avg) })}
                                         </span>
                                     ))}
                                 </div>
@@ -1030,7 +1099,7 @@ function App() {
                         )}
                         {stats.failed_words.length > 0 && (
                             <div>
-                                <h4 className="text-sm font-bold mb-2 text-center text-gray-500">Nehezebben megtalált szavak:</h4>
+                                <h4 className="text-sm font-bold mb-2 text-center text-gray-500">{t('stats.failedWordsHeader')}</h4>
                                 <div className="flex flex-wrap gap-2 justify-center">
                                     {stats.failed_words.map((f) => (
                                         <span
@@ -1046,7 +1115,7 @@ function App() {
                     </>
                 )}
                 {!statsLoading && !stats && (
-                    <p className="text-xs text-center text-gray-400">Nincs kapcsolat a szerverrel.</p>
+                    <p className="text-xs text-center text-gray-400">{t('stats.offline')}</p>
                 )}
             </div>
         )}
@@ -1054,20 +1123,20 @@ function App() {
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
           <div className="mt-8 border-t-2 border-game-border pt-6">
-            <h3 className="text-2xl font-bold text-game-primary mb-4 text-center">Talált szavak:</h3>
+            <h3 className="text-2xl font-bold text-game-primary mb-4 text-center">{t('foundWords.header')}</h3>
             <div className="flex flex-wrap gap-3 justify-center">
-              {[...foundWords].sort((a,b) => a.localeCompare(b, 'hu')).map((word, index) => (
+              {[...foundWords].sort((a, b) => a.localeCompare(b, i18n.language)).map((word, index) => (
                 <span
                   key={index}
                   className={`inline-flex items-center gap-1.5 bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
                     ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 scale-110' : ''}`}
                 >
-                  {word} ({word.length * word.length} pont)
+                  {word} ({t('foundWords.points', { points: word.length * word.length })})
                   <button
                     onClick={() => handleReportWord(word)}
                     disabled={reportedWords.has(word)}
-                    aria-label={`${word} jelentése hibás szóként`}
-                    title="Jelentés hibás szóként"
+                    aria-label={t('foundWords.reportAriaLabel', { word })}
+                    title={t('foundWords.reportTitle')}
                     className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
                   >
                     ⚑
@@ -1081,26 +1150,28 @@ function App() {
         {/* Remaining Words Dropdown (Only after game end) */}
         {isTimeUp && allPossibleWords.length > foundWords.length && (
             <div className="mt-6 pt-4 border-t border-dashed border-gray-200">
-                <button 
+                <button
                   onClick={() => setShowRemainingWords(!showRemainingWords)}
                   className="w-full text-center text-sm font-bold text-game-secondary hover:text-blue-700 flex items-center justify-center gap-2"
                 >
-                  {showRemainingWords ? '🔼 Rejtett szavak elrejtése' : `🔽 Hiányzó szavak megjelenítése (${allPossibleWords.length - foundWords.length} szó)`}
+                  {showRemainingWords
+                    ? t('remainingWords.hide')
+                    : t('remainingWords.show', { count: allPossibleWords.length - foundWords.length })}
                 </button>
-                
+
                 {showRemainingWords && (
                     <div className="mt-4 flex flex-wrap gap-2 justify-center">
                         {allPossibleWords
                             .filter(word => !foundWords.includes(word))
-                            .sort((a,b) => a.localeCompare(b, 'hu'))
+                            .sort((a, b) => a.localeCompare(b, i18n.language))
                             .map((word, index) => (
                                 <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
                                     {word}
                                     <button
                                         onClick={() => handleReportWord(word)}
                                         disabled={reportedWords.has(word)}
-                                        aria-label={`${word} jelentése hibás szóként`}
-                                        title="Jelentés hibás szóként"
+                                        aria-label={t('foundWords.reportAriaLabel', { word })}
+                                        title={t('foundWords.reportTitle')}
                                         className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
                                     >
                                         ⚑
@@ -1113,21 +1184,23 @@ function App() {
             </div>
         )}
 
-        {/* Temporary info/error messages */}
+        {/* Temporary info/error messages. In practice unreachable: the early-return
+            error screen above already intercepts every case that sets `error`, since
+            startNewGame's catch always pairs setError with setIsLoading(false) in the
+            same batch — kept only so a `error` state introduced by future code has
+            somewhere sane to render, rather than silently doing nothing. */}
         {error && (
-          <div className={`mt-6 p-4 rounded-lg text-center font-semibold ${
-            error.includes('újrakeverve') ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-          }`}>
-            {error}
+          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-red-100 text-red-700">
+            {t(error)}
           </div>
         )}
       </div>
 
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
         onConfirm={() => startNewGame(selectedLength, selectedWordlist)}
-        message="A jelenlegi pontszámod elvész."
+        message={t('confirmModal.message')}
       />
     </div>
   )

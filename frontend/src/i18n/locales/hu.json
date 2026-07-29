@@ -1,0 +1,118 @@
+{
+  "app": { "title": "Betűvető" },
+  "loading": { "screen": "Betöltés...", "startingGame": "Játék indítása..." },
+  "errorScreen": { "title": "Hiba!", "retry": "Újraindítás" },
+  "failedWordBadge": "Korábban elhibázott szó",
+  "lengthSelector": {
+    "label": "Szóhossz:",
+    "ariaLabel": "Szóhossz kiválasztása a következő játékhoz",
+    "option": "{{length}} betű"
+  },
+  "wordlistSelector": {
+    "label": "Szótár:",
+    "ariaLabel": "Szótár kiválasztása a következő játékhoz"
+  },
+  "languageSelector": {
+    "ariaLabel": "Felület nyelvének kiválasztása"
+  },
+  "score": {
+    "pointsSuffix": "pont",
+    "ariaLabel": "Pontszám: {{score}} pont",
+    "progress": "{{found}} / {{total}} talált szó • {{guesses}} tipp",
+    "timerAriaLabel": "Hátralévő idő: {{time}}"
+  },
+  "highScores": {
+    "show": "🏆 Ranglista ({{length}} betűs)",
+    "hide": "Ranglista elrejtése",
+    "panelTitle": "Legjobbak — {{length}} betűs szavak",
+    "loading": "Betöltés...",
+    "empty": "Még nincs rögzített pontszám ezen a hosszon.",
+    "yourBest": "Legjobb pontszámod:",
+    "offlineWithLocal": "Nincs kapcsolat a szerverrel — helyi pontjaid:",
+    "offlineNone": "Nincs kapcsolat a szerverrel."
+  },
+  "board": {
+    "ariaLabel": "Kirakható betűk",
+    "letterAriaLabel": "{{letter}} betű"
+  },
+  "guessInput": {
+    "ariaLabel": "Tipp beírása",
+    "placeholder": "tipp",
+    "clearAriaLabel": "Tipp törlése"
+  },
+  "suggestion": {
+    "prompt": "Szerinted létező szó?",
+    "submit": "Beküldöm",
+    "thanks": "Köszönjük, elküldve ellenőrzésre! ✅"
+  },
+  "actions": {
+    "newGame": "Új játék",
+    "newGameAriaLabel": "Új játék",
+    "scramble": "Kever",
+    "scrambleAriaLabel": "Betűk keverése",
+    "submit": "OK",
+    "submitAriaLabel": "Tipp beküldése"
+  },
+  "giveUpHint": {
+    "giveUp": "🏳️ Feladom (megoldás felfedése)",
+    "confirmGiveUp": "Biztosan feladod? Felfedjük a megoldást.",
+    "hint": "💡 Segítség (-{{cost}} pont)",
+    "hintTitle": "Egy szó első betűjének felfedése (-{{cost}} pont)"
+  },
+  "hintMessage": "💡 Egy {{length}} betűs szó eleje: \"{{letter}}\" (-{{cost}} pont)",
+  "stats": {
+    "show": "📊 Statisztikám",
+    "hide": "Elrejtés",
+    "loading": "Betöltés...",
+    "noGames": "Még nincs befejezett játékod.",
+    "gamesPlayed": "Lejátszott játékok:",
+    "completionRate": "Teljesítési arány:",
+    "longestWord": "Leghosszabb megtalált szó:",
+    "avgScoreHeader": "Átlagpontszám hosszúságonként:",
+    "avgScoreEntry": "{{length}} betű: {{avg}}",
+    "failedWordsHeader": "Nehezebben megtalált szavak:",
+    "offline": "Nincs kapcsolat a szerverrel."
+  },
+  "foundWords": {
+    "header": "Talált szavak:",
+    "points": "{{points}} pont",
+    "reportAriaLabel": "{{word}} jelentése hibás szóként",
+    "reportTitle": "Jelentés hibás szóként"
+  },
+  "remainingWords": {
+    "show": "🔽 Hiányzó szavak megjelenítése ({{count}} szó)",
+    "hide": "🔼 Rejtett szavak elrejtése"
+  },
+  "confirmModal": {
+    "title": "Biztosan újrakezded?",
+    "message": "A jelenlegi pontszámod elvész.",
+    "cancel": "Mégsem",
+    "confirm": "Új játék"
+  },
+  "install": {
+    "prompt": "📲 Telepítsd az appot!",
+    "install": "Telepítés",
+    "dismissAriaLabel": "Bezárás"
+  },
+  "offline": "📡 Nincs internetkapcsolat — a Betűvető élő szervert használ, csatlakozz újra a játékhoz.",
+  "errors": {
+    "startGame": "Hiba történt az új játék indításakor.",
+    "tooShort": "Legalább {{count}} betűs szót adj meg!",
+    "notOnlyGivenLetters": "Csak a megadott betűket használd!",
+    "alreadyGuessed": "Ezt a szót már kitaláltad: {{word}}",
+    "notInDictionary": "Nincs ilyen szó: {{word}}",
+    "gameEndedRetry": "A játék véget ért. Indíts újat!",
+    "rateLimited": "Túl gyorsan mész, lassíts egy kicsit!",
+    "submitFailed": "Hiba történt a tipp küldésekor.",
+    "timeExpired": "Lejárt az idő.",
+    "revealed": "A teljes szó: {{word}}",
+    "scrambleFailed": "Hiba történt a betűk keverésekor.",
+    "giveUpFailed": "Hiba történt a feladáskor.",
+    "hintFailed": "Hiba történt a segítség kérésekor.",
+    "gameNotActive": "A játék nem aktív.",
+    "noHintableWords": "Nincs több felfedhető szó.",
+    "reportFailed": "Hiba történt a szó jelentésekor.",
+    "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
+    "suggestFailed": "Hiba történt a javaslat küldésekor."
+  }
+}
