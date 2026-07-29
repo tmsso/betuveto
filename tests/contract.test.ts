@@ -533,7 +533,11 @@ describeApi("Betűvető API contract", () => {
     );
     expect(huTop.json.your_best.final_score).toBe(hu.totalScore);
     expect(enTop.json.your_best.final_score).toBe(en.totalScore);
-  });
+    // completeSmallGame(Both variants) pace their guesses 400ms apart to dodge the
+    // anti-cheat rate limit — running two of them plus several more requests reliably
+    // blows past Vitest's 5s default testTimeout even though nothing is stuck (a gotcha
+    // already hit once before, ROADMAP memory).
+  }, 15000);
 
   // --- Word length option (ROADMAP 2.3) --------------------------------------
   it("only offers board lengths in the playable 5-10 range (ROADMAP 2.3)", async () => {
