@@ -1,15 +1,17 @@
 /**
- * Player-level preferences (ROADMAP 2.3), separate from any single game: right now just
- * `players.preferred_length`, read/written via api/v1/me/preferences using the same
- * anon-cookie identity as game/start (lib/auth.ts). No new table — the column already
- * exists on `players` (migrations/0001_init.sql).
+ * Player-level preferences, separate from any single game: `players.preferred_length`
+ * (ROADMAP 2.3) and `players.preferred_language` (ROADMAP 6.2, migrations/0010) — the UI
+ * language, independent of a game's wordlist. Read/written via api/v1/me/preferences
+ * using the same anon-cookie identity as game/start (lib/auth.ts).
  */
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 import { MAX_TARGET_LENGTH, MIN_TARGET_LENGTH } from "./words.js";
 
+const SUPPORTED_LANGUAGES = ["hu", "en"];
+
 /** No identity yet (never played, or a stale/missing cookie) reads as "no preference
- *  known" rather than an error — the frontend just falls back to the default length. */
+ *  known" rather than an error — the frontend just falls back to its own defaults. */
 export async function getPreferredLength(playerId: string | null): Promise<Reply> {
   if (!playerId) return { status: 200, body: { preferred_length: null } };
 
@@ -18,6 +20,39 @@ export async function getPreferredLength(playerId: string | null): Promise<Reply
     select preferred_length from players where id = ${playerId}
   `;
   return { status: 200, body: { preferred_length: row?.preferred_length ?? null } };
+}
+
+export async function getPreferredLanguage(playerId: string | null): Promise<Reply> {
+  if (!playerId) return { status: 200, body: { preferred_language: null } };
+
+  const sql = db();
+  const [row] = await sql<{ preferred_language: string | null }[]>`
+    select preferred_language from players where id = ${playerId}
+  `;
+  return { status: 200, body: { preferred_language: row?.preferred_language ?? null } };
+}
+
+export async function setPreferredLanguage(
+  playerId: string | null,
+  rawLanguage: unknown,
+): Promise<Reply> {
+  if (!playerId) {
+    return { status: 401, body: { detail: "No player identity. Start a game first." } };
+  }
+  if (typeof rawLanguage !== "string" || !SUPPORTED_LANGUAGES.includes(rawLanguage)) {
+    return {
+      status: 422,
+      body: { detail: `preferred_language must be one of: ${SUPPORTED_LANGUAGES.join(", ")}.` },
+    };
+  }
+
+  const sql = db();
+  await sql`
+    insert into players (id, preferred_language)
+    values (${playerId}, ${rawLanguage})
+    on conflict (id) do update set preferred_language = excluded.preferred_language
+  `;
+  return { status: 200, body: { preferred_language: rawLanguage } };
 }
 
 export async function setPreferredLength(

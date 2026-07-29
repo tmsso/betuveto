@@ -42,7 +42,12 @@ import {
 } from "../../lib/game.js";
 import { useHint } from "../../lib/hints.js";
 import { bodyField, bodyWord, intQuery, methodHandler, stringQuery } from "../../lib/http.js";
-import { getPreferredLength, setPreferredLength } from "../../lib/players.js";
+import {
+  getPreferredLanguage,
+  getPreferredLength,
+  setPreferredLanguage,
+  setPreferredLength,
+} from "../../lib/players.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
@@ -175,6 +180,36 @@ function listLeaderboardEntriesRoute(req: VercelRequest) {
   );
 }
 
+// /me/preferences covers two independent preferences (ROADMAP 2.3's preferred_length,
+// 6.2's preferred_language) on one route — merged here rather than in lib/players.ts so
+// each preference's own get/set stays independently testable and doesn't need to know
+// about the other.
+async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
+  const id = playerId(req);
+  const [length, language] = await Promise.all([getPreferredLength(id), getPreferredLanguage(id)]);
+  return {
+    status: 200,
+    body: { ...(length.body as object), ...(language.body as object) },
+  };
+}
+
+async function preferencesPatchRoute(req: VercelRequest): Promise<Reply> {
+  const id = playerId(req);
+  const body: Record<string, unknown> = {};
+
+  if (bodyField(req, "preferred_length") !== undefined) {
+    const reply = await setPreferredLength(id, bodyField(req, "preferred_length"));
+    if (reply.status !== 200) return reply;
+    Object.assign(body, reply.body);
+  }
+  if (bodyField(req, "preferred_language") !== undefined) {
+    const reply = await setPreferredLanguage(id, bodyField(req, "preferred_language"));
+    if (reply.status !== 200) return reply;
+    Object.assign(body, reply.body);
+  }
+  return { status: 200, body };
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -250,8 +285,8 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
     switch (b) {
       case "preferences":
         return methodHandler({
-          GET: (req) => getPreferredLength(playerId(req)),
-          PATCH: (req) => setPreferredLength(playerId(req), bodyField(req, "preferred_length")),
+          GET: preferencesGetRoute,
+          PATCH: preferencesPatchRoute,
         });
       case "stats":
         return methodHandler({ GET: (req) => getMyStats(playerId(req)) });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const DISMISSED_KEY = 'betuveto_install_dismissed'
 
@@ -25,6 +26,7 @@ if (typeof window !== 'undefined') {
 }
 
 function InstallPrompt() {
+  const { t } = useTranslation()
   const [deferredPrompt, setDeferredPrompt] = useState(capturedPrompt)
   const [visible, setVisible] = useState(
     !!capturedPrompt && !localStorage.getItem(DISMISSED_KEY)
@@ -61,16 +63,16 @@ function InstallPrompt() {
 
   return (
     <div className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-50 bg-white border-2 border-game-border rounded-full shadow-lg px-4 py-2 flex items-center justify-center gap-3">
-      <span className="text-sm font-semibold text-game-primary whitespace-nowrap">📲 Telepítsd az appot!</span>
+      <span className="text-sm font-semibold text-game-primary whitespace-nowrap">{t('install.prompt')}</span>
       <button
         onClick={handleInstall}
         className="text-sm font-semibold bg-game-secondary text-white px-3 py-1 rounded-full hover:bg-blue-600 transition-colors whitespace-nowrap"
       >
-        Telepítés
+        {t('install.install')}
       </button>
       <button
         onClick={handleDismiss}
-        aria-label="Bezárás"
+        aria-label={t('install.dismissAriaLabel')}
         className="text-gray-400 hover:text-gray-600 text-lg leading-none"
       >
         ✖️

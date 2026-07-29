@@ -12,6 +12,7 @@ const API_BASE_URL = '/api';
 export interface StartGameResult {
   game_id: string;
   wordlist: string;
+  alphabet: string;
   scrambled_letters: string;
   target_length: number;
   game_active: boolean;
@@ -142,6 +143,24 @@ class BetuAPIClient {
       body: JSON.stringify({ preferred_length: length }),
     });
     if (!response.ok) throw new Error('Failed to save preferred length');
+  }
+
+  // UI language preference (ROADMAP 6.2, migrations/0010) — independent of preferred
+  // length/wordlist above, same /me/preferences route.
+  async getPreferredLanguage(): Promise<string | null> {
+    const response = await fetch('/api/v1/me/preferences');
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    const data = await response.json();
+    return data.preferred_language ?? null;
+  }
+
+  async setPreferredLanguage(language: string): Promise<void> {
+    const response = await fetch('/api/v1/me/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferred_language: language }),
+    });
+    if (!response.ok) throw new Error('Failed to save preferred language');
   }
 
   // Game management

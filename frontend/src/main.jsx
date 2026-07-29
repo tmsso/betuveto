@@ -2,6 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import AdminApp from './AdminApp.jsx'
+// i18next init (ROADMAP 6.2) — must run before App renders so useTranslation() has a
+// ready instance on first render. AdminApp doesn't use it; importing unconditionally here
+// is still simplest and matches how the font imports below are also unconditional.
+import './i18n/index.js'
 // Self-hosted web fonts (offline-friendly for the PWA). Only the latin + latin-ext
 // subsets are imported: latin-ext carries the Hungarian double-acute letters ő/ű (which
 // the previous system cursive fallback mangled), and skipping the other scripts keeps
