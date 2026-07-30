@@ -59,6 +59,69 @@ export async function hasFailedBefore(
   return !!row;
 }
 
+// ROADMAP Batch 10 "difficulty rating per word": word_stats already accrues exactly the
+// signal this needs — recordSolved/recordFailed only ever fire for a game's *target* word
+// (lib/game.ts), so summed across all players it's directly "% of games where the target
+// was found." A word that's only ever been a target once or twice would read as an
+// artificial 0% or 100%, so both consumers below require a minimum sample before trusting
+// the rate.
+export const MIN_ATTEMPTS_FOR_DIFFICULTY = 5;
+export const EASY_MODE_SUCCESS_THRESHOLD = 0.6;
+
+export interface WordDifficultyRow {
+  word: string;
+  wordlist: string;
+  times_failed: number;
+  times_solved: number;
+  success_rate: number;
+}
+
+/** Words with the lowest aggregate success rate, across all players, scoped per wordlist
+ *  since a spelling shared between two languages (ROADMAP 6.1) must not merge its stats —
+ *  the same scoping bug fixed here that getMyStats's failed_words already had to fix. */
+export async function getHardestWords(limit: number): Promise<WordDifficultyRow[]> {
+  const sql = db();
+  return sql<WordDifficultyRow[]>`
+    select ws.word, wl.code as wordlist,
+           sum(ws.times_failed)::int as times_failed,
+           sum(ws.times_solved)::int as times_solved,
+           (sum(ws.times_solved)::float / (sum(ws.times_solved) + sum(ws.times_failed))) as success_rate
+      from word_stats ws
+      join wordlists wl on wl.id = ws.wordlist_id
+     group by ws.wordlist_id, ws.word, wl.code
+    having sum(ws.times_solved) + sum(ws.times_failed) >= ${MIN_ATTEMPTS_FOR_DIFFICULTY}
+     order by success_rate asc, times_failed desc, ws.word
+     limit ${limit}
+  `;
+}
+
+/** Picks an active word of the given wordlist+length with a proven high success rate
+ *  across every player's past games as its target — the "easy mode" word-selection bias.
+ *  Returns null when nothing yet qualifies (a fresh wordlist/length combo, or simply early
+ *  in this feature's life before enough history has accrued); callers fall back to the
+ *  normal uniform-random pick. That's an accepted, self-correcting cold start rather than
+ *  a bug — the qualifying pool only grows as more games are played (ROADMAP Batch 10: "data
+ *  starts accruing the moment Batch 1 lands, so log now, build later"). */
+export async function pickEasyWord(
+  sql: Sql,
+  wordlistId: number,
+  length: number,
+): Promise<string | null> {
+  const [row] = await sql<{ word: string }[]>`
+    select w.word
+      from words w
+      join word_stats ws on ws.wordlist_id = w.wordlist_id and ws.word = w.word
+     where w.wordlist_id = ${wordlistId} and w.length = ${length} and w.active
+     group by w.word
+    having sum(ws.times_solved) + sum(ws.times_failed) >= ${MIN_ATTEMPTS_FOR_DIFFICULTY}
+       and sum(ws.times_solved)::float / (sum(ws.times_solved) + sum(ws.times_failed))
+             >= ${EASY_MODE_SUCCESS_THRESHOLD}
+     order by random()
+     limit 1
+  `;
+  return row?.word ?? null;
+}
+
 interface StatsRow {
   games_played: number;
   completion_rate: number | null;

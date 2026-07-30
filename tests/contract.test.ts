@@ -51,6 +51,7 @@ interface StartResult {
   possible_count: number;
   ends_at: number;
   duration_seconds: number;
+  difficulty: "easy" | "normal";
 }
 
 async function call(
@@ -1282,10 +1283,63 @@ describeApi("Betűvető API contract", () => {
     expect(dashboard.json.most_failed_words.length).toBeGreaterThan(0);
     for (const row of dashboard.json.most_failed_words) {
       expect(row.times_failed).toBeGreaterThan(0);
+      // Wordlist-scoped (Batch 10 follow-up fix) so a spelling shared between hu/en can't
+      // silently merge its counts across languages, mirroring getMyStats's own fix for the
+      // same bug shape (PR #37).
+      expect(typeof row.wordlist).toBe("string");
+      expect(row.wordlist.length).toBeGreaterThan(0);
     }
 
     expect(dashboard.json.queue_size.reports).toBeGreaterThanOrEqual(0);
     expect(dashboard.json.queue_size.suggestions).toBeGreaterThanOrEqual(0);
+  });
+
+  // --- Batch 10: difficulty rating per word (hardest_words + easy mode) --------
+  it("ranks hardest_words by success rate, scoped per wordlist, above the min-attempts floor", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
+    expect(dashboard.status).toBe(200);
+    expect(Array.isArray(dashboard.json.hardest_words)).toBe(true);
+
+    let previousRate = -1;
+    for (const row of dashboard.json.hardest_words) {
+      const attempts = row.times_solved + row.times_failed;
+      // MIN_ATTEMPTS_FOR_DIFFICULTY (lib/word-stats.ts) — a word tried only once or twice
+      // must not appear, however extreme its rate looks.
+      expect(attempts).toBeGreaterThanOrEqual(5);
+      expect(row.success_rate).toBeGreaterThanOrEqual(0);
+      expect(row.success_rate).toBeLessThanOrEqual(1);
+      expect(row.success_rate).toBeCloseTo(row.times_solved / attempts, 5);
+      expect(typeof row.wordlist).toBe("string");
+      // Ascending by success_rate (hardest first).
+      expect(row.success_rate).toBeGreaterThanOrEqual(previousRate);
+      previousRate = row.success_rate;
+    }
+  });
+
+  it("accepts an easy-mode game/start and echoes the actual (possibly cold-start-fallback) outcome", async () => {
+    const query = new URLSearchParams({ target_length: "7", difficulty: "easy" });
+    const { status, json } = await call("POST", `/api/v1/game/start?${query}`);
+    expect(status).toBe(200);
+    // "easy" can silently fall back to "normal" server-side (lib/game.ts) when no word yet
+    // clears EASY_MODE_SUCCESS_THRESHOLD with enough samples — both are a valid, honest
+    // outcome; what must not happen is the request failing or the field being absent.
+    expect(["easy", "normal"]).toContain(json.difficulty);
+    expect(json).not.toHaveProperty("target_word");
+
+    // An unrecognised value is permissive, not a 422 — same convention as other optional
+    // query params in this API (e.g. an unrecognised wordlist code is the one exception,
+    // since that one is a real lookup key, not a mode flag).
+    const garbage = new URLSearchParams({ target_length: "7", difficulty: "extra-hard-please" });
+    const garbageResult = await call("POST", `/api/v1/game/start?${garbage}`);
+    expect(garbageResult.status).toBe(200);
+    expect(garbageResult.json.difficulty).toBe("normal");
+
+    // No difficulty param at all: unchanged pre-existing behaviour, always "normal".
+    const plain = await start(7);
+    expect(plain.difficulty).toBe("normal");
   });
 
   // --- Anti-cheat rate limit correctness under concurrency (ROADMAP 2.2) ------

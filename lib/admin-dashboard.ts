@@ -5,6 +5,7 @@
  */
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
+import { getHardestWords } from "./word-stats.js";
 
 const DAILY_WINDOW_DAYS = 30;
 const MOST_FAILED_LIMIT = 20;
@@ -17,6 +18,7 @@ interface DailyRow {
 
 interface FailedWordRow {
   word: string;
+  wordlist: string;
   times_failed: number;
   times_solved: number;
 }
@@ -47,16 +49,27 @@ export async function getDashboardStats(): Promise<Reply> {
      order by d
   `;
 
-  // Aggregated across all players — word_stats is per-(player, word), so a word failed
-  // by many players needs summing, not just reading one row.
+  // Aggregated across all players — word_stats is per-(player, wordlist, word), so a word
+  // failed by many players needs summing, not just reading one row. Scoped per wordlist
+  // (joined to wordlists for its code) so a spelling shared between hu/en, e.g. "ALMA",
+  // doesn't merge its counts across languages — the same bug getMyStats's failed_words had
+  // to fix (ROADMAP 6.2 follow-up, PR #37); this query had it too, just never caught since
+  // it's an admin-only view.
   const mostFailedWords = await sql<FailedWordRow[]>`
-    select word, sum(times_failed)::int as times_failed, sum(times_solved)::int as times_solved
-      from word_stats
-     group by word
-    having sum(times_failed) > 0
-     order by times_failed desc, word
+    select ws.word, wl.code as wordlist,
+           sum(ws.times_failed)::int as times_failed, sum(ws.times_solved)::int as times_solved
+      from word_stats ws
+      join wordlists wl on wl.id = ws.wordlist_id
+     group by ws.wordlist_id, ws.word, wl.code
+    having sum(ws.times_failed) > 0
+     order by times_failed desc, ws.word
      limit ${MOST_FAILED_LIMIT}
   `;
+
+  // ROADMAP Batch 10 "difficulty rating per word": ranked by success rate (times_solved /
+  // total attempts) rather than raw fail count, so a word played by a handful of people who
+  // all struggled outranks a word merely played (and failed) by many.
+  const hardestWords = await getHardestWords(MOST_FAILED_LIMIT);
 
   const [{ reports, suggestions }] = await sql<{ reports: number; suggestions: number }[]>`
     select
@@ -69,6 +82,7 @@ export async function getDashboardStats(): Promise<Reply> {
     body: {
       daily,
       most_failed_words: mostFailedWords,
+      hardest_words: hardestWords,
       queue_size: { reports, suggestions },
     },
   };

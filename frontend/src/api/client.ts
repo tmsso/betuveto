@@ -20,6 +20,10 @@ export interface StartGameResult {
   duration_seconds: number;
   possible_count: number;
   is_previously_failed: boolean;
+  /** What actually happened, not just what was requested (ROADMAP Batch 10 easy mode) —
+   *  an "easy" request silently falls back to "normal" server-side when no word yet
+   *  qualifies, so this reflects the real outcome. */
+  difficulty: 'easy' | 'normal';
 }
 
 export interface GameResult {
@@ -166,9 +170,10 @@ class BetuAPIClient {
   }
 
   // Game management
-  async startGame(targetLength: number = 7, wordlist?: string): Promise<StartGameResult> {
+  async startGame(targetLength: number = 7, wordlist?: string, difficulty?: 'easy' | 'normal'): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });
     if (wordlist) params.set('wordlist', wordlist);
+    if (difficulty) params.set('difficulty', difficulty);
     const response = await fetch(`${this.baseUrl}/game/start?${params.toString()}`, {
       method: 'POST',
     });

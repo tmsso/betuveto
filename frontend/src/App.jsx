@@ -132,6 +132,14 @@ function App() {
   // scores for a few seconds after switching the selector but before starting a new game.
   const [selectedWordlist, setSelectedWordlist] = useState(DEFAULT_WORDLIST)
   const [gameWordlist, setGameWordlist] = useState(DEFAULT_WORDLIST)
+  // Easy mode (ROADMAP Batch 10 "difficulty rating per word") — same "next game" vs
+  // "active game" split as selectedWordlist/gameWordlist above, and likewise not
+  // persisted server-side: it's a per-session toggle, not a saved preference. An "easy"
+  // request can silently fall back to a normal pick server-side (lib/game.ts) if no word
+  // yet qualifies, so gameEasyMode reflects the server's echoed actual outcome, not the
+  // request.
+  const [selectedEasyMode, setSelectedEasyMode] = useState(false)
+  const [gameEasyMode, setGameEasyMode] = useState(false)
   // Accepted on-screen-keyboard letters for the active game's wordlist (ROADMAP 6.2) —
   // echoed back by game/start (lib/game.ts), replacing the old hardcoded Hungarian-only
   // whitelist. Seeded with hu's own alphabet so the very first render (before any
@@ -326,14 +334,15 @@ function App() {
     animate()
   }, [isAnimatingLetters, scrambledLetters])
 
-  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST) => {
+  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST, easyMode = false) => {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await betuAPI.startGame(length, wordlist)
+      const response = await betuAPI.startGame(length, wordlist, easyMode ? 'easy' : 'normal')
       setScrambledLetters(response.scrambled_letters.split(' '))
       setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
       setGameWordlist(response.wordlist ?? wordlist)
+      setGameEasyMode(response.difficulty === 'easy')
       if (response.alphabet) setGameAlphabet(response.alphabet)
       setFoundWords([])
       setCurrentGuess('')
@@ -380,7 +389,7 @@ function App() {
     if (foundWords.length > 0 && !isTimeUp) {
       setIsNewGameModalOpen(true);
     } else {
-      startNewGame(selectedLength, selectedWordlist);
+      startNewGame(selectedLength, selectedWordlist, selectedEasyMode);
     }
   };
 
@@ -394,9 +403,9 @@ function App() {
       console.error('Error saving length preference:', err)
     })
     if (foundWords.length === 0 || isTimeUp) {
-      startNewGame(length, selectedWordlist)
+      startNewGame(length, selectedWordlist, selectedEasyMode)
     }
-  }, [foundWords.length, isTimeUp, selectedWordlist, startNewGame])
+  }, [foundWords.length, isTimeUp, selectedWordlist, selectedEasyMode, startNewGame])
 
   // Wordlist/language selector (ROADMAP 6.1): same "only restart if safe" rule as the
   // length selector. Available lengths differ per wordlist (a length that clears the
@@ -411,12 +420,21 @@ function App() {
       const nextLength = lengths.includes(selectedLength) ? selectedLength : DEFAULT_TARGET_LENGTH
       setSelectedLength(nextLength)
       if (foundWords.length === 0 || isTimeUp) {
-        startNewGame(nextLength, wordlist)
+        startNewGame(nextLength, wordlist, selectedEasyMode)
       }
     } catch (err) {
       console.error('Error loading lengths for wordlist:', err)
     }
-  }, [foundWords.length, isTimeUp, selectedLength, startNewGame])
+  }, [foundWords.length, isTimeUp, selectedLength, selectedEasyMode, startNewGame])
+
+  // Easy-mode toggle (ROADMAP Batch 10): same "only restart if safe" rule as the length
+  // and wordlist selectors above; not a saved preference, so no setPreferred* call.
+  const handleEasyModeChange = useCallback((easyMode) => {
+    setSelectedEasyMode(easyMode)
+    if (foundWords.length === 0 || isTimeUp) {
+      startNewGame(selectedLength, selectedWordlist, easyMode)
+    }
+  }, [foundWords.length, isTimeUp, selectedLength, selectedWordlist, startNewGame])
 
   // UI language selector (ROADMAP 6.2) — independent of the wordlist above; never
   // restarts a game, since it only changes how text renders, not any game state.
@@ -784,6 +802,16 @@ function App() {
             </div>
         )}
 
+        {/* Easy-mode indicator (ROADMAP Batch 10) — the checkbox alone can't show a
+            silent server-side fallback to a normal pick (lib/game.ts: no word yet
+            qualifies), so this reflects gameEasyMode, the server's echoed actual outcome,
+            not the request. */}
+        {gameEasyMode && (
+            <div className="absolute top-0 left-0 p-2 bg-green-100 text-green-800 text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-green-200">
+                🌱 {t('easyModeBadge')}
+            </div>
+        )}
+
         {/* Word length selector (ROADMAP 2.3) — applies to the next game; a change
             mid-game is only saved and applied once the current game ends or restarts. */}
         <div className="flex items-center justify-center gap-2 mb-4 text-sm">
@@ -822,6 +850,24 @@ function App() {
               <option key={code} value={code}>{label}</option>
             ))}
           </select>
+        </div>
+
+        {/* Easy-mode toggle (ROADMAP Batch 10) — biases target-word selection toward
+            words with a proven-high solve rate; same "restart only if safe" rule as the
+            selectors above. */}
+        <div className="flex items-center justify-center gap-2 mb-4 text-sm">
+          <label htmlFor="easy-mode-toggle" className="text-gray-500 font-semibold flex items-center gap-1.5 cursor-pointer">
+            <input
+              id="easy-mode-toggle"
+              type="checkbox"
+              checked={selectedEasyMode}
+              disabled={isLoading}
+              onChange={(e) => handleEasyModeChange(e.target.checked)}
+              aria-label={t('easyModeToggle.ariaLabel')}
+              className="h-4 w-4 accent-game-secondary disabled:opacity-50"
+            />
+            {t('easyModeToggle.label')}
+          </label>
         </div>
 
         {/* Score and New Game Button */}
@@ -1199,7 +1245,7 @@ function App() {
       <ConfirmationModal
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
-        onConfirm={() => startNewGame(selectedLength, selectedWordlist)}
+        onConfirm={() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode)}
         message={t('confirmModal.message')}
       />
     </div>

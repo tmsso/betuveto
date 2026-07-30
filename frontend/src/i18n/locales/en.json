@@ -3,6 +3,11 @@
   "loading": { "screen": "Loading...", "startingGame": "Starting game..." },
   "errorScreen": { "title": "Error!", "retry": "Restart" },
   "failedWordBadge": "Previously missed word",
+  "easyModeBadge": "Easy mode",
+  "easyModeToggle": {
+    "label": "Easy mode",
+    "ariaLabel": "Toggle easy mode for the next game"
+  },
   "lengthSelector": {
     "label": "Word length:",
     "ariaLabel": "Choose word length for the next game",

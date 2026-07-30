@@ -3,6 +3,11 @@
   "loading": { "screen": "Betöltés...", "startingGame": "Játék indítása..." },
   "errorScreen": { "title": "Hiba!", "retry": "Újraindítás" },
   "failedWordBadge": "Korábban elhibázott szó",
+  "easyModeBadge": "Könnyű mód",
+  "easyModeToggle": {
+    "label": "Könnyű mód",
+    "ariaLabel": "Könnyű mód be- vagy kikapcsolása a következő játékhoz"
+  },
   "lengthSelector": {
     "label": "Szóhossz:",
     "ariaLabel": "Szóhossz kiválasztása a következő játékhoz",
