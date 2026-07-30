@@ -970,11 +970,21 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    it's an admin-only view. Easy mode: `POST /api/v1/game/start?difficulty=easy` biases
    target selection toward words with a proven ≥60% aggregate success rate; falls back to
    the normal uniform-random pick (silently, not an error) whenever nothing yet qualifies
-   for a given wordlist+length — an expected cold start that self-corrects as more games
-   accrue history, not a bug. The response's `difficulty` field always echoes the actual
+   for a given wordlist+length. The response's `difficulty` field always echoes the actual
    outcome, never just the request, so the frontend's toggle can't claim an easy-mode game
    that quietly wasn't one. Frontend: a session-local (not persisted) "Könnyű mód" checkbox
    next to the length/wordlist selectors, same "restart only if safe" rule as those.
+   **Known limitation, confirmed live 2026-07-30, not just a slow warm-up:** checked
+   production directly post-merge — `hardest_words` is empty and every `difficulty=easy`
+   request falls back to `normal`, because `most_failed_words`' own top row sits at
+   `times_failed: 1`. `MIN_ATTEMPTS_FOR_DIFFICULTY = 5` (`lib/word-stats.ts`) needs 5
+   attempts on one exact word, but uniform-random selection across ~152k (hu) / ~270k (en)
+   words means most words are picked at most once at this project's traffic — this is the
+   steady state at hobby scale, not a cold start that resolves itself given time. Both
+   features are correct and live but currently do nothing observable. Before relying on
+   either: lower the threshold (weakens the anti-noise guarantee it exists for), or seed
+   difficulty from a different signal (e.g. word frequency in the source corpus) instead of
+   live-play volume — a decision for whoever picks this up next, not made here.
 3. `[x]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
    distinctive learning feature; once server-side (Batch 1), expose it: "words you're
    practising" panel, per-word progress. Purely UI — `lib/word-stats.ts`'s `getMyStats`

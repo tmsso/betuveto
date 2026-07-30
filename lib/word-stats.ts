@@ -65,6 +65,16 @@ export async function hasFailedBefore(
 // was found." A word that's only ever been a target once or twice would read as an
 // artificial 0% or 100%, so both consumers below require a minimum sample before trusting
 // the rate.
+//
+// Known limitation, confirmed against production 2026-07-30: with uniform-random target
+// selection over a wordlist this size (hu ~152k, en ~270k words), a single word reaching 5
+// attempts takes a very large number of games at hobby-project traffic — production's own
+// most-attempted word sat at 1 attempt the day this shipped. getHardestWords() and
+// pickEasyWord() are therefore both effectively inert right now (empty / always falling
+// back), not merely slow to warm up — this will not visibly self-correct on its own
+// timescale. Revisit before relying on either: lower this threshold (weakens the
+// anti-noise guarantee above), or seed difficulty from a different signal entirely (e.g.
+// word frequency/rarity in the source corpus) rather than waiting on live-play volume.
 export const MIN_ATTEMPTS_FOR_DIFFICULTY = 5;
 export const EASY_MODE_SUCCESS_THRESHOLD = 0.6;
 
