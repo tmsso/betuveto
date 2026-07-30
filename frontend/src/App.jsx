@@ -93,6 +93,11 @@ function App() {
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [showStats, setShowStats] = useState(false)
+  // Spaced-repetition polish (ROADMAP Batch 10): its own panel over the same
+  // stats.failed_words data the general stats panel already fetches (getMyStats) —
+  // purely a presentation choice, no new fetch, per the roadmap's own "nothing new to
+  // build server-side" framing for this item.
+  const [showPractice, setShowPractice] = useState(false)
   // Hints (ROADMAP 3.1). Mirrors lib/hints.ts's HINT_COST the same way durationForLength
   // mirrors lib/words.ts — the frontend build doesn't share modules with the API's lib/.
   const [hintPenalty, setHintPenalty] = useState(0)
@@ -240,6 +245,20 @@ function App() {
   useEffect(() => {
     fetchMyStats();
   }, [isTimeUp, fetchMyStats]);
+
+  // Words to practice (ROADMAP Batch 10 "spaced-repetition polish"): the same
+  // stats.failed_words rows the general stats panel shows, re-sorted so the words this
+  // player is struggling with most (lowest personal solve rate, then most-failed) lead —
+  // "practice" framing rather than the stats panel's "most failed" framing.
+  const practiceWords = useMemo(() => {
+    if (!stats) return []
+    return [...stats.failed_words].sort((a, b) => {
+      const rateA = a.times_solved / (a.times_solved + a.times_failed)
+      const rateB = b.times_solved / (b.times_solved + b.times_failed)
+      if (rateA !== rateB) return rateA - rateB
+      return b.times_failed - a.times_failed
+    })
+  }, [stats])
 
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
   const rawDisplayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
@@ -1162,6 +1181,53 @@ function App() {
                 )}
                 {!statsLoading && !stats && (
                     <p className="text-xs text-center text-gray-400">{t('stats.offline')}</p>
+                )}
+            </div>
+        )}
+
+        {/* Words to practice (ROADMAP Batch 10 "spaced-repetition polish") — a dedicated
+            panel over the same word_stats data as above, framed around per-word progress
+            rather than a raw fail count. */}
+        <div className="mb-6 flex justify-center">
+            <button
+                onClick={() => setShowPractice(!showPractice)}
+                className="text-xs text-game-secondary underline hover:text-blue-700"
+            >
+                {showPractice ? t('practice.hide') : t('practice.show')}
+            </button>
+        </div>
+
+        {showPractice && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                {statsLoading && <p className="text-xs text-center text-gray-400">{t('stats.loading')}</p>}
+                {!statsLoading && practiceWords.length === 0 && (
+                    <p className="text-xs text-center text-gray-400">{t('practice.empty')}</p>
+                )}
+                {!statsLoading && practiceWords.length > 0 && (
+                    <div className="space-y-2 max-w-sm mx-auto">
+                        {practiceWords.map((f) => {
+                            const attempts = f.times_solved + f.times_failed
+                            const successRate = f.times_solved / attempts
+                            return (
+                                <div key={`${f.wordlist}-${f.word}`} className="text-xs">
+                                    <div className="flex justify-between mb-0.5">
+                                        <span className="font-semibold text-game-primary">
+                                            {f.word} <span className="text-gray-400 font-normal">({f.wordlist})</span>
+                                        </span>
+                                        <span className="text-gray-500">
+                                            {t('practice.progress', { solved: f.times_solved, attempts })}
+                                        </span>
+                                    </div>
+                                    <div className="bg-gray-200 rounded h-2" role="progressbar" aria-valuenow={Math.round(successRate * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={t('practice.progressAriaLabel', { word: f.word })}>
+                                        <div
+                                            className={`rounded h-2 transition-all ${successRate > 0 ? 'bg-green-400' : 'bg-red-300'}`}
+                                            style={{ width: `${successRate > 0 ? successRate * 100 : 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
                 )}
             </div>
         )}

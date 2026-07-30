@@ -975,10 +975,29 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    outcome, never just the request, so the frontend's toggle can't claim an easy-mode game
    that quietly wasn't one. Frontend: a session-local (not persisted) "Könnyű mód" checkbox
    next to the length/wordlist selectors, same "restart only if safe" rule as those.
-3. `[ ]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
+3. `[x]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
    distinctive learning feature; once server-side (Batch 1), expose it: "words you're
    practising" panel, per-word progress. Purely UI — `lib/word-stats.ts`'s `getMyStats`
    already serves this data, nothing new to build server-side.
+   **Shipped, UI only per this item's own text — confirmed with the user first:** a
+   pre-existing comment in `lib/game.ts`'s `startGame` (predating this session) described
+   this item differently — as server-side weighting of target-word draws toward a player's
+   own past failures. That's a real gameplay change this item's own text doesn't ask for;
+   asked which was intended rather than silently picking one, and built the UI-only scope
+   as written here. New "🎯 Gyakorlásra váró szavak" (words to practice) panel in
+   `App.jsx`, its own toggle alongside the stats/high-score panels — reuses
+   `stats.failed_words` (already fetched for the general stats panel), no new endpoint or
+   fetch. Re-sorted client-side by this player's own success rate ascending (struggling
+   words first, then most-failed as tiebreaker) rather than the general stats panel's raw
+   most-failed-first order — different framing for the same data. Per-word progress shown
+   as a solved/attempts count plus a proportional bar (green, width = success rate; full
+   red when never yet solved). No browser automation tool was available this session
+   (same gap noted for Batch 6.2's UI) — verified the data contract directly instead: a
+   local `vercel dev` game deliberately given up, confirmed `/api/v1/me/stats` returns
+   exactly the `{word, wordlist, times_failed, times_solved}` shape the panel consumes,
+   plus lint/typecheck/build all clean. Interactive click-through (does the bar/toggle
+   actually render right) is still unverified — flag for whenever a browser tool is
+   available.
 4. `[ ]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
    focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake). A
    correctness gap, not a nice-to-have — cheaper the sooner it's done.
