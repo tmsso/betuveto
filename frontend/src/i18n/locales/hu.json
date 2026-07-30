@@ -78,6 +78,13 @@
     "failedWordsHeader": "Nehezebben megtalált szavak:",
     "offline": "Nincs kapcsolat a szerverrel."
   },
+  "practice": {
+    "show": "🎯 Gyakorlásra váró szavak",
+    "hide": "Elrejtés",
+    "empty": "Nincs még gyakorlásra váró szavad.",
+    "progress": "{{solved}}/{{attempts}} megoldva",
+    "progressAriaLabel": "{{word}} gyakorlási előrehaladása"
+  },
   "foundWords": {
     "header": "Talált szavak:",
     "points": "{{points}} pont",
