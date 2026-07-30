@@ -1001,13 +1001,19 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    words first, then most-failed as tiebreaker) rather than the general stats panel's raw
    most-failed-first order — different framing for the same data. Per-word progress shown
    as a solved/attempts count plus a proportional bar (green, width = success rate; full
-   red when never yet solved). No browser automation tool was available this session
-   (same gap noted for Batch 6.2's UI) — verified the data contract directly instead: a
-   local `vercel dev` game deliberately given up, confirmed `/api/v1/me/stats` returns
-   exactly the `{word, wordlist, times_failed, times_solved}` shape the panel consumes,
-   plus lint/typecheck/build all clean. Interactive click-through (does the bar/toggle
-   actually render right) is still unverified — flag for whenever a browser tool is
-   available.
+   red when never yet solved). Initially verified only via the data contract (no browser
+   tool available yet that session) — **later confirmed by an actual headless-Playwright
+   click-through against production**, same session, once the user pointed out Playwright
+   was available: opened the panel after a real give-up, confirmed a progress row renders
+   with correct `aria-valuenow`/`aria-label` and the expected word. **Run Playwright against
+   the live deployment, not local `vercel dev`:** a real browser (not curl) hitting local
+   dev 500s on every request — Vite's HTML transform chokes on this file's own `<title>`
+   (the accented "Betűvető - Magyar szójáték"), reproducible with plain `vite` too, so it's
+   not `vercel dev`-specific. Confirmed via byte-vs-character length: the line is 45
+   characters but 50 UTF-8 bytes, and the reported error column (45) is exactly the
+   *character* count — a byte/character-offset bug in the toolchain, not in this file.
+   Unrelated to this session's changes (the file hasn't changed in a long time) and not
+   investigated further (Vite/Node version pinning would be the next step).
 4. `[x]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
    focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake). A
    correctness gap, not a nice-to-have — cheaper the sooner it's done.
@@ -1035,11 +1041,17 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    back to the cancel button and reset `previouslyFocusedRef` twice a second. Fixed with
    the standard latest-ref pattern (`onCloseRef`, updated every render but not in the
    effect's deps) so the effect only re-runs when `isOpen` itself actually flips.
-   No browser automation tool was available this session (same gap as items 2/3 above) —
-   verified via typecheck/lint/build plus manual trace of the re-render timing above;
-   interactive click-through (focus visibly landing correctly, Escape actually closing)
-   is still unverified. Flag for whenever a browser tool is available, alongside the same
-   flag already recorded for items 2/3 and Batch 6.2/9.1's still-pending Lighthouse audit.
+   Initially verified only via typecheck/lint/build plus a manual trace of the re-render
+   timing above — **later confirmed by an actual headless-Playwright click-through against
+   production**, same session: `role="dialog"`/`aria-modal="true"`/`aria-labelledby` all
+   present, focus lands on the Cancel button on open, Escape closes it, and focus returns
+   to the "Új játék" trigger afterward — the exact behaviour the fix above was for. `<html
+   lang>` sync and the `role="alert"` guess-rejection toast were confirmed the same way.
+   Still not covered by this pass: global tab order was reviewed by inspection and judged
+   already correct (not changed), not exercised interactively.
+   Batch 6.2's mid-game language-switch UI and Batch 9.1's Lighthouse PWA audit remain
+   unverified interactively — both are candidates for the same headless-Playwright-against-
+   production approach that verified this item and item 3 above.
 5. `[ ]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
    in CI; catches the "white screen" class of regressions that has already happened once
    in this repo's history.
