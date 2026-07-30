@@ -31,10 +31,21 @@ export function durationForLength(
   return base + perExtraLength * (length - MIN_TARGET_LENGTH);
 }
 
-/** Trim, NFC-normalise, uppercase. Returns null if the word is out of range. */
+// Unicode letters only — no digits, spaces, hyphens, or punctuation. Deliberately not
+// tied to any one wordlist's alphabet (that's wordlists.alphabet's job, ROADMAP 6.1): a
+// dictionary source file legitimately mixes single words with multi-word phrases and
+// hyphenated compounds ("ADÓ-VEVŐ", "ALFA-RÉSZECSKE"), which the importer must reject
+// as game words rather than let scramble onto an unplayable board. `\p{L}` still accepts
+// loanword letters outside any one wordlist's core alphabet (e.g. "DOPPELGÄNGER"'s Ä) —
+// this only excludes what a keyboard whitelist could never reject on its own.
+const ONLY_LETTERS = /^\p{L}+$/u;
+
+/** Trim, NFC-normalise, uppercase. Returns null if the word is out of range or contains
+ *  anything other than letters (ROADMAP 1.1 bugfix — see ONLY_LETTERS above). */
 export function normalizeWord(raw: string): string | null {
   const word = raw.trim().normalize("NFC").toUpperCase();
   if (!word) return null;
+  if (!ONLY_LETTERS.test(word)) return null;
   const length = letterCount(word);
   if (length < MIN_WORD_LENGTH || length > MAX_WORD_LENGTH) return null;
   return word;

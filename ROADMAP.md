@@ -257,6 +257,16 @@ runner, auth wiring and env vars change.*
 - **Gotcha for the implementer:** normalise words to `NFC` + uppercase on import **and**
   on every guess (`word.normalize('NFC').toUpperCase()`), so composed vs decomposed `Á`
   compare equal; Hungarian uppercasing is locale-safe in JS but be explicit about NFC.
+- **Bug found and fixed 2026-07-30:** `normalizeWord()` only ever checked length, never
+  content — hyphenated compounds and multi-word phrases in the Hungarian source
+  dictionary ("ADÓ-VEVŐ", "BIMBÓS KEL") were imported as ordinary active words (2,882 of
+  them, live in production, spanning every playable board length). Any one could be
+  picked as a game's target, scrambling a hyphen/space onto the board that the on-screen
+  keyboard has no key for — an unplayable puzzle. Fixed with a Unicode-letters-only check
+  (`\p{L}`, not a hardcoded per-language charset, so a genuine loanword letter like
+  "DOPPELGÄNGER"'s Ä still passes) in `normalizeWord()`, plus `migrations/0011` to purge
+  the words already imported before the fix. `scripts/verify-db.ts` now asserts zero
+  non-letter words as a standing invariant.
 
 ### 1.2 `[x]` Port the API to TypeScript Vercel functions  _(DB driver swapped to Neon in 1.5)_
 - Recreate the FastAPI endpoints as Vercel API routes under `/api/v1/` (thin aliases at

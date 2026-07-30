@@ -101,6 +101,17 @@ describe("scoring and normalisation", () => {
     expect(normalizeWord("ab")).toBeNull();
     expect(normalizeWord("")).toBeNull();
   });
+
+  it("rejects words containing anything but letters (ROADMAP 1.1 bugfix)", () => {
+    expect(normalizeWord("adó-vevő")).toBeNull(); // hyphenated compound
+    expect(normalizeWord("bimbós kel")).toBeNull(); // multi-word phrase
+    expect(normalizeWord("wtf!")).toBeNull(); // punctuation
+    expect(normalizeWord("alma2")).toBeNull(); // digit
+  });
+
+  it("still accepts a loanword letter outside any one wordlist's core alphabet", () => {
+    expect(normalizeWord("doppelgänger")).toBe("DOPPELGÄNGER");
+  });
 });
 
 describe("scrambleWord", () => {
