@@ -80,7 +80,6 @@ function App() {
   // 3.2) — read from the winning guess's response, never recomputed from the client's
   // own countdown, so a slow network round-trip can't cost (or gain) bonus seconds.
   const [completionBonus, setCompletionBonus] = useState(0)
-  const [isFailedWord, setIsFailedWord] = useState(false)
 
   // UI state
   const [isGuessShaking, setIsGuessShaking] = useState(false)
@@ -97,16 +96,13 @@ function App() {
   const [serverScores, setServerScores] = useState(null)
   const [serverScoresLoading, setServerScoresLoading] = useState(false)
   const [showHighScores, setShowHighScores] = useState(false)
-  // Player stats (ROADMAP 3.3): server-side, replaces the old localStorage "Előzmények"
-  // (failed-words) panel — this player's failed-words list now lives in word_stats.
+  // Player stats (ROADMAP 3.3): server-side, aggregate only. Per-word history (which
+  // words a player failed/solved) is not shown to players — product decision 2026-07-30,
+  // this isn't an educational/practice game; word_stats now drives target selection
+  // server-side instead (lib/word-stats.ts's pickPersonalizedWord).
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [showStats, setShowStats] = useState(false)
-  // Spaced-repetition polish (ROADMAP Batch 10): its own panel over the same
-  // stats.failed_words data the general stats panel already fetches (getMyStats) —
-  // purely a presentation choice, no new fetch, per the roadmap's own "nothing new to
-  // build server-side" framing for this item.
-  const [showPractice, setShowPractice] = useState(false)
   // Hints (ROADMAP 3.1). Mirrors lib/hints.ts's HINT_COST the same way durationForLength
   // mirrors lib/words.ts — the frontend build doesn't share modules with the API's lib/.
   const [hintPenalty, setHintPenalty] = useState(0)
@@ -255,20 +251,6 @@ function App() {
     fetchMyStats();
   }, [isTimeUp, fetchMyStats]);
 
-  // Words to practice (ROADMAP Batch 10 "spaced-repetition polish"): the same
-  // stats.failed_words rows the general stats panel shows, re-sorted so the words this
-  // player is struggling with most (lowest personal solve rate, then most-failed) lead —
-  // "practice" framing rather than the stats panel's "most failed" framing.
-  const practiceWords = useMemo(() => {
-    if (!stats) return []
-    return [...stats.failed_words].sort((a, b) => {
-      const rateA = a.times_solved / (a.times_solved + a.times_failed)
-      const rateB = b.times_solved / (b.times_solved + b.times_failed)
-      if (rateA !== rateB) return rateA - rateB
-      return b.times_failed - a.times_failed
-    })
-  }, [stats])
-
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
   const rawDisplayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
   // Hints (ROADMAP 3.1) deduct from the server's score; the client-side sum above never
@@ -394,9 +376,6 @@ function App() {
       // list is fetched at game end for the reveal.
       setAllPossibleWords([])
       setPossibleWordsCount(response.possible_count)
-
-      // The server tells us whether this target was previously failed.
-      setIsFailedWord(!!response.is_previously_failed)
 
       if (window.innerWidth >= 640) {
         document.getElementById('guess-input')?.focus();
@@ -823,13 +802,6 @@ function App() {
       </div>
 
       <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
-        {/* Failed word indicator */}
-        {isFailedWord && (
-            <div className="absolute top-0 right-0 p-2 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-yellow-200">
-                ⚠️ {t('failedWordBadge')}
-            </div>
-        )}
-
         {/* Easy-mode indicator (ROADMAP Batch 10) — the checkbox alone can't show a
             silent server-side fallback to a normal pick (lib/game.ts: no word yet
             qualifies), so this reflects gameEasyMode, the server's echoed actual outcome,
@@ -1158,9 +1130,6 @@ function App() {
                         <div className="text-sm text-center text-gray-600 mb-3 space-y-1">
                             <p>{t('stats.gamesPlayed')} <span className="font-bold">{stats.games_played}</span></p>
                             <p>{t('stats.completionRate')} <span className="font-bold">{Math.round(stats.completion_rate * 100)}%</span></p>
-                            {stats.longest_word_found && (
-                                <p>{t('stats.longestWord')} <span className="font-bold">{stats.longest_word_found}</span></p>
-                            )}
                         </div>
                         {Object.keys(stats.average_score_by_length).length > 0 && (
                             <div className="text-xs text-center text-gray-500 mb-3">
@@ -1174,72 +1143,10 @@ function App() {
                                 </div>
                             </div>
                         )}
-                        {stats.failed_words.length > 0 && (
-                            <div>
-                                <h4 className="text-sm font-bold mb-2 text-center text-gray-500">{t('stats.failedWordsHeader')}</h4>
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                    {stats.failed_words.map((f) => (
-                                        <span
-                                            key={`${f.wordlist}-${f.word}`}
-                                            className={`text-xs px-2 py-1 rounded border ${f.times_solved > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
-                                        >
-                                            {f.word} ({f.times_failed}×)
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </>
                 )}
                 {!statsLoading && !stats && (
                     <p className="text-xs text-center text-gray-400">{t('stats.offline')}</p>
-                )}
-            </div>
-        )}
-
-        {/* Words to practice (ROADMAP Batch 10 "spaced-repetition polish") — a dedicated
-            panel over the same word_stats data as above, framed around per-word progress
-            rather than a raw fail count. */}
-        <div className="mb-6 flex justify-center">
-            <button
-                onClick={() => setShowPractice(!showPractice)}
-                className="text-xs text-game-secondary underline hover:text-blue-700"
-            >
-                {showPractice ? t('practice.hide') : t('practice.show')}
-            </button>
-        </div>
-
-        {showPractice && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                {statsLoading && <p className="text-xs text-center text-gray-400">{t('stats.loading')}</p>}
-                {!statsLoading && practiceWords.length === 0 && (
-                    <p className="text-xs text-center text-gray-400">{t('practice.empty')}</p>
-                )}
-                {!statsLoading && practiceWords.length > 0 && (
-                    <div className="space-y-2 max-w-sm mx-auto">
-                        {practiceWords.map((f) => {
-                            const attempts = f.times_solved + f.times_failed
-                            const successRate = f.times_solved / attempts
-                            return (
-                                <div key={`${f.wordlist}-${f.word}`} className="text-xs">
-                                    <div className="flex justify-between mb-0.5">
-                                        <span className="font-semibold text-game-primary">
-                                            {f.word} <span className="text-gray-400 font-normal">({f.wordlist})</span>
-                                        </span>
-                                        <span className="text-gray-500">
-                                            {t('practice.progress', { solved: f.times_solved, attempts })}
-                                        </span>
-                                    </div>
-                                    <div className="bg-gray-200 rounded h-2" role="progressbar" aria-valuenow={Math.round(successRate * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={t('practice.progressAriaLabel', { word: f.word })}>
-                                        <div
-                                            className={`rounded h-2 transition-all ${successRate > 0 ? 'bg-green-400' : 'bg-red-300'}`}
-                                            style={{ width: `${successRate > 0 ? successRate * 100 : 100}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
                 )}
             </div>
         )}

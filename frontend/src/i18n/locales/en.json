@@ -2,7 +2,6 @@
   "app": { "title": "Betűvető" },
   "loading": { "screen": "Loading...", "startingGame": "Starting game..." },
   "errorScreen": { "title": "Error!", "retry": "Restart" },
-  "failedWordBadge": "Previously missed word",
   "easyModeBadge": "Easy mode",
   "easyModeToggle": {
     "label": "Easy mode",
@@ -72,18 +71,9 @@
     "noGames": "You haven't finished a game yet.",
     "gamesPlayed": "Games played:",
     "completionRate": "Completion rate:",
-    "longestWord": "Longest word found:",
     "avgScoreHeader": "Average score by length:",
     "avgScoreEntry": "{{length}} letters: {{avg}}",
-    "failedWordsHeader": "Words you've struggled with:",
     "offline": "No connection to the server."
-  },
-  "practice": {
-    "show": "🎯 Words to practice",
-    "hide": "Hide",
-    "empty": "No words to practice yet.",
-    "progress": "{{solved}}/{{attempts}} solved",
-    "progressAriaLabel": "{{word}} practice progress"
   },
   "foundWords": {
     "header": "Words found:",

@@ -711,15 +711,27 @@ describeApi("Betűvető API contract", () => {
   }, 30_000);
 
   // --- Player stats (ROADMAP 3.3) ---------------------------------------------
-  it("me/stats reads as an empty sheet with no identity", async () => {
+  //
+  // Product decision 2026-07-30: per-word history (which words a player failed/solved) is
+  // no longer exposed to players at all — not just hidden in the UI, removed from this
+  // response entirely (lib/word-stats.ts's getMyStats). word_stats now drives target
+  // selection server-side instead (pickPersonalizedWord/pickEasyWord's mastery-cooldown
+  // and fresh-word preference) — not practically forceable end-to-end through this
+  // black-box HTTP surface (the target word is drawn server-side at random, can't be
+  // requested, and the cooldown window is 100 games), so that logic is reviewed at the
+  // migration/code level instead, the same way ROADMAP 6.1's word_stats primary-key
+  // non-collision was. The two tests below only check what's actually observable here:
+  // the write path still fires (game/start no longer 500s, me/stats still aggregates
+  // correctly) and the removed field is actually gone, not just unused.
+  it("me/stats reads as an empty sheet with no identity, and never includes failed_words", async () => {
     const { json } = await call("GET", "/api/v1/me/stats");
     expect(json.games_played).toBe(0);
     expect(json.completion_rate).toBe(0);
-    expect(json.failed_words).toEqual([]);
     expect(json.longest_word_found).toBeNull();
+    expect(json).not.toHaveProperty("failed_words");
   });
 
-  it("records a given-up target as a failed word, visible on me/stats", async () => {
+  it("records a given-up game towards games_played without leaking failed_words", async () => {
     const { game, cookie } = await startWithCookie();
     const giveUp = await call("POST", `/api/game/${game.game_id}/give_up`, undefined, {
       Cookie: cookie,
@@ -728,32 +740,12 @@ describeApi("Betűvető API contract", () => {
 
     const { json } = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
     expect(json.games_played).toBeGreaterThanOrEqual(1);
-    const entry = json.failed_words.find((f: { word: string }) => f.word === giveUp.json.target_word);
-    expect(entry).toBeTruthy();
-    expect(entry.times_failed).toBeGreaterThanOrEqual(1);
+    expect(json).not.toHaveProperty("failed_words");
   });
 
-  // word_stats gained a wordlist_id dimension in migrations/0009 (ROADMAP 6.1) so a
-  // spelling shared between languages can't merge its failed count across them — this
-  // exercises the write path end-to-end (insert now requires wordlist_id to satisfy the
-  // new (player_id, wordlist_id, word) primary key) rather than the specific cross-language
-  // non-collision, which isn't practically forceable through this black-box surface: the
-  // target word is drawn server-side at random, and forcing the *same* spelling to land as
-  // the target in both an independent hu draw and an independent en draw would need
-  // enough retries to make the test slow and flaky. The non-collision itself follows
-  // directly from the primary key change, reviewed at the migration/code level instead.
-  it("records a given-up English target as a failed word, visible on me/stats (ROADMAP 6.1)", async () => {
-    const { game, cookie } = await startWithCookieEn();
-    const giveUp = await call("POST", `/api/game/${game.game_id}/give_up`, undefined, {
-      Cookie: cookie,
-    });
-    expect(giveUp.status).toBe(200);
-    expect(enDictionary).toContain(giveUp.json.target_word);
-
-    const { json } = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
-    const entry = json.failed_words.find((f: { word: string }) => f.word === giveUp.json.target_word);
-    expect(entry).toBeTruthy();
-    expect(entry.times_failed).toBeGreaterThanOrEqual(1);
+  it("start no longer echoes is_previously_failed (removed 2026-07-30, was a history leak)", async () => {
+    const game = await start();
+    expect(game).not.toHaveProperty("is_previously_failed");
   });
 
   // --- Word curation (ROADMAP 4.1) --------------------------------------------

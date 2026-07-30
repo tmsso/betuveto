@@ -1,0 +1,12 @@
+-- Product decision 2026-07-30: individual per-word history (which words a player failed,
+-- how often) is no longer shown to players — this is not an educational/practice game.
+-- word_stats' original purpose (its own table comment since migrations/0001: "feeding the
+-- failed-word reappearance weighting") is instead used purely server-side, to steer target
+-- selection: never-played words are preferred, and a word this player has personally
+-- mastered (>=90% solved) is excluded from being their target again for ~100 games.
+--
+-- mastered_at_game_number snapshots this player's total game count (count(*) from games
+-- where player_id = X) at the moment a word's personal solve rate first reaches >= 90%;
+-- cleared back to null if a later failure drops it back below 90%. Compared against the
+-- player's current game count at selection time to compute the ~100-game cooldown window.
+alter table public.word_stats add column mastered_at_game_number integer;
