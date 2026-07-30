@@ -998,9 +998,38 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    plus lint/typecheck/build all clean. Interactive click-through (does the bar/toggle
    actually render right) is still unverified — flag for whenever a browser tool is
    available.
-4. `[ ]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
+4. `[x]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
    focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake). A
    correctness gap, not a nice-to-have — cheaper the sooner it's done.
+   **Shipped:** most of this item's own examples turned out already done, incrementally,
+   across many earlier batches never tracked against this checkbox — letter buttons are
+   real `<button>`s with `aria-label`s, the board/score/timer/selectors already carry ARIA
+   roles and labels, and `index.css` already has a blanket
+   `@media (prefers-reduced-motion: reduce)` rule (neutralises every CSS animation/
+   transition site-wide, not just shake) plus the confetti/explosion already skip
+   themselves in JS when it's set. Three real, previously-unaddressed gaps found and
+   fixed instead: (1) `<html lang="hu">` was hardcoded in `index.html` and never updated
+   when a player switches UI language (ROADMAP 6.2) — now a `useEffect` on `i18n.language`
+   keeps it in sync, covering every way the language can change (selector, saved
+   preference, browser-language fallback). (2) Three transient toasts (rejected-guess
+   overlay, hint result, word-suggestion prompt/thanks) had no `aria-live`/`role`, so a
+   screen reader announced nothing when they appeared — added `role="alert"` to the
+   guess-rejection toast (urgent) and `role="status" aria-live="polite"` to the other two
+   (informational). (3) `ConfirmationModal` had no dialog semantics at all: no
+   `role="dialog"`/`aria-modal`/`aria-labelledby`, no focus moved into it on open, no
+   Escape-to-close, and no focus restored to the trigger on close — all four added.
+   **Real bug caught while building the fix, not shipped broken:** an initial version put
+   `onClose` in the focus-management effect's own dependency array; the game timer
+   re-renders `App` (and recreates its inline `onClose`) every 500ms while a game is
+   active — exactly when this modal can be open — so that version would have stolen focus
+   back to the cancel button and reset `previouslyFocusedRef` twice a second. Fixed with
+   the standard latest-ref pattern (`onCloseRef`, updated every render but not in the
+   effect's deps) so the effect only re-runs when `isOpen` itself actually flips.
+   No browser automation tool was available this session (same gap as items 2/3 above) —
+   verified via typecheck/lint/build plus manual trace of the re-render timing above;
+   interactive click-through (focus visibly landing correctly, Escape actually closing)
+   is still unverified. Flag for whenever a browser tool is available, alongside the same
+   flag already recorded for items 2/3 and Batch 6.2/9.1's still-pending Lighthouse audit.
 5. `[ ]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
    in CI; catches the "white screen" class of regressions that has already happened once
    in this repo's history.
