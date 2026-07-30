@@ -19,7 +19,9 @@ const TABLES = ["players", "wordlists", "words", "games", "game_guesses", "word_
 // "reports the imported dictionary" test already made; this script's exact check was
 // pre-existing and just hadn't been updated to match (caught live in production while
 // verifying Batch 6.1, unrelated to that batch's own change).
-const MIN_EXPECTED_HU_WORDS = 155107;
+// Lowered from 155107 by migrations/0011 (ROADMAP 1.1 bugfix) purging 2,882 non-alpha
+// rows that were never legitimately part of this count in the first place.
+const MIN_EXPECTED_HU_WORDS = 152228;
 // English wordlist (ROADMAP 6.1) floor: this script previously only asserted anything
 // about 'hu', so a deployment where the 'en' import silently failed or was never run
 // would still print ALL CHECKS PASSED — caught during the 6.2 follow-up review, not by
