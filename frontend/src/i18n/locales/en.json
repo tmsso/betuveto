@@ -78,6 +78,13 @@
     "failedWordsHeader": "Words you've struggled with:",
     "offline": "No connection to the server."
   },
+  "practice": {
+    "show": "🎯 Words to practice",
+    "hide": "Hide",
+    "empty": "No words to practice yet.",
+    "progress": "{{solved}}/{{attempts}} solved",
+    "progressAriaLabel": "{{word}} practice progress"
+  },
   "foundWords": {
     "header": "Words found:",
     "points": "{{points}} pts",
