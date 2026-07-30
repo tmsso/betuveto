@@ -106,6 +106,7 @@ function startGameRoute(req: VercelRequest) {
     resolvedPlayerId,
     setCookieHeader,
     stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
+    stringQuery(req, "difficulty", "normal"),
   );
 }
 
