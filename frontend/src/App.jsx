@@ -55,6 +55,15 @@ const HINT_COST = 10;
 function App() {
   const { t, i18n } = useTranslation()
 
+  // Accessibility (ROADMAP Batch 10): <html lang> drives screen-reader pronunciation and
+  // was hardcoded "hu" in index.html since before the language selector (ROADMAP 6.2)
+  // existed — never updated when a player switches UI language. Reacting to i18n.language
+  // itself, not the selector's onChange, covers every way it can change (the selector, the
+  // mount effect's saved-preference/browser-language resolution, any future path).
+  useEffect(() => {
+    document.documentElement.lang = i18n.language
+  }, [i18n.language])
+
   // Game state
   const [currentGuess, setCurrentGuess] = useState('')
   const [foundWords, setFoundWords] = useState([])
@@ -994,7 +1003,10 @@ function App() {
           {/* Temporary Error Overlay */}
           {guessErrorMsg && (
              <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
-                <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded shadow-lg animate-fade-out-up">
+                {/* role="alert" (ROADMAP Batch 10 accessibility pass): an implicit
+                    assertive live region, so a screen reader announces a rejected guess
+                    even though nothing else on the page changes when it appears. */}
+                <span role="alert" className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded shadow-lg animate-fade-out-up">
                   {guessErrorMsg}
                 </span>
              </div>
@@ -1041,7 +1053,7 @@ function App() {
               dictionary might be missing. Replaced by a brief thanks confirmation on submit. */}
           {(suggestPrompt || suggestThanks) && (
             <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
-              <span className="text-xs sm:text-sm text-game-primary/70">
+              <span role="status" aria-live="polite" className="text-xs sm:text-sm text-game-primary/70">
                 {suggestThanks ? (
                   t('suggestion.thanks')
                 ) : (
@@ -1119,7 +1131,7 @@ function App() {
         )}
 
         {hintMessage && (
-          <div className="mb-4 text-center text-sm font-semibold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
             {hintMessage}
           </div>
         )}
