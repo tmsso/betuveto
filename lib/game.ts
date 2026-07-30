@@ -204,10 +204,14 @@ export async function startGame(
   // Uniform among active words of the requested length by default. "Easy mode" (ROADMAP
   // Batch 10) biases this toward words with a proven-high aggregate success rate instead;
   // pickEasyWord returns null (falling through to the uniform pick below) when nothing yet
-  // qualifies — a cold-start case, not an error, since the qualifying pool only grows as
-  // more games accrue word_stats history. The per-player weighting that resurfaces a given
-  // player's own previously-failed words (spaced-repetition polish) is a separate,
-  // frontend-only feature reading the same word_stats data — see lib/word-stats.ts.
+  // qualifies. As of 2026-07-30 this is the common case in production, not an edge case:
+  // MIN_ATTEMPTS_FOR_DIFFICULTY (lib/word-stats.ts) needs 5 attempts on one exact word, but
+  // uniform-random selection over a wordlist this size means most words are picked at most
+  // once. See that constant's own comment before assuming this self-corrects on its own.
+  // "Spaced-repetition polish" (Batch 10 item 3) shipped as a UI-only panel over this same
+  // word_stats data (lib/word-stats.ts's getMyStats) — it does not weight target selection.
+  // Weighting a player's own target draws toward their past failures is not built and is
+  // not part of any current roadmap item; it would belong here if ever taken up.
   let target = difficultyMode === "easy" ? await pickEasyWord(sql, listId, targetLength) : null;
   const actualDifficulty = target ? "easy" : "normal";
   if (!target) {
