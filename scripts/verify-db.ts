@@ -56,6 +56,12 @@ async function main(): Promise<void> {
     const present = new Set(tables.map((t) => t.tablename));
     for (const t of TABLES) check(`table ${t} exists`, present.has(t), true);
 
+    console.log("\nWord content (ROADMAP 1.1 bugfix — normalizeWord() now rejects these on import)");
+    const [{ nonAlpha }] = await sql<{ nonAlpha: string }[]>`
+      select count(*)::text as "nonAlpha" from words where word ~ '[^[:alpha:]]'
+    `;
+    check("words with a non-letter character (hyphens, spaces, punctuation)", nonAlpha, 0);
+
     console.log("\nWordlist");
     const [list] = await sql<{ id: number; code: string; name: string }[]>`
       select id, code, name from wordlists where code = 'hu'
