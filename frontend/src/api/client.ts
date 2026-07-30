@@ -19,7 +19,6 @@ export interface StartGameResult {
   ends_at: number;
   duration_seconds: number;
   possible_count: number;
-  is_previously_failed: boolean;
   /** What actually happened, not just what was requested (ROADMAP Batch 10 easy mode) —
    *  an "easy" request silently falls back to "normal" server-side when no word yet
    *  qualifies, so this reflects the real outcome. */
@@ -86,18 +85,13 @@ export interface HintResult {
   total_score: number;
 }
 
-export interface FailedWordStat {
-  word: string;
-  times_failed: number;
-  times_solved: number;
-}
-
 export interface MyStats {
   games_played: number;
   completion_rate: number;
   average_score_by_length: Record<string, number>;
+  // Not currently displayed (product decision 2026-07-30: no per-word history shown to
+  // players) — kept as a candidate data source for a future rotating highlight/fun-fact.
   longest_word_found: string | null;
-  failed_words: FailedWordStat[];
 }
 
 class BetuAPIClient {

@@ -2,7 +2,6 @@
   "app": { "title": "Betűvető" },
   "loading": { "screen": "Betöltés...", "startingGame": "Játék indítása..." },
   "errorScreen": { "title": "Hiba!", "retry": "Újraindítás" },
-  "failedWordBadge": "Korábban elhibázott szó",
   "easyModeBadge": "Könnyű mód",
   "easyModeToggle": {
     "label": "Könnyű mód",
@@ -72,18 +71,9 @@
     "noGames": "Még nincs befejezett játékod.",
     "gamesPlayed": "Lejátszott játékok:",
     "completionRate": "Teljesítési arány:",
-    "longestWord": "Leghosszabb megtalált szó:",
     "avgScoreHeader": "Átlagpontszám hosszúságonként:",
     "avgScoreEntry": "{{length}} betű: {{avg}}",
-    "failedWordsHeader": "Nehezebben megtalált szavak:",
     "offline": "Nincs kapcsolat a szerverrel."
-  },
-  "practice": {
-    "show": "🎯 Gyakorlásra váró szavak",
-    "hide": "Elrejtés",
-    "empty": "Nincs még gyakorlásra váró szavad.",
-    "progress": "{{solved}}/{{attempts}} megoldva",
-    "progressAriaLabel": "{{word}} gyakorlási előrehaladása"
   },
   "foundWords": {
     "header": "Talált szavak:",

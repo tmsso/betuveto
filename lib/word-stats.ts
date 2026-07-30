@@ -1,8 +1,9 @@
 /**
- * Per-player word history (ROADMAP Batch 3.3): the server-side replacement for the
- * frontend's localStorage "Előzmények" list, and the same data the failed-word
- * reappearance weighting (ROADMAP Batch 10) will read from later. `lib/game.ts` writes
- * to this on every game-ending transition; this module also serves GET /api/v1/me/stats.
+ * Per-player word history (ROADMAP Batch 3.3), used purely server-side to steer target
+ * selection — never displayed to players (product decision 2026-07-30: this isn't an
+ * educational/practice game, so no per-word failure/solve history is shown or served to
+ * the client; only aggregate stats and the picker functions below consume this table).
+ * `lib/game.ts` writes to this on every game-ending transition.
  *
  * Keyed per (player, wordlist, word) since migrations/0009 (ROADMAP 6.1) — a spelling
  * common to two languages must not merge its failed/solved counts across them.
@@ -11,7 +12,19 @@ import type { Sql } from "postgres";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 
-/** A correct guess of the target word — recorded once, the instant it happens. */
+// How long a personally-mastered word stays excluded from this player's own target draws
+// (see recordSolved/pickPersonalizedWord below) — "ideally shouldn't come up again for
+// ~100 turns" per the product decision above.
+const MASTERY_COOLDOWN_GAMES = 100;
+const MASTERY_THRESHOLD = 0.9;
+
+/** A correct guess of the target word — recorded once, the instant it happens. Also
+ *  stamps mastered_at_game_number (this player's total game count right now) the moment
+ *  their own solve rate for this word first reaches MASTERY_THRESHOLD — no minimum sample
+ *  required here, unlike MIN_ATTEMPTS_FOR_DIFFICULTY below: a single clean solve (1/1) is
+ *  already a legitimate personal signal for "don't serve me this again next turn," whereas
+ *  that other threshold guards against *sparse aggregate* data across many different
+ *  players being mistaken for a real difficulty signal — a different problem. */
 export async function recordSolved(
   sql: Sql,
   playerId: string | null,
@@ -20,14 +33,24 @@ export async function recordSolved(
 ): Promise<void> {
   if (!playerId) return;
   await sql`
-    insert into word_stats (player_id, wordlist_id, word, times_solved)
-    values (${playerId}, ${wordlistId}, ${word}, 1)
+    insert into word_stats (player_id, wordlist_id, word, times_solved, mastered_at_game_number)
+    values (${playerId}, ${wordlistId}, ${word}, 1,
+            (select count(*)::int from games where player_id = ${playerId}))
     on conflict (player_id, wordlist_id, word)
-    do update set times_solved = word_stats.times_solved + 1
+    do update set
+      times_solved = word_stats.times_solved + 1,
+      mastered_at_game_number = case
+        when (word_stats.times_solved + 1)::float
+             / (word_stats.times_solved + 1 + word_stats.times_failed) >= ${MASTERY_THRESHOLD}
+        then (select count(*)::int from games where player_id = ${playerId})
+        else word_stats.mastered_at_game_number
+      end
   `;
 }
 
-/** A game that ended (expired / given up) without the target ever being found. */
+/** A game that ended (expired / given up) without the target ever being found. Clears
+ *  mastered_at_game_number back to null if the new failure drops this player's own solve
+ *  rate for the word back below MASTERY_THRESHOLD, un-suppressing it. */
 export async function recordFailed(
   sql: Sql,
   playerId: string | null,
@@ -39,24 +62,49 @@ export async function recordFailed(
     insert into word_stats (player_id, wordlist_id, word, times_failed)
     values (${playerId}, ${wordlistId}, ${word}, 1)
     on conflict (player_id, wordlist_id, word)
-    do update set times_failed = word_stats.times_failed + 1
+    do update set
+      times_failed = word_stats.times_failed + 1,
+      mastered_at_game_number = case
+        when word_stats.times_solved::float
+             / (word_stats.times_solved + word_stats.times_failed + 1) >= ${MASTERY_THRESHOLD}
+        then word_stats.mastered_at_game_number
+        else null
+      end
   `;
 }
 
-/** Whether this player has ever failed this word before — feeds `is_previously_failed`
- *  on game/start (ROADMAP 0.1's flag, previously always false pre-Batch-3.3). */
-export async function hasFailedBefore(
-  playerId: string,
+/** The default target-word pick (replaces the old plain uniform-random draw): prefers a
+ *  word this player has never had as a target before, falling back to any word that isn't
+ *  currently in this player's own mastery cooldown, falling back to null (ultimate
+ *  cold-start / exhausted-pool case — lib/game.ts falls back further to a plain uniform
+ *  pick) only if literally every active word of this length is excluded. One query: the
+ *  LEFT JOIN's `ws.word is null` doubles as "never played," and the WHERE excludes only
+ *  currently-cooling-down words, so a never-played word is automatically eligible too.
+ *  Cost checked directly against production before shipping (2026-07-30): same shape and
+ *  same order of magnitude as the plain `order by random() limit 1` this replaces (tens of
+ *  milliseconds even at the widest wordlist+length combo, ~41k candidate rows) — Postgres
+ *  already had to fully sort the candidate set for every game start before this change. */
+export async function pickPersonalizedWord(
+  sql: Sql,
   wordlistId: number,
-  word: string,
-): Promise<boolean> {
-  const sql = db();
-  const [row] = await sql<{ x: number }[]>`
-    select 1 as x from word_stats
-     where player_id = ${playerId} and wordlist_id = ${wordlistId}
-       and word = ${word} and times_failed > 0
+  length: number,
+  playerId: string,
+): Promise<string | null> {
+  const [row] = await sql<{ word: string }[]>`
+    select w.word
+      from words w
+      left join word_stats ws
+        on ws.player_id = ${playerId} and ws.wordlist_id = ${wordlistId} and ws.word = w.word
+     where w.wordlist_id = ${wordlistId} and w.length = ${length} and w.active
+       and not (
+         ws.mastered_at_game_number is not null
+         and (select count(*)::int from games where player_id = ${playerId}) - ws.mastered_at_game_number
+               < ${MASTERY_COOLDOWN_GAMES}
+       )
+     order by (ws.word is null) desc, random()
+     limit 1
   `;
-  return !!row;
+  return row?.word ?? null;
 }
 
 // ROADMAP Batch 10 "difficulty rating per word": word_stats already accrues exactly the
@@ -87,8 +135,8 @@ export interface WordDifficultyRow {
 }
 
 /** Words with the lowest aggregate success rate, across all players, scoped per wordlist
- *  since a spelling shared between two languages (ROADMAP 6.1) must not merge its stats —
- *  the same scoping bug fixed here that getMyStats's failed_words already had to fix. */
+ *  since a spelling shared between two languages (ROADMAP 6.1) must not merge its stats.
+ *  Admin-only (lib/admin-dashboard.ts) — never exposed to players. */
 export async function getHardestWords(limit: number): Promise<WordDifficultyRow[]> {
   const sql = db();
   return sql<WordDifficultyRow[]>`
@@ -106,22 +154,32 @@ export async function getHardestWords(limit: number): Promise<WordDifficultyRow[
 }
 
 /** Picks an active word of the given wordlist+length with a proven high success rate
- *  across every player's past games as its target — the "easy mode" word-selection bias.
- *  Returns null when nothing yet qualifies (a fresh wordlist/length combo, or simply early
- *  in this feature's life before enough history has accrued); callers fall back to the
- *  normal uniform-random pick. That's an accepted, self-correcting cold start rather than
- *  a bug — the qualifying pool only grows as more games are played (ROADMAP Batch 10: "data
- *  starts accruing the moment Batch 1 lands, so log now, build later"). */
+ *  across every player's past games as its target — the "easy mode" word-selection bias —
+ *  excluding this player's own words currently in mastery cooldown (see
+ *  pickPersonalizedWord above; "shouldn't come up again for ~100 turns" is a global rule,
+ *  not specific to the default/non-easy path). Returns null when nothing yet qualifies;
+ *  callers fall back to pickPersonalizedWord. As of 2026-07-30, per MIN_ATTEMPTS_FOR_
+ *  DIFFICULTY's own comment above, this is the effectively-always-null branch at this
+ *  project's traffic — correct to keep, but not worth further query optimisation here;
+ *  pickPersonalizedWord is the one that actually runs on every game start. */
 export async function pickEasyWord(
   sql: Sql,
   wordlistId: number,
   length: number,
+  playerId: string,
 ): Promise<string | null> {
   const [row] = await sql<{ word: string }[]>`
     select w.word
       from words w
       join word_stats ws on ws.wordlist_id = w.wordlist_id and ws.word = w.word
      where w.wordlist_id = ${wordlistId} and w.length = ${length} and w.active
+       and w.word not in (
+         select word from word_stats
+          where player_id = ${playerId} and wordlist_id = ${wordlistId}
+            and mastered_at_game_number is not null
+            and (select count(*)::int from games where player_id = ${playerId}) - mastered_at_game_number
+                  < ${MASTERY_COOLDOWN_GAMES}
+       )
      group by w.word
     having sum(ws.times_solved) + sum(ws.times_failed) >= ${MIN_ATTEMPTS_FOR_DIFFICULTY}
        and sum(ws.times_solved)::float / (sum(ws.times_solved) + sum(ws.times_failed))
@@ -146,19 +204,14 @@ interface LongestWordRow {
   word: string;
 }
 
-interface FailedWordRow {
-  word: string;
-  wordlist: string;
-  times_failed: number;
-  times_solved: number;
-}
-
 const EMPTY_STATS = {
   games_played: 0,
   completion_rate: 0,
   average_score_by_length: {} as Record<number, number>,
+  // Kept in the response (unlike per-word failure history, deliberately removed — product
+  // decision 2026-07-30, this isn't an educational/practice game) as a candidate data
+  // source for a future rotating "did you know" highlight, not a persistent history list.
   longest_word_found: null as string | null,
-  failed_words: [] as FailedWordRow[],
 };
 
 /** No identity (never played, or a stale/missing cookie) reads as an empty stats sheet
@@ -194,20 +247,6 @@ export async function getMyStats(playerId: string | null): Promise<Reply> {
      limit 1
   `;
 
-  // Joined to wordlists for its code (ROADMAP 6.1 widened this table's key to
-  // (player_id, wordlist_id, word), so a spelling shared by two languages, e.g. "ALMA",
-  // is now two distinct rows here — the code lets the frontend key/label them apart
-  // instead of colliding on `word` alone, which is a duplicate React key, not a display
-  // choice).
-  const failedWords = await sql<FailedWordRow[]>`
-    select ws.word, wl.code as wordlist, ws.times_failed, ws.times_solved
-      from word_stats ws
-      join wordlists wl on wl.id = ws.wordlist_id
-     where ws.player_id = ${playerId} and ws.times_failed > 0
-     order by ws.times_failed desc, ws.word
-     limit 50
-  `;
-
   return {
     status: 200,
     body: {
@@ -217,7 +256,6 @@ export async function getMyStats(playerId: string | null): Promise<Reply> {
         avgByLength.map((row) => [row.target_length, row.avg_score]),
       ),
       longest_word_found: longest?.word ?? null,
-      failed_words: failedWords,
     },
   };
 }

@@ -26,7 +26,7 @@ import {
   signatureOf,
   subSignatures,
 } from "./words.js";
-import { hasFailedBefore, pickEasyWord, recordFailed, recordSolved } from "./word-stats.js";
+import { pickEasyWord, pickPersonalizedWord, recordFailed, recordSolved } from "./word-stats.js";
 
 export interface Reply {
   status: number;
@@ -201,19 +201,23 @@ export async function startGame(
     await sql`insert into players (id) values (${playerId})`;
   }
 
-  // Uniform among active words of the requested length by default. "Easy mode" (ROADMAP
-  // Batch 10) biases this toward words with a proven-high aggregate success rate instead;
-  // pickEasyWord returns null (falling through to the uniform pick below) when nothing yet
-  // qualifies. As of 2026-07-30 this is the common case in production, not an edge case:
-  // MIN_ATTEMPTS_FOR_DIFFICULTY (lib/word-stats.ts) needs 5 attempts on one exact word, but
-  // uniform-random selection over a wordlist this size means most words are picked at most
-  // once. See that constant's own comment before assuming this self-corrects on its own.
-  // "Spaced-repetition polish" (Batch 10 item 3) shipped as a UI-only panel over this same
-  // word_stats data (lib/word-stats.ts's getMyStats) — it does not weight target selection.
-  // Weighting a player's own target draws toward their past failures is not built and is
-  // not part of any current roadmap item; it would belong here if ever taken up.
-  let target = difficultyMode === "easy" ? await pickEasyWord(sql, listId, targetLength) : null;
+  // Target selection (product decision 2026-07-30, replacing the old plain uniform-random
+  // draw): server-side only, never surfaced to the player as history. "Easy mode"
+  // (optional, ROADMAP Batch 10) biases toward words with a proven-high *aggregate*
+  // success rate across all players; pickEasyWord returns null (falling through) when
+  // nothing yet qualifies — as of 2026-07-30 that's the common case at this project's
+  // traffic, per MIN_ATTEMPTS_FOR_DIFFICULTY's own comment in lib/word-stats.ts, not an
+  // edge case. Every game (easy mode or not) then goes through pickPersonalizedWord: a
+  // word this player hasn't seen before is preferred, and a word they've personally
+  // mastered (>=90% solved) is excluded from being their target again for ~100 games —
+  // "shouldn't come up again" is a rule for every game, not just the default path. A
+  // plain uniform pick is the ultimate fallback, only reached if literally every active
+  // word of this length is in this player's own cooldown right now.
+  let target = difficultyMode === "easy" ? await pickEasyWord(sql, listId, targetLength, playerId) : null;
   const actualDifficulty = target ? "easy" : "normal";
+  if (!target) {
+    target = await pickPersonalizedWord(sql, listId, targetLength, playerId);
+  }
   if (!target) {
     const [pick] = await sql<{ word: string }[]>`
       select word from words
@@ -228,7 +232,6 @@ export async function startGame(
   }
   const possible = await findableWords(sql, listId, target, config.min_word_length);
   const scrambled = scrambleWord(target);
-  const wasFailedBefore = await hasFailedBefore(playerId, listId, target);
 
   const [game] = await sql<{ id: string; ends_at: Date }[]>`
     insert into games (player_id, wordlist_id, target_word, target_length, scrambled_letters,
@@ -252,7 +255,6 @@ export async function startGame(
       ends_at: epochSeconds(game.ends_at),
       duration_seconds: duration,
       possible_count: possible.length,
-      is_previously_failed: wasFailedBefore,
       // What actually happened, not just what was requested: an "easy" request silently
       // falls back to "normal" when no word yet qualifies (see the pick above) — echoing
       // the real outcome keeps the client from claiming an easy-mode game that isn't one.

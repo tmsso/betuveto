@@ -138,6 +138,10 @@ container/infra polish that the migration makes moot (flagged per item).*
   `target_word`; fetch the full remaining-words list only on game end.
 - **Accept:** with a game in progress, no API response contains the target word or any
   unfound word.
+- **`is_previously_failed` removed 2026-07-30** (Batch 10, product decision — see item 3's
+  updated note): per-word failure history is no longer shown to players at all, so the
+  flag this acceptance criterion built on no longer exists. `game/start` never leaked the
+  target word to begin with either way; this item's own accept condition still holds.
 
 ### 0.2 `[x]` Fix the shared-global-state hazard (interim mitigation)
 - One `GameState()` instance serves all clients: two simultaneous visitors overwrite each
@@ -488,6 +492,12 @@ Neon — nothing to migrate data-wise.*
   the old local history is meaningfully tied to a durable player anyway. Frontend: the old
   "Előzmények" panel is gone, replaced by a "📊 Statisztikám" panel (games played,
   completion rate, avg score per length, longest word, failed words with counts).
+  **Revised 2026-07-30** (Batch 10, product decision — see item 3's updated note): the
+  per-word failed-words list and the `is_previously_failed` flag were both removed from
+  this endpoint/panel entirely — this isn't an educational/practice game, so no per-word
+  history is shown to players. `longest_word_found` stays in the response (not currently
+  displayed, kept as a candidate data source for a future fun-fact highlight) but the
+  panel is otherwise just games played / completion rate / avg score by length now.
 
 ---
 
@@ -987,33 +997,54 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    live-play volume — a decision for whoever picks this up next, not made here.
 3. `[x]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
    distinctive learning feature; once server-side (Batch 1), expose it: "words you're
-   practising" panel, per-word progress. Purely UI — `lib/word-stats.ts`'s `getMyStats`
-   already serves this data, nothing new to build server-side.
-   **Shipped, UI only per this item's own text — confirmed with the user first:** a
-   pre-existing comment in `lib/game.ts`'s `startGame` (predating this session) described
-   this item differently — as server-side weighting of target-word draws toward a player's
-   own past failures. That's a real gameplay change this item's own text doesn't ask for;
-   asked which was intended rather than silently picking one, and built the UI-only scope
-   as written here. New "🎯 Gyakorlásra váró szavak" (words to practice) panel in
-   `App.jsx`, its own toggle alongside the stats/high-score panels — reuses
-   `stats.failed_words` (already fetched for the general stats panel), no new endpoint or
-   fetch. Re-sorted client-side by this player's own success rate ascending (struggling
-   words first, then most-failed as tiebreaker) rather than the general stats panel's raw
-   most-failed-first order — different framing for the same data. Per-word progress shown
-   as a solved/attempts count plus a proportional bar (green, width = success rate; full
-   red when never yet solved). Initially verified only via the data contract (no browser
-   tool available yet that session) — **later confirmed by an actual headless-Playwright
-   click-through against production**, same session, once the user pointed out Playwright
-   was available: opened the panel after a real give-up, confirmed a progress row renders
-   with correct `aria-valuenow`/`aria-label` and the expected word. **Run Playwright against
-   the live deployment, not local `vercel dev`:** a real browser (not curl) hitting local
-   dev 500s on every request — Vite's HTML transform chokes on this file's own `<title>`
-   (the accented "Betűvető - Magyar szójáték"), reproducible with plain `vite` too, so it's
-   not `vercel dev`-specific. Confirmed via byte-vs-character length: the line is 45
-   characters but 50 UTF-8 bytes, and the reported error column (45) is exactly the
-   *character* count — a byte/character-offset bug in the toolchain, not in this file.
-   Unrelated to this session's changes (the file hasn't changed in a long time) and not
-   investigated further (Vite/Node version pinning would be the next step).
+   practising" panel, per-word progress.
+   **Shipped as a UI-only panel first (same day), then reversed and rebuilt server-side
+   (same day, product correction) — this item's final, actual scope is the second entry
+   below.**
+   - **First shipped, UI only per this item's original text — confirmed with the user
+     first:** a pre-existing comment in `lib/game.ts`'s `startGame` (predating that
+     session) described this item differently — as server-side weighting of target-word
+     draws toward a player's own past failures. Asked which was intended rather than
+     silently picking one; user confirmed UI-only at that point. Built a "🎯 Gyakorlásra
+     váró szavak" (words to practice) panel reusing `getMyStats`'s `failed_words`, no new
+     endpoint. Verified (including an actual headless-Playwright click-through against
+     production once the user pointed out Playwright was available, not just the Chrome
+     extension — a local `vercel dev`/`vite` bug this surfaced, unrelated to any of this
+     session's changes, is recorded in this project's session memory, not repeated here)
+     and shipped.
+   - **Reversed the same day:** the user pushed back — this is not an educational/practice
+     game, and revealing any per-word history to players (which words they failed, a
+     "previously failed" badge, a practice list) was a design mistake to have overlooked,
+     not a feature to keep. The UI-only interpretation confirmed above turned out to be
+     the *wrong* one after all; the pre-existing `lib/game.ts` comment's server-side
+     framing was actually closer to the real intent, just under-specified. Removed
+     entirely: the practice panel, the general stats panel's failed-words list, and the
+     `is_previously_failed` "previously missed" badge (Batch 0.1) — all deleted from both
+     the frontend and the API response (`getMyStats`, `game/start`), not just hidden.
+     `longest_word_found` was kept (backend field only, not currently displayed) as a
+     candidate data source for a *future*, different kind of feature: a non-exhaustive,
+     occasionally-surfaced "did you know" highlight (e.g. fastest solve, longest streak)
+     between turns — explicitly not built this session, a later idea only.
+   - **What actually replaced it — real server-side personalization, word_stats' original
+     stated purpose (its own table comment since migrations/0001: "feeding the failed-word
+     reappearance weighting") finally built:** `lib/word-stats.ts`'s `recordSolved`/
+     `recordFailed` now also stamp `mastered_at_game_number` (migrations/0013) — this
+     player's total game count, snapshotted the moment their own solve rate for a word
+     first reaches 90% (no minimum-sample floor, deliberately different from
+     `MIN_ATTEMPTS_FOR_DIFFICULTY`'s cross-player noise guard elsewhere in the same file —
+     a single personal solve is already a legitimate "don't show me this again" signal),
+     cleared back to null if a later failure drops the rate back below 90%. New
+     `pickPersonalizedWord()` is the new default target picker (replacing the old plain
+     `order by random()`): prefers a word this player has never had as a target before,
+     excludes any word currently in that player's own ~100-game mastery cooldown, one
+     query (`LEFT JOIN` + `order by (ws.word is null) desc, random()`). "Easy mode"
+     (item 2) now also respects the same cooldown. **Performance verified against
+     production before shipping, not assumed:** `EXPLAIN ANALYZE` at the widest real case
+     (English, length 9, ~41k candidate words) — tens of milliseconds, same order of
+     magnitude as the plain `order by random()` query already running on every game start
+     since Batch 1; the new `LEFT JOIN` against `word_stats` (currently ~100 rows) adds
+     negligible cost. None of this is visible to the player — no badge, no panel, no
+     history — it only changes which word gets picked.
 4. `[x]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
    focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake). A
    correctness gap, not a nice-to-have — cheaper the sooner it's done.
