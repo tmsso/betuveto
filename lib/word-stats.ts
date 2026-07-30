@@ -18,13 +18,30 @@ import type { Reply } from "./game.js";
 const MASTERY_COOLDOWN_GAMES = 100;
 const MASTERY_THRESHOLD = 0.9;
 
+// KNOWN CORRECTION, not yet implemented (flagged by the user 2026-07-30, after this
+// shipped in PR #42): "mastered" below is computed wrong. It currently means "this exact
+// word, as a target, was found >=90% of the times this player was ever given it" — an
+// aggregate ratio across repeated encounters with the *same* target word. What was
+// actually asked for is per-game and letter-weighted: within a *single* game, did the
+// player find words whose combined *letter count* reach >=90% of the combined letter
+// count of every findable word on that board (e.g. finding 45 of a board's 50 total
+// letters-across-possible-words qualifies) — a near-full-clear, not a repeated-target
+// solve rate. One clean qualifying game should be enough to trigger the cooldown; it
+// should not require the same word to have been a target more than once. Fixing this
+// needs lib/game.ts to compute that per-game letter-clear percentage where `possible` and
+// the player's found words are already known (guess()'s completion branch, finalizeExpiry,
+// giveUp) and pass it through to a revised recordSolved/recordFailed, instead of inferring
+// mastery from word_stats' own times_solved/times_failed ratio as done here. Not fixed in
+// this session — recorded so a future session builds the right thing, not this.
 /** A correct guess of the target word — recorded once, the instant it happens. Also
  *  stamps mastered_at_game_number (this player's total game count right now) the moment
  *  their own solve rate for this word first reaches MASTERY_THRESHOLD — no minimum sample
  *  required here, unlike MIN_ATTEMPTS_FOR_DIFFICULTY below: a single clean solve (1/1) is
  *  already a legitimate personal signal for "don't serve me this again next turn," whereas
  *  that other threshold guards against *sparse aggregate* data across many different
- *  players being mistaken for a real difficulty signal — a different problem. */
+ *  players being mistaken for a real difficulty signal — a different problem.
+ *  (See the KNOWN CORRECTION comment above this function — the *criterion* itself is
+ *  provisional/wrong, independent of the above reasoning about sample size.) */
 export async function recordSolved(
   sql: Sql,
   playerId: string | null,

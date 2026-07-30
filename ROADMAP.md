@@ -1045,6 +1045,20 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
      since Batch 1; the new `LEFT JOIN` against `word_stats` (currently ~100 rows) adds
      negligible cost. None of this is visible to the player — no badge, no panel, no
      history — it only changes which word gets picked.
+   - **Known correction, flagged by the user right after this shipped, not yet
+     implemented:** "mastered" is computed wrong. As built, it's an aggregate ratio —
+     across every time this exact word was ever this player's target, was it found
+     ≥90% of those times. What was actually wanted is per-game and letter-weighted: within
+     a *single* game, did the words the player found add up to ≥90% of the total letters
+     across every findable word on that board (e.g. finding 45 of a board's 50
+     total-letters-across-possible-words qualifies as 90%) — a near-full-clear in one
+     sitting, not a repeated-encounter solve rate; one qualifying game should be enough to
+     trigger the cooldown. Fixing this means computing that per-game percentage in
+     `lib/game.ts` (where `possible` and the player's found words are already known —
+     `guess()`'s completion branch, `finalizeExpiry`, `giveUp`) and threading it into a
+     revised `recordSolved`/`recordFailed`, not inferring mastery from `word_stats`' own
+     times_solved/times_failed ratio the way `mastered_at_game_number` does today. See the
+     "KNOWN CORRECTION" comment in `lib/word-stats.ts` for the same note in-code.
 4. `[x]` **Accessibility pass** — the letter buttons and animations need ARIA labels,
    focus order, reduced-motion support (`prefers-reduced-motion` for confetti/shake). A
    correctness gap, not a nice-to-have — cheaper the sooner it's done.
