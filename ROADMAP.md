@@ -952,11 +952,29 @@ items shouldn't bury the one item that's both cheap *and* high-value. Order isn'
 dependency chain (most items are independent); it's a priority queue, revisit freely.
 
 1. `[ ]` **Daily puzzle + streaks** (see 7.2 note — arguably belongs before multiplayer).
-2. `[ ]` **Difficulty rating per word** — % of games where the target was found; feed back
+2. `[x]` **Difficulty rating per word** — % of games where the target was found; feed back
    into word selection ("easy mode" picks well-known words). Data starts accruing the
    moment Batch 1 lands, so log now, build later. Pairs naturally with the 5.2 item 4
    dashboard already shipped — a "hardest words" view is a small extension of the
    existing "most-failed words" query in `lib/admin-dashboard.ts`.
+   **Shipped:** `word_stats` (written since Batch 3.3, only ever for a game's *target*
+   word) already *is* this data — `lib/word-stats.ts`'s new `getHardestWords()` /
+   `pickEasyWord()` aggregate it across all players, scoped per wordlist, gated behind a
+   `MIN_ATTEMPTS_FOR_DIFFICULTY = 5` floor so a word tried once or twice can't read as an
+   artificial 0%/100%. New index `migrations/0012` matches the `group by (wordlist_id,
+   word)` both queries share. Admin dashboard: a new "hardest words" (lowest success rate)
+   section alongside the existing "most failed" (raw count) one — **real pre-existing bug
+   fixed in the same PR:** `most_failed_words` was never scoped by wordlist, so a spelling
+   shared between hu/en (e.g. "ALMA") silently merged its counts across languages, the same
+   bug shape `getMyStats`'s `failed_words` had (fixed in PR #37) — never caught here since
+   it's an admin-only view. Easy mode: `POST /api/v1/game/start?difficulty=easy` biases
+   target selection toward words with a proven ≥60% aggregate success rate; falls back to
+   the normal uniform-random pick (silently, not an error) whenever nothing yet qualifies
+   for a given wordlist+length — an expected cold start that self-corrects as more games
+   accrue history, not a bug. The response's `difficulty` field always echoes the actual
+   outcome, never just the request, so the frontend's toggle can't claim an easy-mode game
+   that quietly wasn't one. Frontend: a session-local (not persisted) "Könnyű mód" checkbox
+   next to the length/wordlist selectors, same "restart only if safe" rule as those.
 3. `[ ]` **Spaced-repetition polish** — the failed-word reappearance system is a genuinely
    distinctive learning feature; once server-side (Batch 1), expose it: "words you're
    practising" panel, per-word progress. Purely UI — `lib/word-stats.ts`'s `getMyStats`

@@ -26,7 +26,7 @@ import {
   signatureOf,
   subSignatures,
 } from "./words.js";
-import { hasFailedBefore, recordFailed, recordSolved } from "./word-stats.js";
+import { hasFailedBefore, pickEasyWord, recordFailed, recordSolved } from "./word-stats.js";
 
 export interface Reply {
   status: number;
@@ -151,6 +151,10 @@ export async function startGame(
   // the players row" and "echo the Set-Cookie back", so the two can never drift apart.
   setCookieHeader?: string,
   wordlistCode?: string,
+  // ROADMAP Batch 10 "easy mode": any value other than exactly "easy" plays normally, the
+  // same permissive convention as an unrecognised query param elsewhere in this API — no
+  // 422 branch needed for a value whose worst case is just "played the normal way".
+  difficultyMode?: string,
 ): Promise<Reply> {
   if (
     !Number.isInteger(targetLength) ||
@@ -197,21 +201,27 @@ export async function startGame(
     await sql`insert into players (id) values (${playerId})`;
   }
 
-  // Uniform among active words of the requested length. The per-player weighting that
-  // resurfaces previously-failed words (ROADMAP Batch 10's spaced-repetition polish) is
-  // still future work; what Batch 3.3 adds is just telling the client this specific
-  // target has burned this player before (is_previously_failed, below).
-  const [pick] = await sql<{ word: string }[]>`
-    select word from words
-     where wordlist_id = ${listId} and length = ${targetLength} and active
-     order by random()
-     limit 1
-  `;
-  if (!pick) {
+  // Uniform among active words of the requested length by default. "Easy mode" (ROADMAP
+  // Batch 10) biases this toward words with a proven-high aggregate success rate instead;
+  // pickEasyWord returns null (falling through to the uniform pick below) when nothing yet
+  // qualifies — a cold-start case, not an error, since the qualifying pool only grows as
+  // more games accrue word_stats history. The per-player weighting that resurfaces a given
+  // player's own previously-failed words (spaced-repetition polish) is a separate,
+  // frontend-only feature reading the same word_stats data — see lib/word-stats.ts.
+  let target = difficultyMode === "easy" ? await pickEasyWord(sql, listId, targetLength) : null;
+  const actualDifficulty = target ? "easy" : "normal";
+  if (!target) {
+    const [pick] = await sql<{ word: string }[]>`
+      select word from words
+       where wordlist_id = ${listId} and length = ${targetLength} and active
+       order by random()
+       limit 1
+    `;
+    target = pick?.word ?? null;
+  }
+  if (!target) {
     return { status: 404, body: { detail: `No words found with length ${targetLength}` } };
   }
-
-  const target = pick.word;
   const possible = await findableWords(sql, listId, target, config.min_word_length);
   const scrambled = scrambleWord(target);
   const wasFailedBefore = await hasFailedBefore(playerId, listId, target);
@@ -239,6 +249,10 @@ export async function startGame(
       duration_seconds: duration,
       possible_count: possible.length,
       is_previously_failed: wasFailedBefore,
+      // What actually happened, not just what was requested: an "easy" request silently
+      // falls back to "normal" when no word yet qualifies (see the pick above) — echoing
+      // the real outcome keeps the client from claiming an easy-mode game that isn't one.
+      difficulty: actualDifficulty,
       // Not the auth token itself (that stays HttpOnly) — just the id, so a black-box
       // test (or a future /me endpoint) can assert continuity across requests.
       player_id: playerId,

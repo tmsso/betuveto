@@ -82,7 +82,7 @@ export default function AdminDashboardPanel({ token, onAuthError }) {
         </table>
       </section>
 
-      <section>
+      <section className="mb-8">
         <h2 className="text-lg font-bold mb-2">Leggyakrabban elvétett szavak</h2>
         {stats.most_failed_words.length === 0 ? (
           <p className="text-sm text-game-primary/60">Nincs még elég adat.</p>
@@ -91,16 +91,49 @@ export default function AdminDashboardPanel({ token, onAuthError }) {
             <thead>
               <tr className="text-left border-b-2 border-game-border bg-blue-50">
                 <th className="py-2 px-2">Szó</th>
+                <th className="py-2 px-2">Szótár</th>
                 <th className="py-2 px-2">Elvétve</th>
                 <th className="py-2 px-2">Megoldva</th>
               </tr>
             </thead>
             <tbody>
               {stats.most_failed_words.map((w) => (
-                <tr key={w.word} className="border-b border-game-border/40">
+                <tr key={`${w.wordlist}-${w.word}`} className="border-b border-game-border/40">
                   <td className="py-2 px-2 font-semibold">{w.word}</td>
+                  <td className="py-2 px-2">{w.wordlist}</td>
                   <td className="py-2 px-2">{w.times_failed}</td>
                   <td className="py-2 px-2">{w.times_solved}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ROADMAP Batch 10 "difficulty rating per word": ranked by success rate rather than
+          raw fail count, and requires a minimum sample (lib/word-stats.ts) so a word tried
+          only once or twice can't look artificially unbeatable. */}
+      <section>
+        <h2 className="text-lg font-bold mb-2">Legnehezebb szavak (megoldási arány szerint)</h2>
+        {stats.hardest_words.length === 0 ? (
+          <p className="text-sm text-game-primary/60">Nincs még elég adat.</p>
+        ) : (
+          <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
+            <thead>
+              <tr className="text-left border-b-2 border-game-border bg-blue-50">
+                <th className="py-2 px-2">Szó</th>
+                <th className="py-2 px-2">Szótár</th>
+                <th className="py-2 px-2">Megoldási arány</th>
+                <th className="py-2 px-2">Próbálkozások</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.hardest_words.map((w) => (
+                <tr key={`${w.wordlist}-${w.word}`} className="border-b border-game-border/40">
+                  <td className="py-2 px-2 font-semibold">{w.word}</td>
+                  <td className="py-2 px-2">{w.wordlist}</td>
+                  <td className="py-2 px-2">{Math.round(w.success_rate * 100)}%</td>
+                  <td className="py-2 px-2">{w.times_solved + w.times_failed}</td>
                 </tr>
               ))}
             </tbody>
