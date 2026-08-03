@@ -9,6 +9,6 @@
     { "source": "/api/game/:path*", "destination": "/api/v1/game/:path*" },
     { "source": "/api/words/:path*", "destination": "/api/v1/words/:path*" },
     { "source": "/api/v1/:path*", "destination": "/api/v1/[...path]" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|src/|@|node_modules/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
