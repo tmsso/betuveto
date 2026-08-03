@@ -81,6 +81,10 @@
     "reportAriaLabel": "{{word}} jelentése hibás szóként",
     "reportTitle": "Jelentés hibás szóként"
   },
+  "dictionary": {
+    "lookupAriaLabel": "{{word}} keresése a Wikiszótárban (új lapon nyílik meg)",
+    "lookupTitle": "Jelentés keresése a Wikiszótárban"
+  },
   "remainingWords": {
     "show": "🔽 Hiányzó szavak megjelenítése ({{count}} szó)",
     "hide": "🔼 Rejtett szavak elrejtése"

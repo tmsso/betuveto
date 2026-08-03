@@ -5,6 +5,7 @@ import ReactCanvasConfetti from 'react-canvas-confetti'
 import ConfirmationModal from './ConfirmationModal'
 import OfflineNotice from './OfflineNotice'
 import InstallPrompt from './InstallPrompt'
+import { definitionUrl } from './dictionary'
 
 const canvasStyles = {
   position: 'fixed',
@@ -1163,6 +1164,18 @@ function App() {
                     ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 scale-110' : ''}`}
                 >
                   {word} ({t('foundWords.points', { points: word.length * word.length })})
+                  {isTimeUp && definitionUrl(word, gameWordlist) && (
+                    <a
+                      href={definitionUrl(word, gameWordlist)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={t('dictionary.lookupAriaLabel', { word })}
+                      title={t('dictionary.lookupTitle')}
+                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-blue-700"
+                    >
+                      📖
+                    </a>
+                  )}
                   <button
                     onClick={() => handleReportWord(word)}
                     disabled={reportedWords.has(word)}
@@ -1198,6 +1211,18 @@ function App() {
                             .map((word, index) => (
                                 <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
                                     {word}
+                                    {definitionUrl(word, gameWordlist) && (
+                                      <a
+                                        href={definitionUrl(word, gameWordlist)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label={t('dictionary.lookupAriaLabel', { word })}
+                                        title={t('dictionary.lookupTitle')}
+                                        className="leading-none opacity-60 hover:opacity-100 hover:text-blue-700"
+                                      >
+                                        📖
+                                      </a>
+                                    )}
                                     <button
                                         onClick={() => handleReportWord(word)}
                                         disabled={reportedWords.has(word)}

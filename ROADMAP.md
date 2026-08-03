@@ -1100,8 +1100,19 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
 5. `[ ]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
    in CI; catches the "white screen" class of regressions that has already happened once
    in this repo's history.
-6. `[ ]` **Definition lookup** — link found/missed words to a dictionary (e.g. Wiktionary)
-   at game end; big learning value, trivial to add.
+6. `[x]` **Definition lookup** — link found/missed words to a dictionary at game end.
+   **Shipped 2026-08-03:** each word chip shown after a game ends now links to its
+   language-appropriate Wiktionary entry (Hungarian or English, determined by the active
+   wordlist rather than the interface language). Links open safely in a new tab and have
+   localised accessible labels.
+   **Correction, same day, before merge:** the first draft built the URL from the game's
+   internal (uppercase) word form; Wiktionary page titles are case-sensitive and lowercase
+   for ordinary words, so every link 404'd. Confirmed live (curl) that the uppercase form
+   404s and the lowercased form 200s for several Hungarian entries, then lowercased in
+   `definitionUrl` and fixed the unit test, which had been asserting the broken (uppercase)
+   URL as correct. **Known residual gap:** lowercasing also erases proper-noun casing, so a
+   proper noun in the wordlist would still link to a 404 — accepted, not fixed, since there's
+   no information left post-normalization to recover correct casing.
 7. `[ ]` **Dark mode** (Tailwind `dark:` variants; persist per player). Good vehicle to
    finally do the frontend refactor below, since it touches most of `App.jsx` anyway.
 8. `[ ]` **Sound effects + toggle.**

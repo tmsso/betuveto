@@ -81,6 +81,10 @@
     "reportAriaLabel": "Report {{word}} as wrong",
     "reportTitle": "Report as wrong"
   },
+  "dictionary": {
+    "lookupAriaLabel": "Look up {{word}} in Wiktionary (opens in a new tab)",
+    "lookupTitle": "Look up definition in Wiktionary"
+  },
   "remainingWords": {
     "show": "🔽 Show missing words ({{count}} words)",
     "hide": "🔼 Hide missing words"

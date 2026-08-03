@@ -4,6 +4,9 @@ Form as many valid Hungarian words as you can from a set of scrambled letters
 before the timer runs out. Longer words score more (points = word length²), and
 finding every possible word clears the board.
 
+When a game ends, every found or revealed word has a link to its entry in the
+appropriate Wiktionary edition (Hungarian or English).
+
 ## Stack
 
 - **Frontend:** React 19 + Vite 7 + Tailwind CSS 3 (PWA-enabled)
