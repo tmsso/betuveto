@@ -8,6 +8,12 @@
  * The target word is computed locally the same way tests/contract.test.ts already does:
  * read the board's own letters off the rendered page, then find a real word the board can
  * spell from the shared Hungarian wordlist — deterministic, no server-side knowledge needed.
+ *
+ * The flat wordlist file and the live `words` table can drift (an admin can delete a row —
+ * ROADMAP 5.2 item 1 — without the file changing; this repo already hit exactly this
+ * divergence once, PR #27's `total_words` assertion). A single candidate word could
+ * therefore be rejected for a reason that has nothing to do with this PR, so this tries a
+ * short list of candidates and only fails if every one of them does.
  */
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -16,6 +22,7 @@ import { expect, test } from '@playwright/test'
 import { canFormWord, letterCount, normalizeWord } from '../../lib/words.js'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const MAX_CANDIDATES = 5
 
 async function loadDictionary(): Promise<string[]> {
   const raw = await readFile(path.join(REPO_ROOT, 'data', 'magyar-szavak.txt'), 'utf-8')
@@ -41,24 +48,41 @@ test('start a game, guess a word, and see the score update', async ({ page }) =>
   const letters = (await board.getByRole('button').allTextContents()).join('')
   expect(letters.length).toBeGreaterThan(0)
 
-  const target = dictionary.find(
-    (word) => letterCount(word) <= letters.length && canFormWord(word, letters),
-  )
-  expect(target, `no findable word for board "${letters}" in the local dictionary`).toBeTruthy()
+  const candidates = dictionary
+    .filter((word) => letterCount(word) <= letters.length && canFormWord(word, letters))
+    .slice(0, MAX_CANDIDATES)
+  expect(candidates, `no findable word for board "${letters}" in the local dictionary`).not.toHaveLength(0)
 
   const score = page.getByLabel(/^Pontszám:/)
+  const guessInput = page.getByLabel('Tipp beírása')
   const scoreBefore = (await score.getAttribute('aria-label')) || ''
 
-  const guessInput = page.getByLabel('Tipp beírása')
-  await guessInput.fill(target!)
-  await page.getByLabel('Tipp beküldése').click()
+  let accepted: string | null = null
+  for (const candidate of candidates) {
+    await guessInput.fill(candidate)
+    await page.getByLabel('Tipp beküldése').click()
 
-  // A correct guess adds the word to "Talált szavak" and raises the score.
+    // Poll briefly for the score to move; a rejected guess (e.g. this candidate has since
+    // been removed from the live `words` table — see the file-comment above) never does,
+    // so this must have a bounded wait rather than an assertion that throws.
+    let moved = false
+    for (let i = 0; i < 10 && !moved; i++) {
+      await page.waitForTimeout(200)
+      moved = (await score.getAttribute('aria-label')) !== scoreBefore
+    }
+    if (moved) {
+      accepted = candidate
+      break
+    }
+    await guessInput.fill('')
+  }
+  expect(
+    accepted,
+    `none of the wordlist-file candidates were accepted by the live dictionary: ${candidates.join(', ')}`,
+  ).not.toBeNull()
+
+  // A correct guess adds the word to "Talált szavak".
   await expect(page.getByRole('heading', { name: 'Talált szavak:' })).toBeVisible()
-  await expect(async () => {
-    const scoreAfter = (await score.getAttribute('aria-label')) || ''
-    expect(scoreAfter).not.toBe(scoreBefore)
-  }).toPass()
   // Rendered as "WORD (N pont)" in one text node, so this is a substring match.
-  await expect(page.getByText(target!, { exact: false }).first()).toBeVisible()
+  await expect(page.getByText(accepted!, { exact: false }).first()).toBeVisible()
 })
