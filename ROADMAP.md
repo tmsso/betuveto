@@ -1159,6 +1159,20 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    a production outage would fail this job even with entirely correct code — accepted
    since the existing contract suite already writes real data when pointed at a live
    deployment, and there was no lower-risk target available (see above).
+   **Side effect flagged, not fixed here — a candidate follow-up for whoever next touches
+   the admin dashboard (5.2 item 4) or item 9 (observability):** every CI run mints a
+   fresh anonymous player and plays one real game, so `games/day`/DAU on the dashboard now
+   partly count CI traffic, not people — at this project's actual traffic, CI runs could
+   dominate both numbers. No filtering (e.g. by a marker on the row, or the anonymous-
+   player pattern CI uses) has been built; decide with the user before building one, not
+   assumed.
+   **Hardened 2026-08-20, PR #47:** the original version picked its guess as the *first*
+   dictionary-file match for the board and asserted the live API would accept it — but the
+   flat file and the `words` table can drift (word maintenance, 5.2 item 1, deletes a row
+   without touching the file; this repo already hit exactly this divergence once, PR #27's
+   `total_words` assertion). A stale first-match candidate would fail *persistently* for a
+   subset of boards, not flakily — indistinguishable from a real regression. Now tries up
+   to 5 candidates per run, only failing if the live API rejects every one.
    **Two real bugs caught while writing this, not shipped broken:** (1) Playwright's
    default browser locale isn't Hungarian — the test initially failed because the UI
    rendered in English (`navigator.language` fallback, ROADMAP 6.2), silently using the
