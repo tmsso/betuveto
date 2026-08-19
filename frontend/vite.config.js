@@ -55,4 +55,18 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
   },
+  // ROADMAP Batch 10 item 5 (E2E smoke test): `vite preview` serves this build's own
+  // static output (no dev-time HTML transform, so the local vite-dev byte-offset bug —
+  // see the repo's own dev-server notes — can't apply here), proxied against the real
+  // production API rather than a local one, since this repo has no local API server since
+  // Batch 1.3's cutover to same-origin Vercel functions. Only affects `vite preview`;
+  // Vercel's own deploy never runs it.
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'https://betuveto.vercel.app',
+        changeOrigin: true,
+      },
+    },
+  },
 })

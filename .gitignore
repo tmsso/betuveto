@@ -117,3 +117,7 @@ zrinyi_*/
 # also swallow the committed .env.example, so be specific.
 .vercel/
 .env.local
+
+# Playwright (ROADMAP Batch 10 item 5's E2E smoke test)
+frontend/test-results/
+frontend/playwright-report/
