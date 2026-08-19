@@ -18,30 +18,10 @@ import type { Reply } from "./game.js";
 const MASTERY_COOLDOWN_GAMES = 100;
 const MASTERY_THRESHOLD = 0.9;
 
-// KNOWN CORRECTION, not yet implemented (flagged by the user 2026-07-30, after this
-// shipped in PR #42): "mastered" below is computed wrong. It currently means "this exact
-// word, as a target, was found >=90% of the times this player was ever given it" — an
-// aggregate ratio across repeated encounters with the *same* target word. What was
-// actually asked for is per-game and letter-weighted: within a *single* game, did the
-// player find words whose combined *letter count* reach >=90% of the combined letter
-// count of every findable word on that board (e.g. finding 45 of a board's 50 total
-// letters-across-possible-words qualifies) — a near-full-clear, not a repeated-target
-// solve rate. One clean qualifying game should be enough to trigger the cooldown; it
-// should not require the same word to have been a target more than once. Fixing this
-// needs lib/game.ts to compute that per-game letter-clear percentage where `possible` and
-// the player's found words are already known (guess()'s completion branch, finalizeExpiry,
-// giveUp) and pass it through to a revised recordSolved/recordFailed, instead of inferring
-// mastery from word_stats' own times_solved/times_failed ratio as done here. Not fixed in
-// this session — recorded so a future session builds the right thing, not this.
-/** A correct guess of the target word — recorded once, the instant it happens. Also
- *  stamps mastered_at_game_number (this player's total game count right now) the moment
- *  their own solve rate for this word first reaches MASTERY_THRESHOLD — no minimum sample
- *  required here, unlike MIN_ATTEMPTS_FOR_DIFFICULTY below: a single clean solve (1/1) is
- *  already a legitimate personal signal for "don't serve me this again next turn," whereas
- *  that other threshold guards against *sparse aggregate* data across many different
- *  players being mistaken for a real difficulty signal — a different problem.
- *  (See the KNOWN CORRECTION comment above this function — the *criterion* itself is
- *  provisional/wrong, independent of the above reasoning about sample size.) */
+/** A correct guess of the target word — recorded once, the instant it happens. Pure
+ *  counter; mastery is a separate concern (applyGameMastery below), computed once per
+ *  game at its true terminal transition rather than here at find-time, since a player can
+ *  keep finding other words for a while after landing the target. */
 export async function recordSolved(
   sql: Sql,
   playerId: string | null,
@@ -50,24 +30,15 @@ export async function recordSolved(
 ): Promise<void> {
   if (!playerId) return;
   await sql`
-    insert into word_stats (player_id, wordlist_id, word, times_solved, mastered_at_game_number)
-    values (${playerId}, ${wordlistId}, ${word}, 1,
-            (select count(*)::int from games where player_id = ${playerId}))
+    insert into word_stats (player_id, wordlist_id, word, times_solved)
+    values (${playerId}, ${wordlistId}, ${word}, 1)
     on conflict (player_id, wordlist_id, word)
-    do update set
-      times_solved = word_stats.times_solved + 1,
-      mastered_at_game_number = case
-        when (word_stats.times_solved + 1)::float
-             / (word_stats.times_solved + 1 + word_stats.times_failed) >= ${MASTERY_THRESHOLD}
-        then (select count(*)::int from games where player_id = ${playerId})
-        else word_stats.mastered_at_game_number
-      end
+    do update set times_solved = word_stats.times_solved + 1
   `;
 }
 
-/** A game that ended (expired / given up) without the target ever being found. Clears
- *  mastered_at_game_number back to null if the new failure drops this player's own solve
- *  rate for the word back below MASTERY_THRESHOLD, un-suppressing it. */
+/** A game that ended (expired / given up) without the target ever being found. Pure
+ *  counter, same split from mastery as recordSolved above. */
 export async function recordFailed(
   sql: Sql,
   playerId: string | null,
@@ -79,14 +50,44 @@ export async function recordFailed(
     insert into word_stats (player_id, wordlist_id, word, times_failed)
     values (${playerId}, ${wordlistId}, ${word}, 1)
     on conflict (player_id, wordlist_id, word)
-    do update set
-      times_failed = word_stats.times_failed + 1,
-      mastered_at_game_number = case
-        when word_stats.times_solved::float
-             / (word_stats.times_solved + word_stats.times_failed + 1) >= ${MASTERY_THRESHOLD}
-        then word_stats.mastered_at_game_number
-        else null
-      end
+    do update set times_failed = word_stats.times_failed + 1
+  `;
+}
+
+/** Stamps (or clears) mastered_at_game_number for (player, wordlist, target word) from
+ *  this one game's own outcome — the per-game, letter-weighted near-full-clear check
+ *  (ROADMAP Batch 10 item 3's KNOWN CORRECTION, fixed 2026-08-19): does the combined
+ *  letter count of the words this player found in *this* game reach MASTERY_THRESHOLD of
+ *  the combined letter count of every word findable on that board? One qualifying game is
+ *  enough — this deliberately does not require the same word to have been a target more
+ *  than once, unlike MIN_ATTEMPTS_FOR_DIFFICULTY below (a different problem: guarding
+ *  *cross-player aggregate* data against being sparse, not a single player's own signal).
+ *  Always overwrites: the most recent game where this word was the target determines
+ *  mastery now, not an accumulated times_solved/times_failed ratio — so a below-threshold
+ *  game clears any earlier mastery for this exact word, same as a qualifying game re-stamps
+ *  it to the current count. Called by lib/game.ts's finalizeWordStats exactly once per
+ *  game, after recordSolved/recordFailed has already run for that same game (a full clear
+ *  always includes finding the target; a timeout/give-up without it already called
+ *  recordFailed) — so the word_stats row is guaranteed to exist and this is a plain
+ *  UPDATE, not an upsert. */
+export async function applyGameMastery(
+  sql: Sql,
+  playerId: string | null,
+  wordlistId: number,
+  word: string,
+  letterClearFraction: number,
+): Promise<void> {
+  if (!playerId) return;
+  const masteredAtGameNumber =
+    letterClearFraction >= MASTERY_THRESHOLD
+      ? (await sql<{ count: number }[]>`
+          select count(*)::int as count from games where player_id = ${playerId}
+        `)[0].count
+      : null;
+  await sql`
+    update word_stats
+       set mastered_at_game_number = ${masteredAtGameNumber}
+     where player_id = ${playerId} and wordlist_id = ${wordlistId} and word = ${word}
   `;
 }
 

@@ -11,7 +11,7 @@
  * adapters in api/ stay trivial and the contract can be tested without a server.
  */
 import type { Sql } from "postgres";
-import { getConfig } from "./config.js";
+import { type GameConfig, getConfig } from "./config.js";
 import { DEFAULT_WORDLIST_CODE, db, wordlistAlphabet, wordlistId } from "./db.js";
 import {
   MAX_TARGET_LENGTH,
@@ -19,6 +19,7 @@ import {
   MIN_WORDS_PER_LENGTH,
   canFormWord,
   durationForLength,
+  letterClearFraction,
   letterCount,
   normalizeGuess,
   scoreFor,
@@ -26,7 +27,13 @@ import {
   signatureOf,
   subSignatures,
 } from "./words.js";
-import { pickEasyWord, pickPersonalizedWord, recordFailed, recordSolved } from "./word-stats.js";
+import {
+  applyGameMastery,
+  pickEasyWord,
+  pickPersonalizedWord,
+  recordFailed,
+  recordSolved,
+} from "./word-stats.js";
 
 export interface Reply {
   status: number;
@@ -120,27 +127,40 @@ export async function findableWords(
 /** A game whose deadline has passed but is still marked 'active' gets finalized the
  *  first time any endpoint notices — guess(), giveUp(), and getPossibleWords() (the
  *  reveal the frontend fetches right after its countdown hits zero) all call this before
- *  doing anything else. Only the invocation whose UPDATE actually flips the row records
- *  the word_stats failure, so two concurrent finalizers can't double-count it. */
-async function finalizeExpiry(sql: Sql, game: GameRow, now: Date): Promise<void> {
+ *  doing anything else. Only the invocation whose UPDATE actually flips the row runs
+ *  finalizeWordStats, so two concurrent finalizers can't double-count it. */
+async function finalizeExpiry(sql: Sql, game: GameRow, now: Date, config: GameConfig): Promise<void> {
   if (game.status !== "active" || now <= game.ends_at) return;
   const finalScore = effectiveScore(game.raw_guess_score, game.hint_cost_total);
   const result = await sql`
     update games set status = 'expired', ended_at = now(), final_score = ${finalScore}
      where id = ${game.id} and status = 'active'
   `;
-  if (result.count > 0) await recordFailureIfNeeded(sql, game);
+  if (result.count > 0) await finalizeWordStats(sql, game, config);
 }
 
-/** Records a failed target word for word_stats/3.3 — unless it was actually solved this
- *  game (a full board clear can coincide with the deadline in the same instant). */
-async function recordFailureIfNeeded(sql: Sql, game: GameRow): Promise<void> {
+/** Runs once, at a game's true terminal transition (a full clear inside guess(), a
+ *  lazily-discovered timeout in finalizeExpiry, or an explicit giveUp) — updates
+ *  word_stats for the target word: times_failed if it was never actually found this game
+ *  (skipped for a full clear, which always found it — the target is itself always one of
+ *  its own findable words), then applyGameMastery using this game's own letter-weighted
+ *  find rate (ROADMAP Batch 10 item 3's KNOWN CORRECTION fix). By the time this runs,
+ *  recordSolved has already fired at find-time if the target was found, so
+ *  applyGameMastery's word_stats row always exists either way. */
+async function finalizeWordStats(sql: Sql, game: GameRow, config: GameConfig): Promise<void> {
   const [solved] = await sql<{ x: number }[]>`
     select 1 as x from game_guesses
      where game_id = ${game.id} and word = ${game.target_word} and correct
      limit 1
   `;
   if (!solved) await recordFailed(sql, game.player_id, game.wordlist_id, game.target_word);
+
+  const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
+  const foundRows = await sql<{ word: string }[]>`
+    select word from game_guesses where game_id = ${game.id} and correct
+  `;
+  const fraction = letterClearFraction(possible, foundRows.map((row) => row.word));
+  await applyGameMastery(sql, game.player_id, game.wordlist_id, game.target_word, fraction);
 }
 
 export async function startGame(
@@ -274,7 +294,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   if (!game) return NOT_FOUND;
 
   const now = new Date();
-  await finalizeExpiry(sql, game, now);
+  await finalizeExpiry(sql, game, now, config);
   const status = effectiveStatus(game, now);
 
   if (status === "expired") {
@@ -426,6 +446,12 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   `;
   const foundCount = row.found_count;
   const gameEnded = row.game_ended;
+  // A full clear is a game's terminal transition too, same as a lazily-discovered timeout
+  // or an explicit give-up — apply the same word_stats finalization here. Always finds
+  // solved=true internally (a full clear can't happen without the target itself having
+  // been found, at this guess or an earlier one), so this only ever touches mastery, never
+  // times_failed.
+  if (gameEnded) await finalizeWordStats(sql, game, config);
   const completionBonus = gameEnded ? remainingSeconds * config.completion_bonus_multiplier : 0;
   // gameEnded's final_score comes straight back from the row just persisted (see the
   // comment above the UPDATE) rather than being recomputed here from the pre-insert
@@ -454,6 +480,7 @@ export async function giveUp(gameId: string): Promise<Reply> {
   const sql = db();
   const game = await loadGame(sql, gameId);
   if (!game) return NOT_FOUND;
+  const config = await getConfig();
 
   if (game.status === "active") {
     const finalScore = effectiveScore(game.raw_guess_score, game.hint_cost_total);
@@ -462,10 +489,9 @@ export async function giveUp(gameId: string): Promise<Reply> {
          set status = 'given_up', ended_at = now(), final_score = ${finalScore}
        where id = ${game.id} and status = 'active'
     `;
-    if (result.count > 0) await recordFailureIfNeeded(sql, game);
+    if (result.count > 0) await finalizeWordStats(sql, game, config);
   }
 
-  const config = await getConfig();
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   // No display string (ROADMAP 6.2): target_word is already in the body, and "the full
   // word was X" is exactly one sentence shape the frontend can build itself from that
@@ -529,7 +555,8 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
   // The frontend fetches this the instant its own countdown hits zero — for most plays
   // this, not getState, is where a stale-active/expired row actually gets finalized.
   const now = new Date();
-  await finalizeExpiry(sql, game, now);
+  const config = await getConfig();
+  await finalizeExpiry(sql, game, now, config);
 
   if (effectiveStatus(game, now) === "active") {
     return {
@@ -538,7 +565,6 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
     };
   }
 
-  const config = await getConfig();
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   return { status: 200, body: { possible_words: possible } };
 }

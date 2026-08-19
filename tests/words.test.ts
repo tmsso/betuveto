@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   canFormWord,
   durationForLength,
+  letterClearFraction,
   letterCount,
   normalizeWord,
   scoreFor,
@@ -119,6 +120,34 @@ describe("scrambleWord", () => {
     const scrambled = scrambleWord("HANGKÖZ");
     expect(scrambled.split(" ").join("")).toHaveLength(7);
     expect(signatureOf(scrambled.split(" ").join(""))).toBe(signatureOf("HANGKÖZ"));
+  });
+});
+
+describe("letterClearFraction (ROADMAP Batch 10 item 3's KNOWN CORRECTION fix)", () => {
+  it("is the found letters over the total possible letters, not a word-count ratio", () => {
+    // Finding only the 7-letter word out of {3, 7} is "1 of 2" by word count (50%) but
+    // 7 of 10 total letters (70%) — the function must report the latter.
+    expect(letterClearFraction(["AAA", "BBBBBBB"], ["BBBBBBB"])).toBe(0.7);
+  });
+
+  it("is 1 for a full clear", () => {
+    expect(letterClearFraction(["ALMA", "BOR"], ["ALMA", "BOR"])).toBe(1);
+  });
+
+  it("is 0 when nothing was found", () => {
+    expect(letterClearFraction(["ALMA", "BOR"], [])).toBe(0);
+  });
+
+  it("weighs a missed long word more than a missed short one", () => {
+    // Missing the 3-letter word out of {3,3,3,10} hurts less than missing the 10-letter one.
+    const board = ["ABC", "DEF", "GHI", "JKLMNOPQRS"];
+    const missShort = letterClearFraction(board, ["DEF", "GHI", "JKLMNOPQRS"]);
+    const missLong = letterClearFraction(board, ["ABC", "DEF", "GHI"]);
+    expect(missShort).toBeGreaterThan(missLong);
+  });
+
+  it("does not divide by zero for an empty board", () => {
+    expect(letterClearFraction([], [])).toBe(0);
   });
 });
 
