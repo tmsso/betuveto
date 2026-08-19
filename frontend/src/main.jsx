@@ -1,7 +1,6 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
-import AdminApp from './AdminApp.jsx'
 // i18next init (ROADMAP 6.2) — must run before App renders so useTranslation() has a
 // ready instance on first render. AdminApp doesn't use it; importing unconditionally here
 // is still simplest and matches how the font imports below are also unconditional.
@@ -31,8 +30,20 @@ import './index.css'
 // Any tabs within the admin panel are component-local state, not sub-routes.
 const isAdminRoute = window.location.pathname.startsWith('/admin')
 
+// Lazy, not a static import (ROADMAP 5.2 follow-up): AdminApp now pulls in
+// @neondatabase/auth, which alone roughly doubles the bundle (measured: ~320kB -> ~650kB
+// minified) — a cost every *player* would otherwise pay on every visit for a feature only
+// an admin ever uses. A dynamic import makes it its own chunk, fetched only on /admin.
+const AdminApp = lazy(() => import('./AdminApp.jsx'))
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {isAdminRoute ? <AdminApp /> : <App />}
+    {isAdminRoute ? (
+      <Suspense fallback={null}>
+        <AdminApp />
+      </Suspense>
+    ) : (
+      <App />
+    )}
   </React.StrictMode>,
 )

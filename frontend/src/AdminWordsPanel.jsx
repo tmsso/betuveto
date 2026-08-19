@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 // Word maintenance (ROADMAP 5.2 item 1): search the wordlist, fix a typo in place, or
 // remove a row outright. Toggling active/inactive already lives in the queue tab
 // (accept/reject/reactivate) — this tab is only for the word text itself.
-export default function AdminWordsPanel({ token, onAuthError }) {
+export default function AdminWordsPanel({ authHeaders, onAuthError }) {
   const [query, setQuery] = useState('')
   const [words, setWords] = useState(null)
   const [error, setError] = useState(null)
@@ -17,7 +17,7 @@ export default function AdminWordsPanel({ token, onAuthError }) {
     setError(null)
     try {
       const response = await fetch(`/api/v1/admin/words?q=${encodeURIComponent(q)}`, {
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (response.status === 401) {
         onAuthError()
@@ -31,7 +31,7 @@ export default function AdminWordsPanel({ token, onAuthError }) {
     } finally {
       setLoading(false)
     }
-  }, [token, onAuthError])
+  }, [authHeaders, onAuthError])
 
   const handleSearchSubmit = (e) => {
     e.preventDefault()
@@ -49,7 +49,7 @@ export default function AdminWordsPanel({ token, onAuthError }) {
     try {
       const response = await fetch(`/api/v1/admin/words/${id}`, {
         method: 'PATCH',
-        headers: { 'x-admin-token': token, 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ word: editValue }),
       })
       if (response.status === 401) {
@@ -80,7 +80,7 @@ export default function AdminWordsPanel({ token, onAuthError }) {
     try {
       const response = await fetch(`/api/v1/admin/words/${word.id}`, {
         method: 'DELETE',
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (response.status === 401) {
         onAuthError()
