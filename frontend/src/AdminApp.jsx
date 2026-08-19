@@ -1,17 +1,29 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminConfigPanel from './AdminConfigPanel'
 import AdminDashboardPanel from './AdminDashboardPanel'
 import AdminPlayersPanel from './AdminPlayersPanel'
 import AdminWordsPanel from './AdminWordsPanel'
+import { authClient } from './neonAuth'
 
 // Interim admin auth (ROADMAP 5.1): a shared token, not a real per-admin login — see
 // lib/admin.ts for why. Stored client-side only in this browser's localStorage; never
-// sent anywhere except as this app's own x-admin-token header.
+// sent anywhere except as this app's own x-admin-token header. Kept in parallel with the
+// Neon Auth session below (ROADMAP 5.2 follow-up) per the transition plan there — a
+// same-day cutover risks locking out the only admin if the new path has an edge case
+// nobody's hit yet, so both stay live until the session path is confirmed working.
 const TOKEN_KEY = 'bv_admin_token'
 
 export default function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
   const [tokenInput, setTokenInput] = useState('')
+  // The Neon Auth session's own bearer JWT (ROADMAP 5.2 follow-up) — null until a magic
+  // link has actually been followed. Checked once on mount; getJWTToken() is this SDK's
+  // own cache, so this isn't a network call on every render.
+  const [sessionJwt, setSessionJwt] = useState(null)
+  const [sessionChecked, setSessionChecked] = useState(!authClient)
+  const [magicLinkEmail, setMagicLinkEmail] = useState('')
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [magicLinkError, setMagicLinkError] = useState(null)
   const [tab, setTab] = useState('dashboard')
   const [queue, setQueue] = useState(null)
   const [error, setError] = useState(null)
@@ -20,16 +32,33 @@ export default function AdminApp() {
   // that row's buttons disable rather than the whole page freezing during one request.
   const [pendingRows, setPendingRows] = useState(() => new Set())
 
-  const loadQueue = useCallback(async (activeToken) => {
+  useEffect(() => {
+    if (!authClient) return
+    authClient
+      .getJWTToken()
+      .then((jwt) => setSessionJwt(jwt))
+      .finally(() => setSessionChecked(true))
+  }, [])
+
+  // Whichever credential is live — the legacy token takes precedence only because it's
+  // the one already in localStorage from a prior session; a fresh magic-link sign-in sets
+  // sessionJwt, not token, so there's no real conflict in practice.
+  const authHeaders = useMemo(() => {
+    if (token) return { 'x-admin-token': token }
+    if (sessionJwt) return { Authorization: `Bearer ${sessionJwt}` }
+    return null
+  }, [token, sessionJwt])
+  const isAuthenticated = authHeaders !== null
+
+  const loadQueue = useCallback(async (headers) => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/v1/admin/queue', {
-        headers: { 'x-admin-token': activeToken },
-      })
+      const response = await fetch('/api/v1/admin/queue', { headers })
       if (response.status === 401) {
         localStorage.removeItem(TOKEN_KEY)
         setToken('')
+        setSessionJwt(null)
         setError('Érvénytelen token.')
         return
       }
@@ -43,8 +72,8 @@ export default function AdminApp() {
   }, [])
 
   useEffect(() => {
-    if (token && tab === 'queue' && !queue) loadQueue(token)
-  }, [token, tab, queue, loadQueue])
+    if (authHeaders && tab === 'queue' && !queue) loadQueue(authHeaders)
+  }, [authHeaders, tab, queue, loadQueue])
 
   const runMutation = useCallback(async (rowKey, path, decision) => {
     setPendingRows((prev) => new Set(prev).add(rowKey))
@@ -52,17 +81,18 @@ export default function AdminApp() {
     try {
       const response = await fetch(path, {
         method: 'POST',
-        headers: { 'x-admin-token': token, 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision }),
       })
       if (response.status === 401) {
         localStorage.removeItem(TOKEN_KEY)
         setToken('')
+        setSessionJwt(null)
         setError('Érvénytelen token.')
         return
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      await loadQueue(token)
+      await loadQueue(authHeaders)
     } catch (err) {
       setError(err.message || 'Hiba történt a művelet során.')
     } finally {
@@ -72,7 +102,7 @@ export default function AdminApp() {
         return next
       })
     }
-  }, [token, loadQueue])
+  }, [authHeaders, loadQueue])
 
   const handleResolveReport = (wordId, decision) =>
     runMutation(`report-${wordId}`, `/api/v1/admin/reports/${wordId}/resolve`, decision)
@@ -89,36 +119,95 @@ export default function AdminApp() {
     setTokenInput('')
   }
 
+  const handleMagicLinkSubmit = async (e) => {
+    e.preventDefault()
+    const trimmed = magicLinkEmail.trim()
+    if (!trimmed || !authClient) return
+    setMagicLinkError(null)
+    try {
+      await authClient.signIn.magicLink({
+        email: trimmed,
+        callbackURL: `${window.location.origin}/admin`,
+      })
+      setMagicLinkSent(true)
+    } catch (err) {
+      setMagicLinkError(err.message || 'Nem sikerült elküldeni a belépési linket.')
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY)
     setToken('')
+    setSessionJwt(null)
     setQueue(null)
+    setMagicLinkSent(false)
+    authClient?.signOut()
   }
 
-  if (!token) {
+  // Avoids a flash of the login form for a returning admin whose Neon Auth session is
+  // still valid — getJWTToken() is async even when it resolves from the SDK's own cache.
+  if (!sessionChecked) return null
+
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-game-paper p-6">
-        <form
-          onSubmit={handleTokenSubmit}
-          className="bg-white border-4 border-game-border rounded-lg p-6 w-full max-w-sm shadow-lg"
-        >
+        <div className="bg-white border-4 border-game-border rounded-lg p-6 w-full max-w-sm shadow-lg">
           <h1 className="text-xl font-extrabold text-game-primary mb-4">Betűvető admin</h1>
-          <input
-            type="password"
-            aria-label="Admin token"
-            value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value)}
-            placeholder="Admin token"
-            className="w-full border-2 border-game-border rounded p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-game-secondary"
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="w-full bg-game-secondary text-white font-semibold rounded p-2 hover:bg-blue-600 transition-colors"
-          >
-            Belépés
-          </button>
-        </form>
+
+          {authClient && (
+            <>
+              {magicLinkSent ? (
+                <p className="text-sm text-game-primary/80 mb-4">
+                  Belépési linket küldtünk a(z) <strong>{magicLinkEmail}</strong> címre. Kattints
+                  rá az e-mailben, hogy bejelentkezz.
+                </p>
+              ) : (
+                <form onSubmit={handleMagicLinkSubmit} className="mb-4">
+                  <input
+                    type="email"
+                    aria-label="E-mail cím"
+                    value={magicLinkEmail}
+                    onChange={(e) => setMagicLinkEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    className="w-full border-2 border-game-border rounded p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+                    autoFocus
+                  />
+                  {magicLinkError && (
+                    <p className="text-sm text-red-600 mb-2">{magicLinkError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    className="w-full bg-game-secondary text-white font-semibold rounded p-2 hover:bg-blue-600 transition-colors"
+                  >
+                    Belépési link küldése
+                  </button>
+                </form>
+              )}
+              <div className="flex items-center gap-2 text-xs text-game-primary/40 mb-4">
+                <div className="flex-1 border-t border-game-border" />
+                vagy
+                <div className="flex-1 border-t border-game-border" />
+              </div>
+            </>
+          )}
+
+          <form onSubmit={handleTokenSubmit}>
+            <input
+              type="password"
+              aria-label="Admin token"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder="Admin token"
+              className="w-full border-2 border-game-border rounded p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            />
+            <button
+              type="submit"
+              className="w-full bg-game-primary/80 text-white font-semibold rounded p-2 hover:bg-game-primary transition-colors"
+            >
+              Belépés tokennel
+            </button>
+          </form>
+        </div>
       </div>
     )
   }
@@ -158,10 +247,10 @@ export default function AdminApp() {
           ))}
         </div>
 
-        {tab === 'dashboard' && <AdminDashboardPanel token={token} onAuthError={handleLogout} />}
-        {tab === 'words' && <AdminWordsPanel token={token} onAuthError={handleLogout} />}
-        {tab === 'config' && <AdminConfigPanel token={token} onAuthError={handleLogout} />}
-        {tab === 'players' && <AdminPlayersPanel token={token} onAuthError={handleLogout} />}
+        {tab === 'dashboard' && <AdminDashboardPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
+        {tab === 'words' && <AdminWordsPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
+        {tab === 'config' && <AdminConfigPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
+        {tab === 'players' && <AdminPlayersPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
 
         {tab === 'queue' && (
         <>

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 // Read-only overview (ROADMAP 5.2 item 4): games/day + DAU for the trailing 30 days,
 // most-failed words, and open report/suggestion counts. Plain table, no chart library —
 // same "no component library" call as the rest of the admin shell (5.1).
-export default function AdminDashboardPanel({ token, onAuthError }) {
+export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
   const [stats, setStats] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -13,7 +13,7 @@ export default function AdminDashboardPanel({ token, onAuthError }) {
     setError(null)
     try {
       const response = await fetch('/api/v1/admin/dashboard', {
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (response.status === 401) {
         onAuthError()
@@ -26,7 +26,7 @@ export default function AdminDashboardPanel({ token, onAuthError }) {
     } finally {
       setLoading(false)
     }
-  }, [token, onAuthError])
+  }, [authHeaders, onAuthError])
 
   useEffect(() => {
     load()

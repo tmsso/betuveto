@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 // Player and leaderboard maintenance (ROADMAP 5.2 item 3). Merging duplicate players is
 // deliberately not here — it's the same operation Batch 8's Google OAuth merge rule
 // needs, and belongs with that design, not pre-empted here.
-export default function AdminPlayersPanel({ token, onAuthError }) {
+export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
   const [playerQuery, setPlayerQuery] = useState('')
   const [players, setPlayers] = useState(null)
   const [editingPlayerId, setEditingPlayerId] = useState(null)
@@ -27,7 +27,7 @@ export default function AdminPlayersPanel({ token, onAuthError }) {
     setError(null)
     try {
       const response = await fetch(`/api/v1/admin/players?q=${encodeURIComponent(q)}`, {
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (await withAuthCheck(response)) return
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -36,13 +36,13 @@ export default function AdminPlayersPanel({ token, onAuthError }) {
     } catch (err) {
       setError(err.message || 'Hiba történt a keresés során.')
     }
-  }, [token, withAuthCheck])
+  }, [authHeaders, withAuthCheck])
 
   const loadEntries = useCallback(async () => {
     setError(null)
     try {
       const response = await fetch('/api/v1/admin/scores', {
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (await withAuthCheck(response)) return
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -52,7 +52,7 @@ export default function AdminPlayersPanel({ token, onAuthError }) {
     } catch (err) {
       setError(err.message || 'Hiba történt a betöltéskor.')
     }
-  }, [token, withAuthCheck])
+  }, [authHeaders, withAuthCheck])
 
   const saveName = async (playerId) => {
     setPendingIds((prev) => new Set(prev).add(playerId))
@@ -60,7 +60,7 @@ export default function AdminPlayersPanel({ token, onAuthError }) {
     try {
       const response = await fetch(`/api/v1/admin/players/${playerId}`, {
         method: 'PATCH',
-        headers: { 'x-admin-token': token, 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ display_name: nameDraft }),
       })
       if (await withAuthCheck(response)) return
@@ -88,7 +88,7 @@ export default function AdminPlayersPanel({ token, onAuthError }) {
     try {
       const response = await fetch(`/api/v1/admin/games/${gameId}/disqualify`, {
         method: 'POST',
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (await withAuthCheck(response)) return
       if (!response.ok) {

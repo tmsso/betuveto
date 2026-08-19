@@ -705,6 +705,46 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    more specific risk than the general beta-API-stability risk accepted earlier in the same
    conversation. `@neondatabase/auth` was installed, found vulnerable, and removed from
    `frontend/package.json` again in the same session — never merged.
+
+   **Frontend shipped 2026-08-20 — hold lifted, CVE confirmed patched.** Re-checked before
+   resuming, not assumed: `npm view @neondatabase/auth@latest dependencies` now shows
+   `better-auth@1.6.23` (past the vulnerable `<1.6.22` range), and a real `npm audit`
+   against a fresh install shows no trace of GHSA-qq9h-g4jm-xgf3 — confirmed by the number,
+   not just "should be fixed by now." Also found, not previously known: `NEON_AUTH_JWKS_URL`
+   / `NEON_AUTH_BASE_URL` / `VITE_NEON_AUTH_URL` had never actually been set on Vercel
+   (`vercel env ls` showed nothing) despite the backend prep above shipping against them —
+   and zero `players` rows had `is_admin` or `auth_user_id` set, confirmed by direct query.
+   Both fixed this session: the three env vars set (all three environments, `--no-sensitive`
+   — the plain `vercel env add` default is the same "permanently unreadable" Sensitive type
+   this project already hit once with `ADMIN_TOKEN`, so this is now a standing thing to
+   check every time a new non-secret env var gets added here); the admin-row link is a
+   manual SQL step by design (see below), not automated.
+   `frontend/src/neonAuth.js` (`createAuthClient(VITE_NEON_AUTH_URL)`, `null` when the env
+   var is absent so the app still renders the token-only path if it's ever unset again).
+   `AdminApp.jsx`'s login screen gained an email-entry form above the existing token field
+   (`signIn.magicLink({email, callbackURL})` → "check your email" state); the `token` prop
+   threaded to all 4 admin panels became `authHeaders` (`{'x-admin-token': ...}` or
+   `{Authorization: 'Bearer ' + jwt}`, whichever credential is live) — mechanical but
+   touches all 4 panel files plus `AdminApp.jsx` itself, since `ADMIN_TOKEN` stays valid in
+   parallel per the transition plan above.
+   **Deliberately not automated: linking a Neon Auth identity to `players.is_admin`.**
+   Neon's console has new-user signup enabled, so *any* email can complete a magic link —
+   `is_admin` is the entire security boundary, and auto-granting it on first sign-in would
+   be a privilege-escalation hole open to the whole internet. `players.auth_user_id`/
+   `is_admin` are set by one manual `UPDATE` after the admin's own first real sign-in, same
+   bootstrap pattern as `is_admin` always had (5.1) — no in-app flow grants either.
+   **Real, unplanned bundle-size regression caught and fixed before merge, not shipped
+   broken:** `@neondatabase/auth` alone roughly doubles the built JS (measured: ~320kB ->
+   ~650kB minified) — and `main.jsx` imported `AdminApp` unconditionally, so every *player*
+   would have downloaded the whole admin auth SDK on every visit for a feature only an
+   admin ever uses. Fixed with `React.lazy(() => import('./AdminApp.jsx'))` — the admin
+   panel (now including the auth SDK) becomes its own chunk, fetched only when a browser
+   actually requests `/admin`; the *player*-facing bundle came out smaller than before this
+   item (AdminApp's own code was previously bundled into every player's download too, not
+   just the auth SDK). Riding along: `vite.config.js`'s PWA `globIgnores` now excludes the
+   `AdminApp-*.js` chunk from the service worker's precache list — it has no offline mode
+   either (an admin needs a live DB connection regardless), so precaching it would only
+   cost every player background bandwidth for a page they'll essentially never visit.
    **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
    `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
    409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/

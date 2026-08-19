@@ -15,6 +15,11 @@ export default defineConfig({
         // shell itself must communicate "you're offline", not pretend to work.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // The admin panel's own chunk (ROADMAP 5.2 follow-up: it now pulls in
+        // @neondatabase/auth, ~350kB) has no offline mode either — an admin needs a live
+        // DB connection regardless — so precaching it would only cost every *player*
+        // background bandwidth for a page they'll essentially never visit.
+        globIgnores: ['**/AdminApp-*.js'],
       },
       manifest: {
         name: 'Betűvető',

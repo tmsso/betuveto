@@ -13,7 +13,7 @@ const LABELS = {
   timer_seconds_per_extra_length: 'Extra idő betűnként a minimum fölött (másodperc)',
 }
 
-export default function AdminConfigPanel({ token, onAuthError }) {
+export default function AdminConfigPanel({ authHeaders, onAuthError }) {
   const [config, setConfig] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -26,7 +26,7 @@ export default function AdminConfigPanel({ token, onAuthError }) {
     setError(null)
     try {
       const response = await fetch('/api/v1/admin/config', {
-        headers: { 'x-admin-token': token },
+        headers: authHeaders,
       })
       if (response.status === 401) {
         onAuthError()
@@ -41,7 +41,7 @@ export default function AdminConfigPanel({ token, onAuthError }) {
     } finally {
       setLoading(false)
     }
-  }, [token, onAuthError])
+  }, [authHeaders, onAuthError])
 
   useEffect(() => {
     load()
@@ -59,7 +59,7 @@ export default function AdminConfigPanel({ token, onAuthError }) {
     try {
       const response = await fetch(`/api/v1/admin/config/${key}`, {
         method: 'PATCH',
-        headers: { 'x-admin-token': token, 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ value }),
       })
       if (response.status === 401) {
