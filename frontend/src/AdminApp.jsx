@@ -37,6 +37,11 @@ export default function AdminApp() {
     authClient
       .getJWTToken()
       .then((jwt) => setSessionJwt(jwt))
+      // No session yet (the common case until an admin actually completes a magic link)
+      // surfaces as a rejected 404 AuthApiError here, not a clean resolved null — caught
+      // directly against production before shipping. Same outcome as "no session" either
+      // way, so this stays a no-op rather than surfacing as an unhandled rejection.
+      .catch(() => setSessionJwt(null))
       .finally(() => setSessionChecked(true))
   }, [])
 
