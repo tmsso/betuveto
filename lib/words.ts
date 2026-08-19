@@ -143,3 +143,20 @@ export function lettersOf(scrambled: string): string {
 export function scoreFor(word: string): number {
   return letterCount(word) ** 2;
 }
+
+/** Fraction of a board's total findable letters a player actually found in one game — the
+ *  per-game, letter-weighted "near-full-clear" signal (ROADMAP Batch 10 item 3's KNOWN
+ *  CORRECTION, lib/word-stats.ts) that replaced an earlier, wrong times_solved/times_failed
+ *  aggregate-ratio criterion for word_stats.mastered_at_game_number. Weighted by letters
+ *  rather than word count so a board where the only unfound word is long doesn't read as
+ *  "nearly cleared" (e.g. finding 45 of a board's 50 total letters-across-possible-words
+ *  qualifies at the 0.9 threshold; missing one 8-letter word out of ten 5-letter ones does
+ *  not, even though word-count-wise it's "9 of 10"). 0 for an empty board (should not
+ *  happen — a game's own target is always among its findable words — but this avoids a
+ *  divide-by-zero if a possible-words computation ever returned empty regardless). */
+export function letterClearFraction(possible: string[], found: string[]): number {
+  const totalPossible = possible.reduce((sum, word) => sum + letterCount(word), 0);
+  if (totalPossible === 0) return 0;
+  const totalFound = found.reduce((sum, word) => sum + letterCount(word), 0);
+  return totalFound / totalPossible;
+}
