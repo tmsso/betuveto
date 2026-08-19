@@ -1142,9 +1142,38 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    Batch 6.2's mid-game language-switch UI and Batch 9.1's Lighthouse PWA audit remain
    unverified interactively — both are candidates for the same headless-Playwright-against-
    production approach that verified this item and item 3 above.
-5. `[ ]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
+5. `[x]` **E2E smoke test** — one Playwright test (start game → guess a word → see score)
    in CI; catches the "white screen" class of regressions that has already happened once
    in this repo's history.
+   **Shipped 2026-08-20:** `frontend/e2e/game.spec.ts` + `frontend/playwright.config.ts`.
+   Runs against this PR's own bundle via `vite preview` (a static-file server — the local
+   `vite dev` byte-offset bug this project's own memory documents can't apply there), with
+   `/api` proxied to the live production API (`vite.config.js`'s new `preview.proxy`) —
+   a preview deployment sits behind this project's Vercel SSO wall, which CI has no bypass
+   secret for, and there's no local API server to test against since Batch 1.3's cutover
+   to same-origin Vercel functions. The target word is computed the same way
+   `tests/contract.test.ts` already does: read the board's own letters off the rendered
+   page, then find a real word the shared Hungarian wordlist says the board can spell —
+   deterministic, no server-side knowledge needed. **Deliberate tradeoff, not hidden:**
+   every CI run of this job now writes one real (harmless) test game into production, and
+   a production outage would fail this job even with entirely correct code — accepted
+   since the existing contract suite already writes real data when pointed at a live
+   deployment, and there was no lower-risk target available (see above).
+   **Two real bugs caught while writing this, not shipped broken:** (1) Playwright's
+   default browser locale isn't Hungarian — the test initially failed because the UI
+   rendered in English (`navigator.language` fallback, ROADMAP 6.2), silently using the
+   wrong aria-label strings; fixed by pinning `use.locale: 'hu-HU'` in
+   `playwright.config.ts` rather than depending on the runner's environment. (2) A found
+   word renders as one combined text node ("SZÓ (9 pont)"), not the bare word — an
+   `exact: true` text match failed for a reason that had nothing to do with whether the
+   guess actually worked; switched to a substring match.
+   **Also fixed, same session, not scoped to this item:** adding `@playwright/test` hit
+   the exact npm 10/11 lockfile-drift issue from item 2 (see 5.2's history) —
+   `frontend/package-lock.json` regenerated with `npx npm@10.8.2 install` to match CI's
+   npm version, confirmed with a local `npm ci`. A new root `vitest.config.ts` scopes
+   `test.include` to `tests/**/*.test.ts` explicitly — Vitest's default recursive
+   `**/*.{test,spec}.*` glob was also matching `frontend/e2e/*.spec.ts` (a *Playwright*
+   suite, meant to run via `npx playwright test`, not vitest) and crashing on it.
 6. `[x]` **Definition lookup** — link found/missed words to a dictionary at game end.
    **Shipped 2026-08-03:** each word chip shown after a game ends now links to its
    language-appropriate Wiktionary entry (Hungarian or English, determined by the active
