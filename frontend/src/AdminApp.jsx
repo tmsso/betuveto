@@ -17,8 +17,7 @@ export default function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
   const [tokenInput, setTokenInput] = useState('')
   // The Neon Auth session's own bearer JWT (ROADMAP 5.2 follow-up) — null until a magic
-  // link has actually been followed. Checked once on mount; getJWTToken() is this SDK's
-  // own cache, so this isn't a network call on every render.
+  // link has actually been followed. Checked once on mount.
   const [sessionJwt, setSessionJwt] = useState(null)
   const [sessionChecked, setSessionChecked] = useState(!authClient)
   const [magicLinkEmail, setMagicLinkEmail] = useState('')
@@ -34,11 +33,21 @@ export default function AdminApp() {
 
   useEffect(() => {
     if (!authClient) return
+    // getSession() directly, NOT the SDK's own getJWTToken() convenience method — found
+    // live against production 2026-08-20: getJWTToken() calls a bare /get-jwt-token that
+    // bypasses the request hooks handling Neon's cross-origin session handoff (the
+    // ?neon_auth_session_verifier=... param a magic-link redirect lands with, since the
+    // session cookie itself is set on Neon's own domain, not this app's). getSession()
+    // does go through those hooks — confirmed directly against the SDK's own source and
+    // by probing it with a real fetch interceptor — so it actually picks up a session
+    // right after following the link, where getJWTToken() silently never could. The JWT
+    // itself rides on the response as session.token (the SDK copies it there from a
+    // set-auth-jwt response header on success).
     authClient
-      .getJWTToken()
-      .then((jwt) => setSessionJwt(jwt))
+      .getSession()
+      .then((result) => setSessionJwt(result?.data?.session?.token ?? null))
       // No session yet (the common case until an admin actually completes a magic link)
-      // surfaces as a rejected 404 AuthApiError here, not a clean resolved null — caught
+      // surfaces as a rejected AuthApiError here, not a clean resolved null — caught
       // directly against production before shipping. Same outcome as "no session" either
       // way, so this stays a no-op rather than surfacing as an unhandled rejection.
       .catch(() => setSessionJwt(null))
