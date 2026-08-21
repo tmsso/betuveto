@@ -1251,13 +1251,29 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     instead of minting a fresh one.
     **Verified live, not just via CI going green:** a direct query against production's
     `games`/`players` (bypassing the dashboard endpoint, running the exact same SQL
-    `lib/admin-dashboard.ts` runs) confirmed the exclusion catches real data — as of this
-    session, *every* game played in production today was CI traffic (13 games, 10 distinct
-    players, 0 real players so far), and the filtered query correctly reported 0/0 while
-    the unfiltered one reported 13/10. The pinned identity itself was exercised for real
-    (one direct API call, one standalone Playwright script, one actual `npx playwright
-    test` run — 4 games total) and confirmed to accumulate against the *same* player id
-    every time, not mint a new one.
+    `lib/admin-dashboard.ts` runs) confirmed the exclusion mechanism itself works — **at
+    the moment checked, mid-session**, every game played in production that day had been
+    CI traffic (13 games, 10 distinct players), and the filtered query correctly reported
+    0/0 while the unfiltered one reported 13/10. The pinned identity itself was exercised
+    for real (one direct API call, one standalone Playwright script, one actual `npx
+    playwright test` run — 4 games total) and confirmed to accumulate against the *same*
+    player id every time, not mint a new one. **That 0/0 snapshot is not current — see the
+    note below**, added after the rest of this session's own contract-suite runs (against
+    both preview and production, for items 12/13) put real, un-flagged noise back into the
+    same day's numbers. The exclusion mechanism's correctness isn't in question; only the
+    specific numbers reported here were a point-in-time fact, not a standing guarantee.
+    **New gap surfaced by that same-session traffic, not yet resolved:** this item only
+    ever pins *one* identity — the E2E smoke test's. Every contract-suite run against a
+    live deployment (this project's own standard PR-verification step, used repeatedly
+    this same session for items 12 and 13) mints many ordinary, un-flagged anonymous
+    players via `startUntil`'s retry loop and lands their games in production exactly like
+    a real player's — none of it is `is_ci`. As of this note, today's *filtered* dashboard
+    total sits at 114 games / 87 DAU, effectively all of it this session's own test
+    traffic, not real play. Whether/how to extend `is_ci`-style flagging to contract-suite
+    traffic too (a second pinned identity? a broader heuristic?) is an open decision,
+    deliberately not made here — flagged to the user rather than silently backfilled,
+    since it's the same class of production-data judgment call as the item-11 backfill
+    itself.
     **Backfill (explicitly requested, not just going-forward):** 11 historical CI-minted
     player rows from before this fix (2026-08-20 through this session) were identified by a
     gameplay-shape heuristic (exactly one game, one correct guess, no display name — the
