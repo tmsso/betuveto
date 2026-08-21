@@ -19,6 +19,7 @@ import { getConfigList, updateConfigValue } from "../../lib/admin-config.js";
 import { getDashboardStats } from "../../lib/admin-dashboard.js";
 import {
   disqualifyGame,
+  getGameDetail,
   listLeaderboardEntries,
   renamePlayer,
   searchPlayers,
@@ -354,6 +355,12 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       if (c === undefined) return undefined;
       const gameId = c;
       return methodHandler({ POST: requireAdmin(() => disqualifyGame(gameId)) });
+    }
+
+    if (segments.length === 3 && b === "games") {
+      if (c === undefined) return undefined;
+      const gameId = c;
+      return methodHandler({ GET: requireAdmin(() => getGameDetail(gameId)) });
     }
 
     if (segments.length === 4 && b === "reports" && d === "resolve") {
