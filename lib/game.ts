@@ -175,6 +175,10 @@ export async function startGame(
   // same permissive convention as an unrecognised query param elsewhere in this API — no
   // 422 branch needed for a value whose worst case is just "played the normal way".
   difficultyMode?: string,
+  // ROADMAP Batch 10 item 13: two-letter country code from Vercel's geo header, or
+  // undefined (local dev, or the header absent) — admin-only aggregate use, never echoed
+  // back to the client.
+  country?: string,
 ): Promise<Reply> {
   if (
     !Number.isInteger(targetLength) ||
@@ -255,9 +259,9 @@ export async function startGame(
 
   const [game] = await sql<{ id: string; ends_at: Date }[]>`
     insert into games (player_id, wordlist_id, target_word, target_length, scrambled_letters,
-                       possible_count, ends_at)
+                       possible_count, ends_at, country)
     values (${playerId}, ${listId}, ${target}, ${targetLength}, ${scrambled},
-            ${possible.length}, now() + ${`${duration} seconds`}::interval)
+            ${possible.length}, now() + ${`${duration} seconds`}::interval, ${country ?? null})
     returning id, ends_at
   `;
 
