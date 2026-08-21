@@ -127,6 +127,7 @@ interface GameDetailRow {
   possible_count: number;
   status: string;
   disqualified_at: string | null;
+  country: string | null;
 }
 
 interface GameGuessRow {
@@ -156,7 +157,7 @@ export async function getGameDetail(gameId: string): Promise<Reply> {
   const [game] = await sql<GameDetailRow[]>`
     select g.id, g.player_id, p.display_name, wl.code as wordlist, g.target_word,
            g.target_length, g.started_at, g.ends_at, g.ended_at, g.final_score,
-           g.found_count, g.possible_count, g.status, g.disqualified_at
+           g.found_count, g.possible_count, g.status, g.disqualified_at, g.country
       from games g
       join wordlists wl on wl.id = g.wordlist_id
       left join players p on p.id = g.player_id

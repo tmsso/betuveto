@@ -85,6 +85,15 @@ function playerId(req: VercelRequest): string | null {
 // silently clamped anyway (ROADMAP 2.1).
 const ANON_COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
 
+// ROADMAP Batch 10 item 13: Vercel's request-level geo header, two-letter ISO country code
+// (e.g. "HU"). Present on real traffic through Vercel's edge network; absent under `vercel
+// dev`/local `vite` and for direct-to-origin requests, which is fine — country stays null.
+function requestCountry(req: VercelRequest): string | undefined {
+  const header = req.headers["x-vercel-ip-country"];
+  const value = Array.isArray(header) ? header[0] : header;
+  return value && /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : undefined;
+}
+
 function startGameRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   if (!secret) throw new Error("ANON_SESSION_SECRET is not set.");
@@ -108,6 +117,7 @@ function startGameRoute(req: VercelRequest) {
     setCookieHeader,
     stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
     stringQuery(req, "difficulty", "normal"),
+    requestCountry(req),
   );
 }
 

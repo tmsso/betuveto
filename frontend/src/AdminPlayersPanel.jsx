@@ -304,6 +304,9 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                                   {' · '}
                                   <span className="font-semibold">Állapot:</span> {gameDetail.game.status}
                                   {gameDetail.game.disqualified_at && ' (törölve a ranglistáról)'}
+                                  {' · '}
+                                  <span className="font-semibold">Ország:</span>{' '}
+                                  {gameDetail.game.country || 'ismeretlen'}
                                 </p>
                                 <p className="font-semibold mb-1">Tippek időrendben:</p>
                                 {gameDetail.guesses.length === 0 ? (

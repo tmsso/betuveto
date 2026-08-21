@@ -1327,6 +1327,61 @@ describeApi("Betűvető API contract", () => {
     expect(dashboard.json.queue_size.suggestions).toBeGreaterThanOrEqual(0);
   });
 
+  // --- Batch 10 item 13: player-stat drill-down ---------------------------------
+  it("reports player-stat drill-down: averages, time buckets and a country distribution", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    // A game that actually reaches a terminal status, so it counts toward the
+    // avg-games/avg-duration figures (lib/admin-dashboard.ts's TERMINAL_STATUSES).
+    const game = await startUntil((g) => g.possible_count >= 1, 15, 7);
+    await call("POST", `/api/game/${game.game_id}/give_up`);
+
+    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
+    expect(dashboard.status).toBe(200);
+
+    expect(dashboard.json.player_stats.avg_games_per_player).toBeGreaterThan(0);
+    expect(dashboard.json.player_stats.avg_game_duration_seconds).toBeGreaterThanOrEqual(0);
+
+    for (const series of [
+      dashboard.json.games_by_month,
+      dashboard.json.games_by_quarter,
+      dashboard.json.games_by_hour,
+    ]) {
+      expect(Array.isArray(series)).toBe(true);
+      expect(series.length).toBeGreaterThan(0);
+      for (const row of series) {
+        expect(typeof row.bucket).toBe("string");
+        expect(row.games).toBeGreaterThan(0);
+        // Not toBeGreaterThan(0): a bucket's games could in principle all have a null
+        // player_id (games.player_id is nullable, on delete set null), which count(distinct)
+        // wouldn't count — vanishingly unlikely against real data, but not impossible.
+        expect(row.dau).toBeGreaterThanOrEqual(0);
+      }
+    }
+    // Today's game must land in exactly one hour-of-day bucket, and that bucket's count
+    // is never zero-filled (unlike the daily series) — a real, non-tautological check
+    // that the extract(hour ...) grouping actually groups, not just returns 24 empty rows.
+    const hourGamesTotal = dashboard.json.games_by_hour.reduce((sum: number, r: any) => sum + r.games, 0);
+    expect(hourGamesTotal).toBeGreaterThan(0);
+
+    expect(Array.isArray(dashboard.json.countries)).toBe(true);
+    for (const row of dashboard.json.countries) {
+      expect(typeof row.country).toBe("string");
+      expect(row.games).toBeGreaterThan(0);
+    }
+
+    // The API surface a player actually sees never mentions country — it's an admin-only
+    // aggregate (ROADMAP Batch 10 item 13's own scope decision).
+    expect(game).not.toHaveProperty("country");
+
+    // Admin per-game detail (item 12) also surfaces this same game's country, whatever it
+    // resolved to for this request (null under a local/CI run with no edge geo header).
+    const detail = await call("GET", `/api/v1/admin/games/${game.game_id}`, undefined, adminHeaders);
+    expect(detail.status).toBe(200);
+    expect(detail.json.game).toHaveProperty("country");
+  }, 15000);
+
   // --- Batch 10: difficulty rating per word (hardest_words + easy mode) --------
   it("ranks hardest_words by success rate, scoped per wordlist, above the min-attempts floor", async () => {
     if (!ADMIN_TOKEN) return;
