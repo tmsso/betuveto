@@ -14,6 +14,14 @@
  * divergence once, PR #27's `total_words` assertion). A single candidate word could
  * therefore be rejected for a reason that has nothing to do with this PR, so this tries a
  * short list of candidates and only fails if every one of them does.
+ *
+ * ROADMAP Batch 10 item 11: every run of this test plays one real game against
+ * production, which used to mint a brand-new anonymous player each time — silently
+ * inflating the admin dashboard's games/day and DAU. If `E2E_CI_PLAYER_COOKIE` is set (a
+ * GitHub Actions secret holding one pre-signed `bv_anon` cookie for a single player row
+ * manually flagged `is_ci = true` in production), every CI run reuses that one identity
+ * instead of minting a fresh one, and the dashboard excludes it. Absent locally (a plain
+ * `npx playwright test` run falls back to the old fresh-mint behaviour unchanged).
  */
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -23,6 +31,7 @@ import { canFormWord, letterCount, normalizeWord } from '../../lib/words.js'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const MAX_CANDIDATES = 5
+const CI_PLAYER_COOKIE = process.env.E2E_CI_PLAYER_COOKIE
 
 async function loadDictionary(): Promise<string[]> {
   const raw = await readFile(path.join(REPO_ROOT, 'data', 'magyar-szavak.txt'), 'utf-8')
@@ -39,6 +48,14 @@ async function loadDictionary(): Promise<string[]> {
 
 test('start a game, guess a word, and see the score update', async ({ page }) => {
   const dictionary = await loadDictionary()
+
+  if (CI_PLAYER_COOKIE) {
+    const baseURL = test.info().project.use.baseURL
+    if (!baseURL) throw new Error('playwright.config.ts must set use.baseURL for cookie scoping.')
+    await page.context().addCookies([
+      { name: 'bv_anon', value: CI_PLAYER_COOKIE, url: baseURL },
+    ])
+  }
 
   await page.goto('/')
 

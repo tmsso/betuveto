@@ -63,6 +63,12 @@ jobs:
     # production, and a production outage would fail this job even with correct code.
     name: E2E smoke test
     runs-on: ubuntu-latest
+    env:
+      # ROADMAP Batch 10 item 11: one pinned player identity reused across every CI run
+      # (instead of minting a fresh one each time), so the admin dashboard can exclude it
+      # from games/day and DAU. Absent until the identity is bootstrapped in production;
+      # the test falls back to its old fresh-mint behaviour when unset.
+      E2E_CI_PLAYER_COOKIE: ${{ secrets.E2E_CI_PLAYER_COOKIE }}
     steps:
       - uses: actions/checkout@v4
 
