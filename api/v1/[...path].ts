@@ -91,6 +91,16 @@ const ANON_COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
 function requestCountry(req: VercelRequest): string | undefined {
   const header = req.headers["x-vercel-ip-country"];
   const value = Array.isArray(header) ? header[0] : header;
+  // TEMPORARY diagnostic (ROADMAP Batch 10 item 13 follow-up): country came back null for
+  // every real production game so far — logging every x-vercel-* header key actually
+  // present, once, to find the real header name/shape before guessing further. Remove
+  // once resolved.
+  console.error(
+    "[geo-diag] x-vercel-ip-country=",
+    JSON.stringify(value),
+    "all x-vercel-* keys=",
+    JSON.stringify(Object.keys(req.headers).filter((k) => k.startsWith("x-vercel"))),
+  );
   return value && /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : undefined;
 }
 
