@@ -745,6 +745,21 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    `AdminApp-*.js` chunk from the service worker's precache list — it has no offline mode
    either (an admin needs a live DB connection regardless), so precaching it would only
    cost every player background bandwidth for a page they'll essentially never visit.
+
+   **STATUS CORRECTION, 2026-08-21: NOT WORKING END-TO-END — do not read the paragraphs
+   above as "done."** The code above shipped and is live, and a real SDK bug it also
+   fixed (PR #48: `getJWTToken()` skips the request hooks that handle Neon's cross-origin
+   session handoff; switched to `getSession()`) was confirmed necessary — but sign-in
+   still does not persist for the user. After PR #48, in incognito, the admin dashboard
+   rendered *briefly* before a real `/api/v1/admin/dashboard` 401 logged the user back
+   out. A fresh admin `players` row was linked via manual SQL
+   (`auth_user_id = '59525a51-4f69-448e-a430-37c3fd43012a'` for `stamas83@gmail.com`) —
+   the step expected to close this out — and the user still reports the same failure.
+   Root cause not yet found. Full open-investigation detail (what's been ruled out, what
+   to check first — decode a real JWT's `sub`/`iss`/`exp` against a live 401, before
+   writing any more code) is in this project's own memory
+   (`betuveto-magic-link-cve-hold.md`); read that before resuming, don't re-derive from
+   scratch. `ADMIN_TOKEN` remains the working admin-login path throughout.
    **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
    `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
    409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/
