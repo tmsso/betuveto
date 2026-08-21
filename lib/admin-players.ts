@@ -112,6 +112,74 @@ export async function listLeaderboardEntries(
   return { status: 200, body: { wordlist: wordlistCode, entries: rows } };
 }
 
+interface GameDetailRow {
+  id: string;
+  player_id: string | null;
+  display_name: string | null;
+  wordlist: string;
+  target_word: string;
+  target_length: number;
+  started_at: string;
+  ends_at: string;
+  ended_at: string | null;
+  final_score: number | null;
+  found_count: number;
+  possible_count: number;
+  status: string;
+  disqualified_at: string | null;
+}
+
+interface GameGuessRow {
+  word: string;
+  correct: boolean;
+  score: number;
+  created_at: string;
+}
+
+interface GameHintRow {
+  word: string;
+  position: number;
+  letter: string;
+  cost: number;
+  created_at: string;
+}
+
+/** ROADMAP Batch 10 item 12 — one game's full guess-by-guess (and hint-by-hint) timeline,
+ *  admin-only. This does not conflict with the standing player-facing rule against
+ *  revealing per-word history (Batch 10 item 3) — that rule is about what a *player* sees
+ *  about their own past games, not admin visibility into any one game's record. Reveals
+ *  target_word deliberately: an admin reviewing a game for correctness/abuse needs to see
+ *  the answer, unlike a player who is mid-game or reading their own stats. */
+export async function getGameDetail(gameId: string): Promise<Reply> {
+  const sql = db();
+
+  const [game] = await sql<GameDetailRow[]>`
+    select g.id, g.player_id, p.display_name, wl.code as wordlist, g.target_word,
+           g.target_length, g.started_at, g.ends_at, g.ended_at, g.final_score,
+           g.found_count, g.possible_count, g.status, g.disqualified_at
+      from games g
+      join wordlists wl on wl.id = g.wordlist_id
+      left join players p on p.id = g.player_id
+     where g.id = ${gameId}
+  `;
+  if (!game) return { status: 404, body: { detail: "Unknown game." } };
+
+  const guesses = await sql<GameGuessRow[]>`
+    select word, correct, score, created_at
+      from game_guesses
+     where game_id = ${gameId}
+     order by created_at
+  `;
+  const hints = await sql<GameHintRow[]>`
+    select word, position, letter, cost, created_at
+      from game_hints
+     where game_id = ${gameId}
+     order by created_at
+  `;
+
+  return { status: 200, body: { game, guesses, hints } };
+}
+
 export async function disqualifyGame(gameId: string): Promise<Reply> {
   const sql = db();
   const [game] = await sql<{ id: string; status: string; disqualified_at: string | null }[]>`

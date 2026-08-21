@@ -1238,6 +1238,47 @@ describeApi("Betűvető API contract", () => {
     expect(unknown.status).toBe(404);
   }, 15000); // completeSmallGame() alone paces its guesses 400ms apart to stay under the
   // anti-cheat rate limit, plus several more round trips here — comfortably over the
+
+  // --- Batch 10 item 12: admin per-game drill-down -----------------------------
+  it("gates and returns one game's full guess timeline, revealing the target word", async () => {
+    const noToken = await call("GET", "/api/v1/admin/games/00000000-0000-0000-0000-000000000000");
+    expect(noToken.status).toBe(401);
+
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const { totalScore, gameId } = await completeSmallGame();
+    expect(totalScore).toBeGreaterThan(0);
+
+    const detail = await call("GET", `/api/v1/admin/games/${gameId}`, undefined, adminHeaders);
+    expect(detail.status).toBe(200);
+    expect(detail.json.game.id).toBe(gameId);
+    // completeSmallGame() finds every findable word, so found_count reaches possible_count
+    // and the game auto-finishes (ROADMAP 3.2) — admin-only, so revealing target_word here
+    // does not conflict with the player-facing no-word-history rule (Batch 10 item 3).
+    expect(typeof detail.json.game.target_word).toBe("string");
+    expect(detail.json.game.target_word.length).toBeGreaterThan(0);
+    expect(detail.json.game.found_count).toBe(detail.json.game.possible_count);
+    expect(detail.json.game.status).toBe("finished");
+
+    expect(Array.isArray(detail.json.guesses)).toBe(true);
+    expect(detail.json.guesses.length).toBe(detail.json.game.found_count);
+    for (const guess of detail.json.guesses) {
+      expect(guess.correct).toBe(true);
+      expect(typeof guess.word).toBe("string");
+      expect(typeof guess.created_at).toBe("string");
+    }
+    expect(Array.isArray(detail.json.hints)).toBe(true);
+    expect(detail.json.hints).toHaveLength(0);
+
+    const unknown = await call(
+      "GET",
+      "/api/v1/admin/games/00000000-0000-0000-0000-000000000000",
+      undefined,
+      adminHeaders,
+    );
+    expect(unknown.status).toBe(404);
+  }, 15000);
   // suite's default timeout even though nothing is actually stuck.
 
   // --- Batch 5.2 item 4: admin dashboard ---------------------------------------

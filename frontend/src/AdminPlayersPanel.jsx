@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { Fragment, useCallback, useState } from 'react'
 
 // Player and leaderboard maintenance (ROADMAP 5.2 item 3). Merging duplicate players is
 // deliberately not here — it's the same operation Batch 8's Google OAuth merge rule
@@ -14,6 +14,12 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
 
   const [error, setError] = useState(null)
   const [pendingIds, setPendingIds] = useState(() => new Set())
+
+  // ROADMAP Batch 10 item 12 — drill-down into one game's full guess/hint timeline.
+  // Expanded inline under its leaderboard row rather than a modal, matching this admin
+  // shell's existing "no component library" convention.
+  const [expandedGameId, setExpandedGameId] = useState(null)
+  const [gameDetail, setGameDetail] = useState(null)
 
   const withAuthCheck = useCallback(async (response) => {
     if (response.status === 401) {
@@ -78,6 +84,26 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
         next.delete(playerId)
         return next
       })
+    }
+  }
+
+  const toggleGameDetail = async (gameId) => {
+    if (expandedGameId === gameId) {
+      setExpandedGameId(null)
+      setGameDetail(null)
+      return
+    }
+    setExpandedGameId(gameId)
+    setGameDetail(null)
+    setError(null)
+    try {
+      const response = await fetch(`/api/v1/admin/games/${gameId}`, { headers: authHeaders })
+      if (await withAuthCheck(response)) return
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const body = await response.json()
+      setGameDetail(body)
+    } catch (err) {
+      setError(err.message || 'Hiba történt a részletek betöltésekor.')
     }
   }
 
@@ -236,25 +262,88 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
               <tbody>
                 {entries.map((e) => {
                   const busy = pendingIds.has(e.id)
+                  const expanded = expandedGameId === e.id
                   return (
-                    <tr key={e.id} className="border-b border-game-border/40">
-                      <td className="py-2 px-2">
-                        {e.display_name || <span className="text-game-primary/40">névtelen</span>}
-                        {e.hinted && <span className="ml-1" title="Segítséggel">💡</span>}
-                      </td>
-                      <td className="py-2 px-2 font-semibold">{e.final_score}</td>
-                      <td className="py-2 px-2">{e.target_length}</td>
-                      <td className="py-2 px-2">{new Date(e.ended_at).toLocaleString('hu-HU')}</td>
-                      <td className="py-2 px-2 whitespace-nowrap">
-                        <button
-                          onClick={() => disqualify(e.id)}
-                          disabled={busy}
-                          className="text-red-600 underline font-semibold hover:text-red-800 disabled:opacity-40"
-                        >
-                          Törlés a ranglistáról
-                        </button>
-                      </td>
-                    </tr>
+                    <Fragment key={e.id}>
+                      <tr className="border-b border-game-border/40">
+                        <td className="py-2 px-2">
+                          {e.display_name || <span className="text-game-primary/40">névtelen</span>}
+                          {e.hinted && <span className="ml-1" title="Segítséggel">💡</span>}
+                        </td>
+                        <td className="py-2 px-2 font-semibold">{e.final_score}</td>
+                        <td className="py-2 px-2">{e.target_length}</td>
+                        <td className="py-2 px-2">{new Date(e.ended_at).toLocaleString('hu-HU')}</td>
+                        <td className="py-2 px-2 whitespace-nowrap">
+                          <button
+                            onClick={() => toggleGameDetail(e.id)}
+                            className="text-game-secondary underline font-semibold hover:text-blue-700 mr-3"
+                          >
+                            {expanded ? 'Bezárás' : 'Részletek'}
+                          </button>
+                          <button
+                            onClick={() => disqualify(e.id)}
+                            disabled={busy}
+                            className="text-red-600 underline font-semibold hover:text-red-800 disabled:opacity-40"
+                          >
+                            Törlés a ranglistáról
+                          </button>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="border-b border-game-border/40 bg-blue-50/50">
+                          <td colSpan={5} className="py-3 px-2">
+                            {!gameDetail ? (
+                              <p className="text-sm text-game-primary/60">Betöltés...</p>
+                            ) : (
+                              <div className="text-sm">
+                                <p className="mb-2">
+                                  <span className="font-semibold">Célszó:</span> {gameDetail.game.target_word}
+                                  {' · '}
+                                  <span className="font-semibold">Megtalált:</span>{' '}
+                                  {gameDetail.game.found_count}/{gameDetail.game.possible_count}
+                                  {' · '}
+                                  <span className="font-semibold">Állapot:</span> {gameDetail.game.status}
+                                  {gameDetail.game.disqualified_at && ' (törölve a ranglistáról)'}
+                                </p>
+                                <p className="font-semibold mb-1">Tippek időrendben:</p>
+                                {gameDetail.guesses.length === 0 ? (
+                                  <p className="text-game-primary/60 mb-2">Nincs rögzített tipp.</p>
+                                ) : (
+                                  <ul className="mb-2 space-y-0.5">
+                                    {gameDetail.guesses.map((g, i) => (
+                                      <li key={i}>
+                                        <span className={g.correct ? 'text-green-700' : 'text-red-600'}>
+                                          {g.correct ? '✅' : '❌'}
+                                        </span>{' '}
+                                        {g.word} {g.correct && `(+${g.score} pont)`}{' '}
+                                        <span className="text-game-primary/40">
+                                          {new Date(g.created_at).toLocaleTimeString('hu-HU')}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {gameDetail.hints.length > 0 && (
+                                  <>
+                                    <p className="font-semibold mb-1">Segítségek:</p>
+                                    <ul className="space-y-0.5">
+                                      {gameDetail.hints.map((h, i) => (
+                                        <li key={i}>
+                                          💡 {h.word} ({h.position}. betű: {h.letter}, -{h.cost} pont){' '}
+                                          <span className="text-game-primary/40">
+                                            {new Date(h.created_at).toLocaleTimeString('hu-HU')}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
