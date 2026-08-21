@@ -1225,7 +1225,7 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    Batch 7 starts, and it's a few lines to wire.
 10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
     hints…) — needs real schema/design work, no blockers, moderate value.
-11. `[ ]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
+11. `[x]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
     above already flagged and left open: every CI run of the E2E smoke test mints a real
     anonymous player and plays one real game against production, so `games/day`/DAU on the
     admin dashboard (5.2 item 4) already silently include CI noise today, independent of
@@ -1233,6 +1233,43 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     `display_name` pattern) and have dashboard queries exclude it by default. Cheapest item
     in this batch and fixes existing numbers rather than adding a new capability — do this
     one first.
+    **Shipped 2026-08-21 (PR #51):** `players.is_ci` (`migrations/0014`), set by hand only
+    — never via the API, same bootstrap pattern as `is_admin` (5.1) — so nothing can grant
+    itself exclusion from the dashboard's own metrics. `lib/admin-dashboard.ts`'s daily
+    query excludes `is_ci` players in the `left join`'s own `on` clause (not a `where`),
+    so a day whose only games were CI's still zero-fills correctly instead of disappearing.
+    **Design chosen over a client-supplied marker (weighs a real tradeoff, not a default):**
+    the E2E test now reuses one **pinned player identity** across every CI run — a single
+    pre-signed `bv_anon` cookie stored as the `E2E_CI_PLAYER_COOKIE` GitHub Actions secret,
+    injected via `page.context().addCookies()` before `page.goto()`
+    (`frontend/e2e/game.spec.ts`), falling back to the old fresh-mint behaviour when the
+    secret is unset (local runs). A client-trusted marker would let any client exclude
+    itself from metrics by just claiming to be CI; a pinned identity is instead a known,
+    already-flagged row the server recognizes — same trust shape as `ADMIN_TOKEN`, just
+    lower stakes. This also incidentally fixes the *bigger* half of the pollution problem:
+    DAU no longer grows by one on every CI run, since every run now hits the same identity
+    instead of minting a fresh one.
+    **Verified live, not just via CI going green:** a direct query against production's
+    `games`/`players` (bypassing the dashboard endpoint, running the exact same SQL
+    `lib/admin-dashboard.ts` runs) confirmed the exclusion catches real data — as of this
+    session, *every* game played in production today was CI traffic (13 games, 10 distinct
+    players, 0 real players so far), and the filtered query correctly reported 0/0 while
+    the unfiltered one reported 13/10. The pinned identity itself was exercised for real
+    (one direct API call, one standalone Playwright script, one actual `npx playwright
+    test` run — 4 games total) and confirmed to accumulate against the *same* player id
+    every time, not mint a new one.
+    **Backfill (explicitly requested, not just going-forward):** 11 historical CI-minted
+    player rows from before this fix (2026-08-20 through this session) were identified by a
+    gameplay-shape heuristic (exactly one game, one correct guess, no display name — the
+    E2E test guesses a *findable* word, never the target, and never finishes/gives up the
+    game) and cross-checked against real `E2E smoke test` job start times from `gh run
+    list` — every candidate's `players.created_at` landed within ~1-2 minutes of an actual
+    CI run, with no unmatched candidates or unmatched runs. All 11 flagged `is_ci = true` (a
+    reversible `UPDATE`, nothing deleted). **Known limitation of the heuristic, flagged
+    honestly:** a real player who starts a game, finds exactly one word, and never returns
+    would look identical to this pattern — accepted given the strength of the timestamp
+    cross-match and the low cost of being wrong (one player's stats silently excluded from
+    an internal aggregate view, nothing player-visible, fully reversible).
 12. `[ ]` **Drill to individual game** — an admin detail view for one game's full
     guess-by-guess timeline. `game_guesses` already stores every guess with a timestamp;
     this is a join by `game_id`, no new data collection. Admin-only, so it doesn't conflict
