@@ -26,13 +26,19 @@ function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
  * (`NEON_AUTH_JWKS_URL` unset, e.g. before the Neon console values are wired up).
  * Issuer is checked when `NEON_AUTH_BASE_URL` is set; skipped (not failed) when it isn't,
  * since the JWKS signature check alone already ties the token to this Neon project's keys.
+ * Checked against the bare origin, not the full `NEON_AUTH_BASE_URL` — that env var also
+ * prefixes the JWKS/session API paths (`/neondb/auth/...`), but Neon signs `iss` as just
+ * the host, confirmed against a real token's claims in production on 2026-08-21 (a prior
+ * version compared against the full path and rejected every real token with
+ * `unexpected "iss" claim value`).
  */
 export async function verifyNeonAuthToken(token: string): Promise<{ userId: string } | null> {
   const set = getJwks();
   if (!set) return null;
 
   try {
-    const issuer = process.env.NEON_AUTH_BASE_URL;
+    const base = process.env.NEON_AUTH_BASE_URL;
+    const issuer = base ? new URL(base).origin : undefined;
     const { payload } = await jwtVerify(token, set, issuer ? { issuer } : {});
     return typeof payload.sub === "string" ? { userId: payload.sub } : null;
   } catch (error) {
