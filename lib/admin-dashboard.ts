@@ -33,6 +33,9 @@ export async function getDashboardStats(): Promise<Reply> {
   // Day boundaries are Europe/Budapest local, not the DB session's (UTC) day — Neon has
   // no reason to know the admin's timezone, so "today" is computed explicitly rather than
   // via a bare date_trunc(now()), which would put midnight up to 2h off from local time.
+  // The CI exclusion lives in the join's ON clause, not a WHERE — a WHERE would drop a
+  // day's zero-fill row entirely whenever its only games were CI's (ROADMAP Batch 10 item
+  // 11: the E2E smoke test plays one real game against production on every CI run).
   const daily = await sql<DailyRow[]>`
     select (d at time zone 'Europe/Budapest')::date::text as date,
            count(g.id)::int as games,
@@ -45,6 +48,7 @@ export async function getDashboardStats(): Promise<Reply> {
            ) as d
       left join games g
         on g.started_at >= d and g.started_at < d + interval '1 day'
+       and not exists (select 1 from players p where p.id = g.player_id and p.is_ci)
      group by d
      order by d
   `;
