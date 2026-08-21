@@ -746,20 +746,21 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
    either (an admin needs a live DB connection regardless), so precaching it would only
    cost every player background bandwidth for a page they'll essentially never visit.
 
-   **STATUS CORRECTION, 2026-08-21: NOT WORKING END-TO-END — do not read the paragraphs
-   above as "done."** The code above shipped and is live, and a real SDK bug it also
-   fixed (PR #48: `getJWTToken()` skips the request hooks that handle Neon's cross-origin
-   session handoff; switched to `getSession()`) was confirmed necessary — but sign-in
-   still does not persist for the user. After PR #48, in incognito, the admin dashboard
-   rendered *briefly* before a real `/api/v1/admin/dashboard` 401 logged the user back
-   out. A fresh admin `players` row was linked via manual SQL
-   (`auth_user_id = '59525a51-4f69-448e-a430-37c3fd43012a'` for `stamas83@gmail.com`) —
-   the step expected to close this out — and the user still reports the same failure.
-   Root cause not yet found. Full open-investigation detail (what's been ruled out, what
-   to check first — decode a real JWT's `sub`/`iss`/`exp` against a live 401, before
-   writing any more code) is in this project's own memory
-   (`betuveto-magic-link-cve-hold.md`); read that before resuming, don't re-derive from
-   scratch. `ADMIN_TOKEN` remains the working admin-login path throughout.
+   **STATUS CORRECTION, 2026-08-21, then FIXED same day (PR #49, #50).** After PR #48, in
+   incognito, the admin dashboard rendered *briefly* before a real
+   `/api/v1/admin/dashboard` 401 logged the user back out, even after the admin `players`
+   row was linked via manual SQL. Root cause found by shipping diagnostic logging first
+   (PR #49: a `console.error` inside `verifyNeonAuthToken`'s previously-silent catch, no
+   behavior change) rather than guessing further, then reading the real error straight
+   from Vercel's production runtime logs after one real sign-in attempt — not from
+   decoding a JWT by hand. The actual error: `JWTClaimValidationFailed: unexpected "iss"
+   claim value`. `NEON_AUTH_BASE_URL` carries `/neondb/auth` (needed to build the
+   JWKS/session API URLs), but Neon signs the token's `iss` as just the bare host —
+   `verifyNeonAuthToken` was reusing the same string for both, so the issuer check
+   rejected every real token. **Fixed (PR #50):** `lib/neon-auth.ts` now derives the
+   issuer as `new URL(NEON_AUTH_BASE_URL).origin`. Confirmed live: the admin signed in
+   again after deploy and the dashboard now stays loaded. `ADMIN_TOKEN` remains the
+   parallel fallback path per the original transition plan, unaffected throughout.
    **Edit/delete words and search-the-wordlist shipped 2026-07-28** (`lib/admin-words.ts`):
    `searchWords` (substring match, or latest-added with no query), `editWord` (renormalize,
    409 on a spelling collision), `deleteWord` (hard delete — cascades its reports/
@@ -1174,13 +1175,12 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    a production outage would fail this job even with entirely correct code — accepted
    since the existing contract suite already writes real data when pointed at a live
    deployment, and there was no lower-risk target available (see above).
-   **Side effect flagged, not fixed here — a candidate follow-up for whoever next touches
-   the admin dashboard (5.2 item 4) or item 9 (observability):** every CI run mints a
-   fresh anonymous player and plays one real game, so `games/day`/DAU on the dashboard now
-   partly count CI traffic, not people — at this project's actual traffic, CI runs could
-   dominate both numbers. No filtering (e.g. by a marker on the row, or the anonymous-
-   player pattern CI uses) has been built; decide with the user before building one, not
-   assumed.
+   **Side effect flagged, not fixed here — tracked as Batch 10 item 11:** every CI run
+   mints a fresh anonymous player and plays one real game, so `games/day`/DAU on the
+   dashboard now partly count CI traffic, not people — at this project's actual traffic,
+   CI runs could dominate both numbers. No filtering (e.g. by a marker on the row, or the
+   anonymous-player pattern CI uses) has been built yet; item 11 above is that decision,
+   made and scoped.
    **Hardened 2026-08-20, PR #47:** the original version picked its guess as the *first*
    dictionary-file match for the board and asserted the live API would accept it — but the
    flat file and the `words` table can drift (word maintenance, 5.2 item 1, deletes a row
