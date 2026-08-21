@@ -1225,6 +1225,35 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    Batch 7 starts, and it's a few lines to wire.
 10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
     hints…) — needs real schema/design work, no blockers, moderate value.
+11. `[ ]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
+    above already flagged and left open: every CI run of the E2E smoke test mints a real
+    anonymous player and plays one real game against production, so `games/day`/DAU on the
+    admin dashboard (5.2 item 4) already silently include CI noise today, independent of
+    any of items 12/13 below. Tag that player at creation (a marker column or a known
+    `display_name` pattern) and have dashboard queries exclude it by default. Cheapest item
+    in this batch and fixes existing numbers rather than adding a new capability — do this
+    one first.
+12. `[ ]` **Drill to individual game** — an admin detail view for one game's full
+    guess-by-guess timeline. `game_guesses` already stores every guess with a timestamp;
+    this is a join by `game_id`, no new data collection. Admin-only, so it doesn't conflict
+    with the standing player-facing rule against showing a player their own word history
+    (Batch 10 item 3) — that rule is about what a *player* sees, not admin visibility.
+13. `[ ]` **Player stat drill-down** — avg game duration/player, avg games/player, and
+    time-bucketed views (month/quarter, hour-of-day) on the admin dashboard (5.2 item 4).
+    Mostly free: `games.started_at`/`ended_at`/`player_id` already exist, this is SQL
+    aggregation on data already collected. Includes geolocation, scoped to **country-level
+    only** (Vercel populates geo headers on every request automatically, no GeoIP
+    service/cost needed) — deliberately not city/precise-coordinate, since nothing yet
+    needs finer granularity and it's otherwise PII-adjacent data with no clear use.
+    **Dashboarding-approach decision made with the user 2026-08-21:** build 2-3 reusable
+    query+chart primitives inside the existing hand-rolled admin dashboard (one
+    time-bucketed-metric query, one distribution query, reused per stat) rather than either
+    self-hosting a BI tool (Metabase/Grafana/Redash — a new service to run and maintain,
+    disproportionate ops for this project's traffic, and this machine can't run heavy
+    stacks locally anyway) or adding a hosted analytics SDK (e.g. PostHog — would cover
+    most of this item near-free, but is a new third-party dependency and the first time
+    player behavior data would leave the project). Revisit the SDK option if the in-house
+    primitives start feeling like real duplicated effort.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
