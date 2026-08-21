@@ -35,7 +35,12 @@ export async function verifyNeonAuthToken(token: string): Promise<{ userId: stri
     const issuer = process.env.NEON_AUTH_BASE_URL;
     const { payload } = await jwtVerify(token, set, issuer ? { issuer } : {});
     return typeof payload.sub === "string" ? { userId: payload.sub } : null;
-  } catch {
+  } catch (error) {
+    // Deliberately still returns null either way (see the doc comment above) — but until
+    // now every failure mode (404 on the JWKS URL, an issuer mismatch, real expiry, a bad
+    // signature) collapsed into the same silent 401 with nothing in Vercel's logs to tell
+    // them apart. This is what the 2026-08-21 investigation needed and didn't have.
+    console.error("verifyNeonAuthToken failed:", error);
     return null;
   }
 }
