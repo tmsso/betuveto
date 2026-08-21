@@ -1270,11 +1270,31 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     would look identical to this pattern — accepted given the strength of the timestamp
     cross-match and the low cost of being wrong (one player's stats silently excluded from
     an internal aggregate view, nothing player-visible, fully reversible).
-12. `[ ]` **Drill to individual game** — an admin detail view for one game's full
+12. `[x]` **Drill to individual game** — an admin detail view for one game's full
     guess-by-guess timeline. `game_guesses` already stores every guess with a timestamp;
     this is a join by `game_id`, no new data collection. Admin-only, so it doesn't conflict
     with the standing player-facing rule against showing a player their own word history
     (Batch 10 item 3) — that rule is about what a *player* sees, not admin visibility.
+    **Shipped 2026-08-21 (PR #52):** `GET /api/v1/admin/games/{id}`
+    (`lib/admin-players.ts`'s `getGameDetail`) returns the game's metadata (including
+    `target_word` — deliberately revealed, since an admin reviewing a game for
+    correctness/abuse needs the answer), its `game_guesses` timeline, and any
+    `game_hints` taken. No new migration — pure read over existing tables. Frontend: an
+    inline "Részletek" expand under each row of `AdminPlayersPanel.jsx`'s existing
+    leaderboard-entries table, toggled per row rather than a modal (this admin shell's
+    established "no component library" convention).
+    **Verified before merge, not just CI going green:** the full 94-test contract suite
+    (including a new end-to-end test for this route: gates on admin auth, checks the
+    timeline against a real completed game via `completeSmallGame()`, confirms 404 on an
+    unknown id) ran clean against this PR's own preview deployment.
+    **Gotcha hit while verifying, worth recording:** `vercel env pull` never returns
+    `VERCEL_AUTOMATION_BYPASS_SECRET` for *any* environment — it's a dashboard-only value
+    (confirmed again this session; the existing gotcha note below already said so, easy to
+    forget mid-session) — always read it from the repo's own root `.env`, not a
+    per-branch pulled file, regardless of which preview URL you're hitting.
+    **Verified live in production, not just preview:** the same query `getGameDetail` runs
+    was run directly against production for a known real game, confirming it returns the
+    same shape (including the target word) against live data.
 13. `[ ]` **Player stat drill-down** — avg game duration/player, avg games/player, and
     time-bucketed views (month/quarter, hour-of-day) on the admin dashboard (5.2 item 4).
     Mostly free: `games.started_at`/`ended_at`/`player_id` already exist, this is SQL
