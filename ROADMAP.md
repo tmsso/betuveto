@@ -1295,7 +1295,7 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     **Verified live in production, not just preview:** the same query `getGameDetail` runs
     was run directly against production for a known real game, confirming it returns the
     same shape (including the target word) against live data.
-13. `[ ]` **Player stat drill-down** — avg game duration/player, avg games/player, and
+13. `[x]` **Player stat drill-down** — avg game duration/player, avg games/player, and
     time-bucketed views (month/quarter, hour-of-day) on the admin dashboard (5.2 item 4).
     Mostly free: `games.started_at`/`ended_at`/`player_id` already exist, this is SQL
     aggregation on data already collected. Includes geolocation, scoped to **country-level
@@ -1311,6 +1311,43 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     most of this item near-free, but is a new third-party dependency and the first time
     player behavior data would leave the project). Revisit the SDK option if the in-house
     primitives start feeling like real duplicated effort.
+    **Shipped 2026-08-21 (PR #53):** `lib/admin-dashboard.ts` gained `player_stats` (avg
+    games/player; avg game duration as a **two-level average** — each player's own average
+    duration, then averaged across players, so one hyperactive player's game count can't
+    dominate the figure the way a flat total-seconds/total-games ratio would),
+    `games_by_month`/`games_by_quarter` (one shared `date_trunc`-based query, the field
+    name binds as an ordinary parameter so no raw SQL interpolation was needed to reuse it
+    across both granularities — the "one time-bucketed-metric query" from the decision
+    above), `games_by_hour` (a second primitive, `extract(hour ...)`, all days combined —
+    an engagement-pattern view rather than a trend line), and `countries` (the "one
+    distribution query" primitive, top 15 by game count). `migrations/0015` adds nullable
+    `games.country`, captured at `game/start` from Vercel's `x-vercel-ip-country` request
+    header, never echoed to the client. Every new query excludes `is_ci` players
+    (Batch 10 item 11), same as the existing daily series — CI noise would have skewed a
+    per-player average or the country distribution the same way it skewed games/day. Item
+    12's per-game detail view also gained `country`, for consistency. Frontend: new
+    dashboard sections in `AdminDashboardPanel.jsx`, reusing a small new `BucketBarTable`
+    component for the three time-bucketed views (same CSS-bar style already used
+    elsewhere, no chart library).
+    **A first live-verification pass was wrong, corrected the same session, not glossed
+    over:** the 95/95 contract-suite run against production right after merging looked
+    clean, but a direct query afterward showed every one of the last 56 games (including
+    the suite's own) had `country = null` — the feature was silently non-functional, not
+    working as the passing suite implied. Root cause found by adding temporary diagnostic
+    logging (`console.error` dumping the actual `x-vercel-*` header set, mirroring the
+    Magic Link bug's own resolution approach elsewhere in this project) to a disposable
+    branch/PR (#54, closed without merging, branch deleted) rather than guessing further —
+    the header (`x-vercel-ip-country: "HU"`) and the capture code were both confirmed
+    correct on that deployment. The real cause: the contract suite had been pointed at
+    `betuveto.vercel.app` before the just-merged deployment had finished rolling out to
+    that alias, so those 56 games were served by the *previous* deployment, which had no
+    country column write at all — a deployment-propagation timing gap, not a code bug. A
+    fresh request minutes later correctly recorded `country = 'HU'`, and a final contract
+    run (95/95) confirmed the deployed code is genuinely correct. **Process lesson:** the
+    contract test's own assertion (`toHaveProperty("country")`) only checks the key
+    exists, which a permanently-null column would also satisfy — it did not catch this,
+    direct production data did. Worth remembering for any future "did this actually write
+    real data" question: check the data, not just that the endpoint responds.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
