@@ -1446,6 +1446,30 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       also *forces* a default server-side (a hidden length selector should still pin a
       length) or only removes the control. Keep the keys few and specific; this is a
       curation lever, not a general CMS.
+15. `[ ]` **Start-screen UI cleanup — move non-core controls into a settings panel**
+    (requested 2026-08-29, deferred by the requester). The play screen currently stacks
+    every control above the board. Move everything not needed for the core loop —
+    **language, dark/light theme, word length, wordlist, leaderboard toggle, stats
+    toggle** — behind a single entry point (hamburger / gear menu → slide-over or modal
+    settings panel), leaving the board, guess input, score, timer and action buttons as
+    the default view. Pairs naturally with item 14 (both reshape the same surface) and is
+    a good vehicle for part of the `App.jsx` → `components/` refactor below. Two
+    behaviour issues to fix as part of this, since they live in the same handlers:
+    - **Bug: changing the display language starts a new game.** It shouldn't — language
+      is pure presentation. Likely cause: the mount `useEffect` in `frontend/src/App.jsx`
+      (the `init()` effect) lists `i18n` in its dependency array and calls
+      `startNewGame(initialLength)` in its body, so a `handleLanguageChange` →
+      `i18n.changeLanguage()` re-render re-fires the "first load" effect. Fix: run that
+      effect once on mount only (drop `i18n` from the deps / guard with a ref) —
+      `startNewGame` is already a stable `[]` callback, and the code's own comment already
+      claims a language switch must not restart the game, which the deps array contradicts.
+    - **Feature: confirm before a game-restarting selector change.** Changing word length,
+      wordlist, or easy mode can restart the game and lose progress. Route those through
+      the same `ConfirmationModal` the "Új játék" button already uses when
+      `foundWords.length > 0 && !isTimeUp`. Note the current handlers *silently defer* the
+      change to the next "Új játék" instead of restarting when a game is in progress —
+      decide whether the wanted UX is confirm-then-restart-now, or keep the defer but
+      surface it (right now a mid-game length change looks like it did nothing).
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
