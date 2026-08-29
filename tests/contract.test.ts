@@ -670,6 +670,26 @@ describeApi("Betűvető API contract", () => {
     expect(bad.status).toBe(422);
   });
 
+  // --- Sound-effects preference (ROADMAP Batch 10 item 8) -------------------
+  it("round-trips a player's sound_enabled flag through PATCH/GET, and rejects a non-boolean", async () => {
+    const minted = await call("POST", "/api/game/start?target_length=7");
+    const cookieValue = minted.headers.get("set-cookie")!.split(";", 1)[0];
+    const auth = { Cookie: cookieValue };
+
+    const before = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(before.json.sound_enabled).toBeNull();
+
+    const patched = await call("PATCH", "/api/v1/me/preferences", { sound_enabled: true }, auth);
+    expect(patched.status).toBe(200);
+    expect(patched.json.sound_enabled).toBe(true);
+
+    const after = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(after.json.sound_enabled).toBe(true);
+
+    const bad = await call("PATCH", "/api/v1/me/preferences", { sound_enabled: "yes" }, auth);
+    expect(bad.status).toBe(422);
+  });
+
   it("treats writing a preference with no identity as unauthorized, reading as null", async () => {
     const get = await call("GET", "/api/v1/me/preferences");
     expect(get.status).toBe(200);

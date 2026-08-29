@@ -25,6 +25,10 @@
     "light": "Világos",
     "dark": "Sötét"
   },
+  "soundToggle": {
+    "enable": "Hangeffektek bekapcsolása",
+    "disable": "Hangeffektek kikapcsolása"
+  },
   "score": {
     "pointsSuffix": "pont",
     "ariaLabel": "Pontszám: {{score}} pont",

@@ -1,9 +1,10 @@
 /**
  * Player-level preferences, separate from any single game: `players.preferred_length`
  * (ROADMAP 2.3), `players.preferred_language` (ROADMAP 6.2, migrations/0010) — the UI
- * language, independent of a game's wordlist — and `players.preferred_theme` (ROADMAP
- * Batch 10 item 7, migrations/0016). Read/written via api/v1/me/preferences using the
- * same anon-cookie identity as game/start (lib/auth.ts).
+ * language, independent of a game's wordlist — `players.preferred_theme` (ROADMAP Batch
+ * 10 item 7, migrations/0016) and `players.sound_enabled` (item 8, migrations/0017).
+ * Read/written via api/v1/me/preferences using the same anon-cookie identity as
+ * game/start (lib/auth.ts).
  */
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
@@ -88,6 +89,36 @@ export async function setPreferredTheme(
     on conflict (id) do update set preferred_theme = excluded.preferred_theme
   `;
   return { status: 200, body: { preferred_theme: rawTheme } };
+}
+
+export async function getSoundEnabled(playerId: string | null): Promise<Reply> {
+  if (!playerId) return { status: 200, body: { sound_enabled: null } };
+
+  const sql = db();
+  const [row] = await sql<{ sound_enabled: boolean | null }[]>`
+    select sound_enabled from players where id = ${playerId}
+  `;
+  return { status: 200, body: { sound_enabled: row?.sound_enabled ?? null } };
+}
+
+export async function setSoundEnabled(
+  playerId: string | null,
+  rawValue: unknown,
+): Promise<Reply> {
+  if (!playerId) {
+    return { status: 401, body: { detail: "No player identity. Start a game first." } };
+  }
+  if (typeof rawValue !== "boolean") {
+    return { status: 422, body: { detail: "sound_enabled must be true or false." } };
+  }
+
+  const sql = db();
+  await sql`
+    insert into players (id, sound_enabled)
+    values (${playerId}, ${rawValue})
+    on conflict (id) do update set sound_enabled = excluded.sound_enabled
+  `;
+  return { status: 200, body: { sound_enabled: rawValue } };
 }
 
 export async function setPreferredLength(
