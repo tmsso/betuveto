@@ -1268,6 +1268,18 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    calls to structured logging, and any Sentry breadcrumb/context enrichment — the
    backend 500 funnel was the high-value target; the rest can follow if it earns its
    keep.
+   **DSNs configured + redeployed 2026-08-29** (`SENTRY_DSN` via the Vercel↔Sentry
+   marketplace integration — Prod/Preview/Dev; `VITE_SENTRY_DSN` added by hand for
+   Production; empty-commit `8fc0571` forced the build). Frontend wiring confirmed from
+   the build log: with `VITE_SENTRY_DSN` truthy, Vite stops eliminating the branch and
+   emits the `@sentry/react` chunk (`index-nZorJP2U.js`, **482 kB / 160 kB gzip**) —
+   which now lazy-loads on **every** player visit (the DSN-gated `import()` always runs).
+   That roughly doubles a player's JS download. **Follow-up worth doing:** switch
+   `main.jsx` from `@sentry/react` to `@sentry/browser` with a hand-picked integration
+   set (drop the React error-boundary/profiler helpers we don't use) to cut that chunk
+   substantially; or gate it behind an opt-in rather than load-always. Backend
+   (`@sentry/node`) stays lazy-loaded on the first error only, so it adds nothing to a
+   happy-path cold start.
 10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
     hints…) — needs real schema/design work, no blockers, moderate value.
 11. `[x]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
