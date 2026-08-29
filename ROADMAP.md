@@ -1319,9 +1319,12 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     `startDashboardVisibleGame` dashboard tests: each asserts on fresh-player state
     (`your_best.final_score` exact match, "mints a cookie on first visit", "a game today
     is visible in games/day"), so a fresh identity is the correct fixture there — leaving
-    a bounded ~12 minted players per full run, down from 100+ (measured on the
-    verification run), and that residue is principled, not unfinished. A verification run
-    with the pinned cookie set attributed 31 games to the pinned identity.
+    a bounded ~12 minted players per full run — ~14 with `ADMIN_TOKEN` set, which also
+    runs the two `startDashboardVisibleGame` tests — down from 100+ (measured on the
+    verification run, which had no `ADMIN_TOKEN`), and that residue is principled, not
+    unfinished. A verification run with the pinned cookie set attributed 31 games to the
+    pinned identity. (The in-code comment in `tests/contract.test.ts` says "~12"; it
+    predates this `ADMIN_TOKEN` nuance.)
     **Backfill (user-approved, both the mint and the historical UPDATE):** the pinned
     identity was bootstrapped in production (`02f522a7…`, `is_ci = true`), then 186
     historical contract-suite player rows from the 2026-08-19 and 2026-08-21 dev sessions
