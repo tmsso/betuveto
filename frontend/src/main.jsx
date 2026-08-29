@@ -28,6 +28,22 @@ import './index.css'
 // "/" vs "/admin" — with no nested or dynamic routes, so a pathname check here is
 // simpler than adding react-router for what would be a single always-matching rule.
 // Any tabs within the admin panel are component-local state, not sub-routes.
+// ROADMAP Batch 10 item 9 — error tracking. Inert until VITE_SENTRY_DSN is set: the
+// condition is build-time constant, so with no DSN Vite drops the branch and never ships
+// the @sentry/react chunk to players (the same bundle-cost care as the AdminApp lazy load
+// below). Dynamic import so, even when enabled, the SDK loads off the critical path.
+if (import.meta.env.VITE_SENTRY_DSN) {
+  import('@sentry/react')
+    .then((Sentry) => {
+      Sentry.init({
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        environment: import.meta.env.MODE,
+        tracesSampleRate: 0,
+      })
+    })
+    .catch(() => { /* observability must never break the app */ })
+}
+
 const isAdminRoute = window.location.pathname.startsWith('/admin')
 
 // ROADMAP Batch 10 item 7: dark mode is player-facing only for now. The admin panels
