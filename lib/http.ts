@@ -5,6 +5,8 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { Reply } from "./game.js";
+import { log, serializeError } from "./log.js";
+import { captureException } from "./observability.js";
 
 type Logic = (req: VercelRequest) => Promise<Reply>;
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
@@ -31,7 +33,16 @@ export function methodHandler(routes: Partial<Record<Method, Logic>>) {
       }
       res.status(reply.status).json(reply.body);
     } catch (error) {
-      console.error(error);
+      // ROADMAP Batch 10 item 9: every unexpected throw in the whole /api/v1 surface
+      // lands here. Structured line always; Sentry too when SENTRY_DSN is configured
+      // (a no-op otherwise). The client still gets only a bare "Internal error." — a
+      // stack trace could disclose the target word.
+      log.error("unhandled_route_error", {
+        method: req.method,
+        url: req.url,
+        ...serializeError(error),
+      });
+      await captureException(error, { method: req.method, url: req.url });
       res.status(500).json({ detail: "Internal error." });
     }
   };

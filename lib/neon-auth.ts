@@ -9,6 +9,7 @@
  * callback sets would never be attached to a same-site check against our own API anyway.
  */
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { log, serializeError } from "./log.js";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
@@ -46,7 +47,7 @@ export async function verifyNeonAuthToken(token: string): Promise<{ userId: stri
     // now every failure mode (404 on the JWKS URL, an issuer mismatch, real expiry, a bad
     // signature) collapsed into the same silent 401 with nothing in Vercel's logs to tell
     // them apart. This is what the 2026-08-21 investigation needed and didn't have.
-    console.error("verifyNeonAuthToken failed:", error);
+    log.error("neon_auth_verify_failed", serializeError(error));
     return null;
   }
 }
