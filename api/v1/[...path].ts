@@ -46,8 +46,10 @@ import { bodyField, bodyWord, intQuery, methodHandler, stringQuery } from "../..
 import {
   getPreferredLanguage,
   getPreferredLength,
+  getPreferredTheme,
   setPreferredLanguage,
   setPreferredLength,
+  setPreferredTheme,
 } from "../../lib/players.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
@@ -192,16 +194,20 @@ function listLeaderboardEntriesRoute(req: VercelRequest) {
   );
 }
 
-// /me/preferences covers two independent preferences (ROADMAP 2.3's preferred_length,
-// 6.2's preferred_language) on one route — merged here rather than in lib/players.ts so
-// each preference's own get/set stays independently testable and doesn't need to know
-// about the other.
+// /me/preferences covers three independent preferences (ROADMAP 2.3's preferred_length,
+// 6.2's preferred_language, Batch 10 item 7's preferred_theme) on one route — merged here
+// rather than in lib/players.ts so each preference's own get/set stays independently
+// testable and doesn't need to know about the others.
 async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
   const id = playerId(req);
-  const [length, language] = await Promise.all([getPreferredLength(id), getPreferredLanguage(id)]);
+  const [length, language, theme] = await Promise.all([
+    getPreferredLength(id),
+    getPreferredLanguage(id),
+    getPreferredTheme(id),
+  ]);
   return {
     status: 200,
-    body: { ...(length.body as object), ...(language.body as object) },
+    body: { ...(length.body as object), ...(language.body as object), ...(theme.body as object) },
   };
 }
 
@@ -216,6 +222,11 @@ async function preferencesPatchRoute(req: VercelRequest): Promise<Reply> {
   }
   if (bodyField(req, "preferred_language") !== undefined) {
     const reply = await setPreferredLanguage(id, bodyField(req, "preferred_language"));
+    if (reply.status !== 200) return reply;
+    Object.assign(body, reply.body);
+  }
+  if (bodyField(req, "preferred_theme") !== undefined) {
+    const reply = await setPreferredTheme(id, bodyField(req, "preferred_theme"));
     if (reply.status !== 200) return reply;
     Object.assign(body, reply.body);
   }

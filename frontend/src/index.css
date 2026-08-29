@@ -2,10 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ROADMAP Batch 10 item 7 — dark mode.
+   The semantic palette lives here as CSS custom properties (space-separated RGB channels,
+   so Tailwind's `rgb(var(--x) / <alpha-value>)` in tailwind.config.js can apply opacity).
+   `:root` is the light theme; `.dark` on <html> (set by useTheme, and pre-paint by the
+   inline script in index.html) swaps in the dark values — re-theming every `*-game-*`
+   utility in one place instead of a `dark:` variant per element. */
+:root {
+  --game-primary: 44 62 80;      /* #2c3e50 — primary text / headings */
+  --game-secondary: 52 152 219;  /* #3498db — accent, links, focus ring */
+  --game-success: 46 204 113;    /* #2ecc71 */
+  --game-warning: 243 156 18;    /* #f39c12 */
+  --game-error: 231 76 60;       /* #e74c3c */
+  --game-paper: 248 249 250;     /* #f8f9fa — page background */
+  --game-border: 222 226 230;    /* #dee2e6 */
+  --game-surface: 255 255 255;   /* #ffffff — card / panel background (was bare bg-white) */
+  --game-muted: 107 114 128;     /* #6b7280 — secondary text (was text-gray-500) */
+  color-scheme: light;
+}
+
+.dark {
+  --game-primary: 226 232 240;   /* #e2e8f0 — light text on a dark ground */
+  --game-secondary: 96 165 250;  /* #60a5fa — brighter blue keeps AA contrast on dark */
+  --game-success: 74 222 128;    /* #4ade80 */
+  --game-warning: 251 191 36;    /* #fbbf24 */
+  --game-error: 248 113 113;     /* #f87171 */
+  --game-paper: 15 23 42;        /* #0f172a — slate-900 page background */
+  --game-border: 51 65 85;       /* #334155 — slate-700 */
+  --game-surface: 30 41 59;      /* #1e293b — slate-800 card / panel */
+  --game-muted: 148 163 184;     /* #94a3b8 — slate-400 secondary text */
+  color-scheme: dark;
+}
+
 @layer base {
   html,
   body {
     font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  /* Paint the page ground from the token so there's no white flash between the
+     pre-paint script running and React mounting. */
+  body {
+    background-color: rgb(var(--game-paper));
   }
 }
 

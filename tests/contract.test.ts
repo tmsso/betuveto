@@ -650,6 +650,26 @@ describeApi("Betűvető API contract", () => {
     expect(status).toBe(422);
   });
 
+  // --- Preferred theme persistence (ROADMAP Batch 10 item 7: dark mode) ------
+  it("round-trips a player's preferred theme through PATCH/GET, and rejects an unknown value", async () => {
+    const minted = await call("POST", "/api/game/start?target_length=7");
+    const cookieValue = minted.headers.get("set-cookie")!.split(";", 1)[0];
+    const auth = { Cookie: cookieValue };
+
+    const before = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(before.json.preferred_theme).toBeNull();
+
+    const patched = await call("PATCH", "/api/v1/me/preferences", { preferred_theme: "dark" }, auth);
+    expect(patched.status).toBe(200);
+    expect(patched.json.preferred_theme).toBe("dark");
+
+    const after = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(after.json.preferred_theme).toBe("dark");
+
+    const bad = await call("PATCH", "/api/v1/me/preferences", { preferred_theme: "sepia" }, auth);
+    expect(bad.status).toBe(422);
+  });
+
   it("treats writing a preference with no identity as unauthorized, reading as null", async () => {
     const get = await call("GET", "/api/v1/me/preferences");
     expect(get.status).toBe(200);
