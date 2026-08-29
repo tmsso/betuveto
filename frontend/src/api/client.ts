@@ -163,6 +163,25 @@ class BetuAPIClient {
     if (!response.ok) throw new Error('Failed to save preferred language');
   }
 
+  // Colour-theme preference (ROADMAP Batch 10 item 7, migrations/0016) — 'light' |
+  // 'dark' | 'system', same /me/preferences route. Null = never chosen; the frontend
+  // treats that as 'system' (follow the OS prefers-color-scheme).
+  async getPreferredTheme(): Promise<string | null> {
+    const response = await fetch('/api/v1/me/preferences');
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    const data = await response.json();
+    return data.preferred_theme ?? null;
+  }
+
+  async setPreferredTheme(theme: string): Promise<void> {
+    const response = await fetch('/api/v1/me/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferred_theme: theme }),
+    });
+    if (!response.ok) throw new Error('Failed to save preferred theme');
+  }
+
   // Game management
   async startGame(targetLength: number = 7, wordlist?: string, difficulty?: 'easy' | 'normal'): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });

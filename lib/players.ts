@@ -1,14 +1,16 @@
 /**
  * Player-level preferences, separate from any single game: `players.preferred_length`
- * (ROADMAP 2.3) and `players.preferred_language` (ROADMAP 6.2, migrations/0010) — the UI
- * language, independent of a game's wordlist. Read/written via api/v1/me/preferences
- * using the same anon-cookie identity as game/start (lib/auth.ts).
+ * (ROADMAP 2.3), `players.preferred_language` (ROADMAP 6.2, migrations/0010) — the UI
+ * language, independent of a game's wordlist — and `players.preferred_theme` (ROADMAP
+ * Batch 10 item 7, migrations/0016). Read/written via api/v1/me/preferences using the
+ * same anon-cookie identity as game/start (lib/auth.ts).
  */
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 import { MAX_TARGET_LENGTH, MIN_TARGET_LENGTH } from "./words.js";
 
 const SUPPORTED_LANGUAGES = ["hu", "en"];
+const SUPPORTED_THEMES = ["light", "dark", "system"];
 
 /** No identity yet (never played, or a stale/missing cookie) reads as "no preference
  *  known" rather than an error — the frontend just falls back to its own defaults. */
@@ -53,6 +55,39 @@ export async function setPreferredLanguage(
     on conflict (id) do update set preferred_language = excluded.preferred_language
   `;
   return { status: 200, body: { preferred_language: rawLanguage } };
+}
+
+export async function getPreferredTheme(playerId: string | null): Promise<Reply> {
+  if (!playerId) return { status: 200, body: { preferred_theme: null } };
+
+  const sql = db();
+  const [row] = await sql<{ preferred_theme: string | null }[]>`
+    select preferred_theme from players where id = ${playerId}
+  `;
+  return { status: 200, body: { preferred_theme: row?.preferred_theme ?? null } };
+}
+
+export async function setPreferredTheme(
+  playerId: string | null,
+  rawTheme: unknown,
+): Promise<Reply> {
+  if (!playerId) {
+    return { status: 401, body: { detail: "No player identity. Start a game first." } };
+  }
+  if (typeof rawTheme !== "string" || !SUPPORTED_THEMES.includes(rawTheme)) {
+    return {
+      status: 422,
+      body: { detail: `preferred_theme must be one of: ${SUPPORTED_THEMES.join(", ")}.` },
+    };
+  }
+
+  const sql = db();
+  await sql`
+    insert into players (id, preferred_theme)
+    values (${playerId}, ${rawTheme})
+    on conflict (id) do update set preferred_theme = excluded.preferred_theme
+  `;
+  return { status: 200, body: { preferred_theme: rawTheme } };
 }
 
 export async function setPreferredLength(

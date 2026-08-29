@@ -30,6 +30,12 @@ import './index.css'
 // Any tabs within the admin panel are component-local state, not sub-routes.
 const isAdminRoute = window.location.pathname.startsWith('/admin')
 
+// ROADMAP Batch 10 item 7: dark mode is player-facing only for now. The admin panels
+// (AdminApp + the 5 Admin*Panel files) still use light-only class strings, so force the
+// admin route back to light here — before React paints — rather than ship a half-dark
+// admin screen. Drop this once the admin panels get their own dark pass.
+if (isAdminRoute) document.documentElement.classList.remove('dark')
+
 // Lazy, not a static import (ROADMAP 5.2 follow-up): AdminApp now pulls in
 // @neondatabase/auth, which alone roughly doubles the bundle (measured: ~320kB -> ~650kB
 // minified) — a cost every *player* would otherwise pay on every visit for a feature only

@@ -19,6 +19,12 @@
   "languageSelector": {
     "ariaLabel": "Choose interface language"
   },
+  "themeSelector": {
+    "ariaLabel": "Choose colour theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
   "score": {
     "pointsSuffix": "points",
     "ariaLabel": "Score: {{score}} points",

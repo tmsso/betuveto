@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
-import ConfirmationModal from './ConfirmationModal'
-import OfflineNotice from './OfflineNotice'
-import InstallPrompt from './InstallPrompt'
+import ConfirmationModal from './components/ConfirmationModal'
+import OfflineNotice from './components/OfflineNotice'
+import InstallPrompt from './components/InstallPrompt'
+import ThemeToggle from './components/ThemeToggle'
 import { definitionUrl } from './dictionary'
 
 const canvasStyles = {
@@ -751,7 +752,7 @@ function App() {
         <InstallPrompt />
         <div className="text-center">
           <div className="animate-pulse text-4xl text-game-secondary mb-4">{t('loading.screen')}</div>
-          <p className="text-gray-600">{t('loading.startingGame')}</p>
+          <p className="text-game-muted">{t('loading.startingGame')}</p>
         </div>
       </div>
     )
@@ -762,7 +763,7 @@ function App() {
         <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-sans">
             <OfflineNotice />
             <InstallPrompt />
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
+            <div className="bg-red-100 dark:bg-red-950/40 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
                 <strong className="font-bold">{t('errorScreen.title')}</strong>
                 <span className="block sm:inline"> {t(error)}</span>
                 <div className="mt-4">
@@ -790,25 +791,29 @@ function App() {
         {/* UI language selector (ROADMAP 6.2) — independent of the wordlist selector below;
             never restarts a game. Labels are endonyms, same convention as the wordlist
             selector's labels. */}
-        <select
-          value={i18n.language}
-          onChange={(e) => handleLanguageChange(e.target.value)}
-          aria-label={t('languageSelector.ariaLabel')}
-          className="mt-1 text-xs border border-game-border rounded-lg px-2 py-0.5 text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary"
-        >
-          {UI_LANGUAGES.map(({ code, label }) => (
-            <option key={code} value={code}>{label}</option>
-          ))}
-        </select>
+        <div className="mt-1 flex items-center justify-center gap-2">
+          <select
+            value={i18n.language}
+            onChange={(e) => handleLanguageChange(e.target.value)}
+            aria-label={t('languageSelector.ariaLabel')}
+            className="text-xs border border-game-border rounded-lg px-2 py-0.5 text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary"
+          >
+            {UI_LANGUAGES.map(({ code, label }) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
+          {/* ROADMAP Batch 10 item 7 — colour-theme picker, beside the language one. */}
+          <ThemeToggle />
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
+      <div className="bg-game-surface rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
         {/* Easy-mode indicator (ROADMAP Batch 10) — the checkbox alone can't show a
             silent server-side fallback to a normal pick (lib/game.ts: no word yet
             qualifies), so this reflects gameEasyMode, the server's echoed actual outcome,
             not the request. */}
         {gameEasyMode && (
-            <div className="absolute top-0 left-0 p-2 bg-green-100 text-green-800 text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-green-200">
+            <div className="absolute top-0 left-0 p-2 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-green-200 dark:border-green-900">
                 🌱 {t('easyModeBadge')}
             </div>
         )}
@@ -816,7 +821,7 @@ function App() {
         {/* Word length selector (ROADMAP 2.3) — applies to the next game; a change
             mid-game is only saved and applied once the current game ends or restarts. */}
         <div className="flex items-center justify-center gap-2 mb-4 text-sm">
-          <label htmlFor="length-select" className="text-gray-500 font-semibold">
+          <label htmlFor="length-select" className="text-game-muted font-semibold">
             {t('lengthSelector.label')}
           </label>
           <select
@@ -825,7 +830,7 @@ function App() {
             disabled={isLoading}
             onChange={(e) => handleLengthChange(Number(e.target.value))}
             aria-label={t('lengthSelector.ariaLabel')}
-            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
           >
             {availableLengths.map((length) => (
               <option key={length} value={length}>{t('lengthSelector.option', { length })}</option>
@@ -836,7 +841,7 @@ function App() {
         {/* Wordlist selector (ROADMAP 6.1) — which dictionary the target word comes from;
             same "restart only if safe" rule as the length selector above. */}
         <div className="flex items-center justify-center gap-2 mb-4 text-sm">
-          <label htmlFor="wordlist-select" className="text-gray-500 font-semibold">
+          <label htmlFor="wordlist-select" className="text-game-muted font-semibold">
             {t('wordlistSelector.label')}
           </label>
           <select
@@ -845,7 +850,7 @@ function App() {
             disabled={isLoading}
             onChange={(e) => handleWordlistChange(e.target.value)}
             aria-label={t('wordlistSelector.ariaLabel')}
-            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-white focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
           >
             {WORDLISTS.map(({ code, label }) => (
               <option key={code} value={code}>{label}</option>
@@ -857,7 +862,7 @@ function App() {
             words with a proven-high solve rate; same "restart only if safe" rule as the
             selectors above. */}
         <div className="flex items-center justify-center gap-2 mb-4 text-sm">
-          <label htmlFor="easy-mode-toggle" className="text-gray-500 font-semibold flex items-center gap-1.5 cursor-pointer">
+          <label htmlFor="easy-mode-toggle" className="text-game-muted font-semibold flex items-center gap-1.5 cursor-pointer">
             <input
               id="easy-mode-toggle"
               type="checkbox"
@@ -875,19 +880,19 @@ function App() {
         <div className="flex justify-between items-center mb-6">
           <div className="text-left">
             <div
-              className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600' : 'text-game-primary'}`}
+              className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600 dark:text-red-400' : 'text-game-primary'}`}
               aria-live="polite"
               aria-label={t('score.ariaLabel', { score: displayScore })}
             >
               🏆 {displayScore} <span className="hidden sm:inline">{t('score.pointsSuffix')}</span>
             </div>
-            <div className={`text-md text-gray-500 transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
+            <div className={`text-md text-game-muted transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
               {t('score.progress', { found: foundWords.length, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && '✨'}
             </div>
           </div>
           <div className="flex items-center justify-center space-x-2">
             <div
-              className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-game-primary'}`}
+              className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-game-primary'}`}
               role="timer"
               aria-label={t('score.timerAriaLabel', { time: `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` })}
             >
@@ -900,19 +905,19 @@ function App() {
         <div className="mb-4 flex justify-center">
           <button
             onClick={() => setShowHighScores(!showHighScores)}
-            className="text-xs text-game-secondary underline hover:text-blue-700"
+            className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300"
           >
             {showHighScores ? t('highScores.hide') : t('highScores.show', { length: targetLength })}
           </button>
         </div>
 
         {showHighScores && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-            <h4 className="text-sm font-bold mb-2 text-center text-gray-500">
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700">
+            <h4 className="text-sm font-bold mb-2 text-center text-game-muted">
               {t('highScores.panelTitle', { length: targetLength })}
             </h4>
             {serverScoresLoading && (
-              <p className="text-xs text-center text-gray-400">{t('highScores.loading')}</p>
+              <p className="text-xs text-center text-game-muted">{t('highScores.loading')}</p>
             )}
             {!serverScoresLoading && serverScores && serverScores.top.length > 0 && (
               <ol className="text-sm space-y-1 max-w-xs mx-auto">
@@ -925,17 +930,17 @@ function App() {
               </ol>
             )}
             {!serverScoresLoading && serverScores && serverScores.top.length === 0 && (
-              <p className="text-xs text-center text-gray-400">{t('highScores.empty')}</p>
+              <p className="text-xs text-center text-game-muted">{t('highScores.empty')}</p>
             )}
             {!serverScoresLoading && serverScores?.your_best && (
-              <p className="text-xs text-center mt-3 text-gray-500">
+              <p className="text-xs text-center mt-3 text-game-muted">
                 {t('highScores.yourBest')} <span className="font-bold">{serverScores.your_best.final_score}</span>
               </p>
             )}
             {!serverScoresLoading && !serverScores && highScores.length > 0 && (
               <>
-                <p className="text-xs text-center text-gray-400 mb-2">{t('highScores.offlineWithLocal')}</p>
-                <div className="flex gap-4 justify-center text-xs text-gray-400">
+                <p className="text-xs text-center text-game-muted mb-2">{t('highScores.offlineWithLocal')}</p>
+                <div className="flex gap-4 justify-center text-xs text-game-muted">
                   {highScores.map((s, i) => (
                     <span key={i} className="font-bold">#{i + 1}: {s.score}</span>
                   ))}
@@ -943,7 +948,7 @@ function App() {
               </>
             )}
             {!serverScoresLoading && !serverScores && highScores.length === 0 && (
-              <p className="text-xs text-center text-gray-400">{t('highScores.offlineNone')}</p>
+              <p className="text-xs text-center text-game-muted">{t('highScores.offlineNone')}</p>
             )}
           </div>
         )}
@@ -960,8 +965,8 @@ function App() {
                 ${currentAnimatingIndex === index 
                   ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10' 
                   : usedLetters[index] 
-                    ? 'bg-gray-300 border-gray-400 text-gray-700' 
-                    : 'bg-blue-100 border-2 border-blue-300 text-blue-800 hover:bg-blue-200 hover:-translate-y-1 hover:scale-110 focus:ring-blue-500'}`}
+                    ? 'bg-gray-300 dark:bg-slate-600 border-gray-400 dark:border-slate-500 text-gray-700 dark:text-slate-200' 
+                    : 'bg-blue-100 dark:bg-blue-500/20 border-2 border-blue-300 dark:border-blue-400/50 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:-translate-y-1 hover:scale-110 focus:ring-blue-500'}`}
                 disabled={usedLetters[index]}
               >
                 {letter}
@@ -1002,7 +1007,7 @@ function App() {
               className={
                 `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 font-extrabold text-game-primary text-center uppercase 
                 shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary 
-                ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 ' : 'border-game-border'}
+                ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 dark:bg-red-950/40 ' : 'border-game-border'}
                 ${currentGuess.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'}`
               }
               placeholder={t('guessInput.placeholder')}
@@ -1015,7 +1020,7 @@ function App() {
               <button
                 onClick={() => setCurrentGuess('')}
                 aria-label={t('guessInput.clearAriaLabel')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 hover:bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 text-xl"
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 dark:text-slate-200 text-xl"
               >
                 ✖️
               </button>
@@ -1059,7 +1064,7 @@ function App() {
             </button>
             <button
               onClick={handleScramble}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-white border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
               aria-label={t('actions.scrambleAriaLabel')}
               title={t('actions.scrambleAriaLabel')}
             >
@@ -1075,7 +1080,7 @@ function App() {
             className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
                 ? 'bg-game-success text-white hover:bg-green-600 hover:scale-105 active:scale-95'
-                : 'bg-gray-300 cursor-not-allowed text-gray-500'
+                : 'bg-gray-300 dark:bg-slate-700 cursor-not-allowed text-game-muted'
               }`}
           >
             <span>✅</span>
@@ -1088,7 +1093,7 @@ function App() {
           <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
               onClick={handleGiveUp}
-              className="text-xs text-gray-500 underline hover:text-red-600"
+              className="text-xs text-game-muted underline hover:text-red-600"
             >
               {t('giveUpHint.giveUp')}
             </button>
@@ -1096,7 +1101,7 @@ function App() {
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
               title={t('giveUpHint.hintTitle', { cost: HINT_COST })}
-              className="text-xs text-game-secondary underline hover:text-blue-700 disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
+              className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300 disabled:text-gray-300 dark:disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
             >
               {t('giveUpHint.hint', { cost: HINT_COST })}
             </button>
@@ -1104,7 +1109,7 @@ function App() {
         )}
 
         {hintMessage && (
-          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900 rounded-lg px-3 py-2">
             {hintMessage}
           </div>
         )}
@@ -1114,30 +1119,30 @@ function App() {
         <div className="mb-6 flex justify-center">
             <button
                 onClick={() => setShowStats(!showStats)}
-                className="text-xs text-game-secondary underline hover:text-blue-700"
+                className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300"
             >
                 {showStats ? t('stats.hide') : t('stats.show')}
             </button>
         </div>
 
         {showStats && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                {statsLoading && <p className="text-xs text-center text-gray-400">{t('stats.loading')}</p>}
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700">
+                {statsLoading && <p className="text-xs text-center text-game-muted">{t('stats.loading')}</p>}
                 {!statsLoading && stats && stats.games_played === 0 && (
-                    <p className="text-xs text-center text-gray-400">{t('stats.noGames')}</p>
+                    <p className="text-xs text-center text-game-muted">{t('stats.noGames')}</p>
                 )}
                 {!statsLoading && stats && stats.games_played > 0 && (
                     <>
-                        <div className="text-sm text-center text-gray-600 mb-3 space-y-1">
+                        <div className="text-sm text-center text-game-muted mb-3 space-y-1">
                             <p>{t('stats.gamesPlayed')} <span className="font-bold">{stats.games_played}</span></p>
                             <p>{t('stats.completionRate')} <span className="font-bold">{Math.round(stats.completion_rate * 100)}%</span></p>
                         </div>
                         {Object.keys(stats.average_score_by_length).length > 0 && (
-                            <div className="text-xs text-center text-gray-500 mb-3">
+                            <div className="text-xs text-center text-game-muted mb-3">
                                 <p className="font-bold mb-1">{t('stats.avgScoreHeader')}</p>
                                 <div className="flex flex-wrap gap-2 justify-center">
                                     {Object.entries(stats.average_score_by_length).map(([len, avg]) => (
-                                        <span key={len} className="px-2 py-1 bg-white rounded border border-gray-200">
+                                        <span key={len} className="px-2 py-1 bg-game-surface rounded border border-gray-200 dark:border-slate-700">
                                             {t('stats.avgScoreEntry', { length: len, avg: Math.round(avg) })}
                                         </span>
                                     ))}
@@ -1147,7 +1152,7 @@ function App() {
                     </>
                 )}
                 {!statsLoading && !stats && (
-                    <p className="text-xs text-center text-gray-400">{t('stats.offline')}</p>
+                    <p className="text-xs text-center text-game-muted">{t('stats.offline')}</p>
                 )}
             </div>
         )}
@@ -1160,8 +1165,8 @@ function App() {
               {[...foundWords].sort((a, b) => a.localeCompare(b, gameWordlist)).map((word, index) => (
                 <span
                   key={index}
-                  className={`inline-flex items-center gap-1.5 bg-green-100 text-green-800 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
-                    ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 scale-110' : ''}`}
+                  className={`inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
+                    ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 dark:bg-yellow-500/20 scale-110' : ''}`}
                 >
                   {word} ({t('foundWords.points', { points: word.length * word.length })})
                   {isTimeUp && definitionUrl(word, gameWordlist) && (
@@ -1171,7 +1176,7 @@ function App() {
                       rel="noopener noreferrer"
                       aria-label={t('dictionary.lookupAriaLabel', { word })}
                       title={t('dictionary.lookupTitle')}
-                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-blue-700"
+                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-blue-700 dark:hover:text-blue-300"
                     >
                       📖
                     </a>
@@ -1193,10 +1198,10 @@ function App() {
 
         {/* Remaining Words Dropdown (Only after game end) */}
         {isTimeUp && allPossibleWords.length > foundWords.length && (
-            <div className="mt-6 pt-4 border-t border-dashed border-gray-200">
+            <div className="mt-6 pt-4 border-t border-dashed border-gray-200 dark:border-slate-700">
                 <button
                   onClick={() => setShowRemainingWords(!showRemainingWords)}
-                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-blue-700 flex items-center justify-center gap-2"
+                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-blue-700 dark:hover:text-blue-300 flex items-center justify-center gap-2"
                 >
                   {showRemainingWords
                     ? t('remainingWords.hide')
@@ -1209,7 +1214,7 @@ function App() {
                             .filter(word => !foundWords.includes(word))
                             .sort((a, b) => a.localeCompare(b, gameWordlist))
                             .map((word, index) => (
-                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">
+                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-slate-800 text-game-muted px-2 py-1 rounded border border-gray-200 dark:border-slate-700">
                                     {word}
                                     {definitionUrl(word, gameWordlist) && (
                                       <a
@@ -1218,7 +1223,7 @@ function App() {
                                         rel="noopener noreferrer"
                                         aria-label={t('dictionary.lookupAriaLabel', { word })}
                                         title={t('dictionary.lookupTitle')}
-                                        className="leading-none opacity-60 hover:opacity-100 hover:text-blue-700"
+                                        className="leading-none opacity-60 hover:opacity-100 hover:text-blue-700 dark:hover:text-blue-300"
                                       >
                                         📖
                                       </a>
@@ -1246,7 +1251,7 @@ function App() {
             same batch — kept only so a `error` state introduced by future code has
             somewhere sane to render, rather than silently doing nothing. */}
         {error && (
-          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-red-100 text-red-700">
+          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300">
             {t(error)}
           </div>
         )}

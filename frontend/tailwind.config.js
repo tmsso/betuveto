@@ -1,5 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // ROADMAP Batch 10 item 7: class-based dark mode — a `.dark` on <html> (set by
+  // useTheme, and pre-paint by the inline script in index.html) toggles the theme, so a
+  // per-player DB preference can override the OS `prefers-color-scheme`, the same
+  // three-way (preference -> system -> default) model `preferred_language` already uses.
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,13 +12,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        'game-primary': '#2c3e50',
-        'game-secondary': '#3498db',
-        'game-success': '#2ecc71',
-        'game-warning': '#f39c12',
-        'game-error': '#e74c3c',
-        'game-paper': '#f8f9fa',
-        'game-border': '#dee2e6',
+        // Semantic palette, backed by CSS custom properties (defined in index.css) so a
+        // single `:root` / `.dark` block re-themes every `*-game-*` utility at once
+        // instead of a `dark:` variant on every element. `<alpha-value>` keeps Tailwind's
+        // opacity modifiers (e.g. `text-game-primary/70`) working.
+        'game-primary': 'rgb(var(--game-primary) / <alpha-value>)',
+        'game-secondary': 'rgb(var(--game-secondary) / <alpha-value>)',
+        'game-success': 'rgb(var(--game-success) / <alpha-value>)',
+        'game-warning': 'rgb(var(--game-warning) / <alpha-value>)',
+        'game-error': 'rgb(var(--game-error) / <alpha-value>)',
+        'game-paper': 'rgb(var(--game-paper) / <alpha-value>)',
+        'game-border': 'rgb(var(--game-border) / <alpha-value>)',
+        // New tokens introduced for dark mode: `surface` replaces bare `bg-white` cards,
+        // `muted` replaces the recurring `text-gray-500` secondary text.
+        'game-surface': 'rgb(var(--game-surface) / <alpha-value>)',
+        'game-muted': 'rgb(var(--game-muted) / <alpha-value>)',
       },
       fontFamily: {
         // Rounded, readable base face with full Hungarian (ő/ű) support.

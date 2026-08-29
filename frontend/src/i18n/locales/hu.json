@@ -19,6 +19,12 @@
   "languageSelector": {
     "ariaLabel": "Felület nyelvének kiválasztása"
   },
+  "themeSelector": {
+    "ariaLabel": "Színséma kiválasztása",
+    "system": "Rendszer szerint",
+    "light": "Világos",
+    "dark": "Sötét"
+  },
   "score": {
     "pointsSuffix": "pont",
     "ariaLabel": "Pontszám: {{score}} pont",
