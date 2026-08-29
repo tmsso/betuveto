@@ -39,6 +39,36 @@ const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 // Optional: only the negative (401) admin-queue cases run without it, since there's no
 // safe way to guess a real token. Pass it when you have it to also check the 200 path.
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+
+// ROADMAP Batch 10 item 11 (contract-suite half). `start()` below mints a brand-new
+// anonymous player on every call, and `startUntil` calls it in a retry loop — so one
+// run of this suite against production used to add 100+ single-game players to the admin
+// dashboard's games/day and DAU (the E2E smoke test's own noise was already fixed in
+// item 11; this is the other, larger source). When CONTRACT_CI_PLAYER_COOKIE is set — a
+// pre-signed `bv_anon` value (the `<uuid>.<hmac>` part only, no `bv_anon=` prefix) for a
+// player row manually flagged `is_ci = true` in production, same bootstrap as the E2E
+// suite's E2E_CI_PLAYER_COOKIE — every shape-probing `start()` reuses that one identity
+// and the dashboard excludes it.
+//
+// Deliberately NOT applied to `startWithCookie` / `startWithCookieEn`, `completeSmallGame`
+// / `completeSmallGameEn`, `startDashboardVisibleGame`, or the direct-`call` mint sites:
+// each of those backs a test that asserts on *fresh-player* state — `your_best.final_score`
+// must equal exactly this run's score for the hu/en cross-contamination test; "mints a
+// signed cookie on first visit" checks the mint itself; the dashboard tests assert a game
+// played today is *visible* in games/day, which an is_ci player is excluded from by
+// design. A fresh identity is the correct fixture there, not a compromise — leaving a
+// bounded ~15 minted players per full run, down from 100+. Do not "resolve" that residue
+// by weakening those assertions; it is already resolved.
+//
+// Caveat: the pinned identity accumulates `word_stats` over time, and
+// `pickPersonalizedWord()` (lib/game.ts) prefers never-seen targets, so
+// `startUntil(hasUniqueTarget)`'s candidate pool narrows run over run. If it starts
+// needing more retries, raise the `tries` arguments rather than un-pinning.
+const CONTRACT_CI_COOKIE = process.env.CONTRACT_CI_PLAYER_COOKIE;
+const PINNED_COOKIE_HEADER: Record<string, string> | undefined = CONTRACT_CI_COOKIE
+  ? { Cookie: `bv_anon=${CONTRACT_CI_COOKIE}` }
+  : undefined;
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // Skip rather than fail when no deployment is configured: the unit tests still run.
@@ -134,9 +164,26 @@ function findable(start: StartResult): string[] {
 async function start(targetLength = 7, durationSeconds?: number): Promise<StartResult> {
   const query = new URLSearchParams({ target_length: String(targetLength) });
   if (durationSeconds !== undefined) query.set("duration_seconds", String(durationSeconds));
-  const { status, json } = await call("POST", `/api/game/start?${query}`);
+  // PINNED_COOKIE_HEADER is undefined unless CONTRACT_CI_PLAYER_COOKIE is set — see the
+  // long note near the top. When set, every board this suite probes is attributed to the
+  // one pinned is_ci player instead of a fresh one per call.
+  const { status, json } = await call("POST", `/api/game/start?${query}`, undefined, PINNED_COOKIE_HEADER);
   expect(status).toBe(200);
   return json as StartResult;
+}
+
+/** A game deliberately attributed to a brand-new anonymous player, never the pinned
+ *  CONTRACT_CI_PLAYER_COOKIE identity — for the dashboard tests below, whose assertion is
+ *  "a game played today is visible in games/day and DAU", which a pinned `is_ci` player is
+ *  excluded from by design (lib/admin-dashboard.ts, ROADMAP Batch 10 item 11). */
+async function startDashboardVisibleGame(targetLength = 7): Promise<StartResult> {
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const { status, json } = await call("POST", `/api/game/start?target_length=${targetLength}`);
+    expect(status).toBe(200);
+    const game = json as StartResult;
+    if (game.possible_count >= 1) return game;
+  }
+  throw new Error("No board with a findable word after 15 tries.");
 }
 
 /** Start games until one satisfies `wanted` — the pytest suite's retry trick, for the
@@ -1298,8 +1345,10 @@ describeApi("Betűvető API contract", () => {
 
     // Play and fail one game first so there's at least one word_stats row: a fresh Neon
     // branch/preview could otherwise leave most_failed_words empty and this test would
-    // only be checking the shape, never the aggregation itself.
-    const game = await startUntil((g) => g.possible_count >= 1, 15, 7);
+    // only be checking the shape, never the aggregation itself. Fresh (never-pinned)
+    // player — the assertion below is that today's games/DAU are non-zero, which excludes
+    // an is_ci-pinned identity (see CONTRACT_CI_PLAYER_COOKIE note).
+    const game = await startDashboardVisibleGame(7);
     await call("POST", `/api/game/${game.game_id}/give_up`);
 
     const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
@@ -1333,8 +1382,10 @@ describeApi("Betűvető API contract", () => {
     const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
 
     // A game that actually reaches a terminal status, so it counts toward the
-    // avg-games/avg-duration figures (lib/admin-dashboard.ts's TERMINAL_STATUSES).
-    const game = await startUntil((g) => g.possible_count >= 1, 15, 7);
+    // avg-games/avg-duration figures (lib/admin-dashboard.ts's TERMINAL_STATUSES). Fresh
+    // (never-pinned) player, since those figures exclude is_ci identities
+    // (see CONTRACT_CI_PLAYER_COOKIE note).
+    const game = await startDashboardVisibleGame(7);
     await call("POST", `/api/game/${game.game_id}/give_up`);
 
     const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
