@@ -182,6 +182,24 @@ class BetuAPIClient {
     if (!response.ok) throw new Error('Failed to save preferred theme');
   }
 
+  // Sound-effects preference (ROADMAP Batch 10 item 8, migrations/0017) — same
+  // /me/preferences route. Null = never chosen; the frontend treats that as off.
+  async getSoundEnabled(): Promise<boolean | null> {
+    const response = await fetch('/api/v1/me/preferences');
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    const data = await response.json();
+    return data.sound_enabled ?? null;
+  }
+
+  async setSoundEnabled(enabled: boolean): Promise<void> {
+    const response = await fetch('/api/v1/me/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sound_enabled: enabled }),
+    });
+    if (!response.ok) throw new Error('Failed to save sound preference');
+  }
+
   // Game management
   async startGame(targetLength: number = 7, wordlist?: string, difficulty?: 'easy' | 'normal'): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });

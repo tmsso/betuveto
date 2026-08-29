@@ -25,6 +25,10 @@
     "light": "Light",
     "dark": "Dark"
   },
+  "soundToggle": {
+    "enable": "Turn sound effects on",
+    "disable": "Turn sound effects off"
+  },
   "score": {
     "pointsSuffix": "points",
     "ariaLabel": "Score: {{score}} points",

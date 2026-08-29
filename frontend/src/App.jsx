@@ -6,6 +6,8 @@ import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import ThemeToggle from './components/ThemeToggle'
+import SoundToggle from './components/SoundToggle'
+import { useSound } from './components/useSound'
 import { definitionUrl } from './dictionary'
 
 const canvasStyles = {
@@ -56,6 +58,9 @@ const HINT_COST = 10;
 
 function App() {
   const { t, i18n } = useTranslation()
+  // ROADMAP Batch 10 item 8 — synthesised sound effects. Lifted here (not inside
+  // <SoundToggle>) because `play` below has to read the same on/off value the toggle sets.
+  const { soundEnabled, setSoundEnabled, play } = useSound()
 
   // Accessibility (ROADMAP Batch 10): <html lang> drives screen-reader pronunciation and
   // was hardcoded "hu" in index.html since before the language selector (ROADMAP 6.2)
@@ -476,6 +481,7 @@ function App() {
       const result = await betuAPI.useHint();
       setHintPenalty((prev) => prev + result.cost);
       setHintMessage(t('hintMessage', { length: result.word_length, letter: result.letter, cost: result.cost }));
+      play('hint');
       setTimeout(() => setHintMessage(null), 5000);
     } catch (err) {
       console.error('Error getting a hint:', err);
@@ -483,7 +489,7 @@ function App() {
     } finally {
       setHintLoading(false);
     }
-  }, [isTimeUp, hintLoading, showTemporaryError, hintErrorMessage, t]);
+  }, [isTimeUp, hintLoading, showTemporaryError, hintErrorMessage, t, play]);
 
   // Word curation (ROADMAP 4.1): flag a found or missing word as wrong. Idempotent on
   // the server, so a double-click just comes back as already_reported — no need to guard
@@ -585,6 +591,10 @@ function App() {
             } else {
               fireConfetti()
             }
+            // ROADMAP Batch 10 item 8: the arpeggio for clearing the board, the blip
+            // for any other find. game_ended in this (found-a-word) branch means the
+            // last word just completed the board.
+            play(response.game_ended ? 'fullClear' : 'correct')
           } else {
             setIsScoreFlashing(true)
             setTimeout(() => setIsScoreFlashing(false), 500)
@@ -592,16 +602,19 @@ function App() {
           setCurrentGuess('')
         } else {
           showTemporaryError(t('errors.alreadyGuessed', { word: guess }))
+          play('reject')
           setCurrentGuess('')
         }
       } else if (!response.valid) {
         // Not a known word (valid:false). Distinct from a real word that can't
         // be built from the board (valid:true, can_form:false) handled below.
         showTemporaryError(t('errors.notInDictionary', { word: guess }))
+        play('reject')
         setSuggestPrompt(guess) // ROADMAP 4.2: maybe it's a real word the dictionary is missing
         setCurrentGuess('')
       } else {
         showTemporaryError(t('errors.notOnlyGivenLetters'))
+        play('reject')
         setCurrentGuess('')
       }
 
@@ -631,7 +644,7 @@ function App() {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, showTemporaryError, t])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, showTemporaryError, t, play])
 
   // On mount: load which lengths are worth offering and the player's saved preference
   // (ROADMAP 2.3, both no-ops for a first-ever visitor with no cookie yet), then start
@@ -804,6 +817,8 @@ function App() {
           </select>
           {/* ROADMAP Batch 10 item 7 — colour-theme picker, beside the language one. */}
           <ThemeToggle />
+          {/* ROADMAP Batch 10 item 8 — sound-effects on/off. */}
+          <SoundToggle enabled={soundEnabled} onToggle={setSoundEnabled} />
         </div>
       </div>
 
