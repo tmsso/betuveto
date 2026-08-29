@@ -1427,6 +1427,25 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     exists, which a permanently-null column would also satisfy — it did not catch this,
     direct production data did. Worth remembering for any future "did this actually write
     real data" question: check the data, not just that the endpoint responds.
+14. `[ ]` **Admin: UI-language override + player-facing element visibility toggles**
+    (requested 2026-08-29, deferred by the requester to a later session). Two related
+    admin controls:
+    - **Admin panel in English.** `AdminApp` and the 5 `Admin*Panel` files are
+      hardcoded Hungarian and don't use `react-i18next` at all (see the note in
+      `main.jsx`). Add a language switch scoped to the admin shell — either wire the
+      admin components into the existing i18next setup with their own catalog namespace,
+      or a lighter admin-only string map. Independent of the player's `preferred_language`
+      (Batch 6.2); this is the operator's choice for the admin tools.
+    - **Show/hide player-facing UI elements from the admin.** Let the admin allow/disallow
+      display of the start-screen controls — the length selector (ROADMAP 2.3), the
+      easy-mode / difficulty toggle (Batch 10 item 2), the wordlist selector (6.1), and
+      whatever else is worth gating — so the game can be simplified for a given audience
+      without a redeploy. Natural fit for the admin-editable `config` table (Batch 5.2
+      item 2): new boolean keys (e.g. `ui.show_length_selector`), read by `game/start` or
+      a small public `/config` read and consumed in `App.jsx`. Decide whether "hidden"
+      also *forces* a default server-side (a hidden length selector should still pin a
+      length) or only removes the control. Keep the keys few and specific; this is a
+      curation lever, not a general CMS.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
