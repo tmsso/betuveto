@@ -1216,13 +1216,58 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    URL as correct. **Known residual gap:** lowercasing also erases proper-noun casing, so a
    proper noun in the wordlist would still link to a 404 — accepted, not fixed, since there's
    no information left post-normalization to recover correct casing.
-7. `[ ]` **Dark mode** (Tailwind `dark:` variants; persist per player). Good vehicle to
+7. `[x]` **Dark mode** (Tailwind `dark:` variants; persist per player). Good vehicle to
    finally do the frontend refactor below, since it touches most of `App.jsx` anyway.
-8. `[ ]` **Sound effects + toggle.**
-9. `[ ]` **Observability** — structured logging + error tracking (Sentry free tier).
+   **Shipped 2026-08-29 (PR #56).** Three-way theme (light / dark / system),
+   `players.preferred_theme` (`migrations/0016`, null = system), synced through
+   `/me/preferences` and localStorage-mirrored the same way `preferred_language` is.
+   `tailwind.config.js` gained `darkMode: 'class'` and the `game-*` palette now resolves
+   through CSS custom properties (`index.css` `:root` / `.dark`), so one block re-themes
+   every `*-game-*` utility — the `dark:` variants in `App.jsx` are only for the
+   non-token colour classes (chips, panels, letter tiles, toasts). An inline pre-paint
+   script in `index.html` sets `.dark` from localStorage before first paint (no flash).
+   `useTheme` hook + `ThemeToggle` in a new `frontend/src/components/` dir;
+   `ConfirmationModal` / `OfflineNotice` / `InstallPrompt` moved into it.
+   **Refactor: only started, not finished.** The `App.jsx` → `components/` split named
+   above got the `components/` dir + hook + the three trivially-standalone components;
+   the Board / GuessInput / Timer / Scoreboard + `useGame` extraction was **deliberately
+   left** — fusing that rewrite with a feature PR is the anti-pattern the "never
+   standalone" rule guards against. Best paired with the daily-puzzle item (item 1),
+   which restructures game state anyway. **Admin panels are light-only for now** —
+   `main.jsx` strips `.dark` on `/admin` before paint rather than ship a half-dark admin
+   screen; drop that line when the admin panels get their own dark pass.
+8. `[x]` **Sound effects + toggle.** **Shipped 2026-08-29 (PR #57).** Four short cues
+   (rising blip on a find, C-major arpeggio on a full clear, low buzz on a bad guess,
+   soft ping on a hint) **synthesised with the Web Audio API** — no audio files to
+   license, bundle, or PWA-precache. `players.sound_enabled` (`migrations/0017`,
+   null = off — browsers block pre-gesture audio and unprompted sound is a poor
+   surprise), `/me/preferences` + localStorage. `components/sound.js` (pure synth,
+   AudioContext created lazily inside the first user gesture), `components/useSound.js`
+   (stable `play(name)` that no-ops while disabled), `components/SoundToggle.jsx`
+   (🔊/🔇 in the header). `useSound` is lifted into `<App>` since `<SoundToggle>` flips
+   the value `App`'s own `play()` reads.
+9. `[x]` **Observability** — structured logging + error tracking (Sentry free tier).
    Originally scoped as "before multiplayer debugging is needed" — moved up: bugs
    already slipping through unnoticed in production cost something *now*, not just once
    Batch 7 starts, and it's a few lines to wire.
+   **Shipped 2026-08-29 (PR #58).** `lib/log.ts`: one JSON line per event to
+   stdout/stderr (thin wrapper over `console` — Vercel already captures per-invocation
+   output, only structure was missing). `lib/http.ts`'s `methodHandler` 500 catch —
+   where every unexpected throw in the whole `/api/v1` surface lands — now emits
+   `unhandled_route_error` with method/url/stack; `lib/neon-auth.ts`'s Magic-Link debug
+   line is now `neon_auth_verify_failed`. Client still gets only a bare
+   `"Internal error."`. `lib/observability.ts`: `captureException()` is a no-op unless
+   `SENTRY_DSN` is set; when set, `@sentry/node` is dynamic-`import()`ed on the *first*
+   error (its OpenTelemetry weight never touches a happy-path cold start) and each
+   capture awaits a 2s flush (serverless functions freeze on response). `main.jsx`:
+   `if (import.meta.env.VITE_SENTRY_DSN) import('@sentry/react')…` — a build-time
+   constant, so with no DSN Vite drops the branch and the `@sentry/react` chunk is never
+   emitted (player bundle byte-unchanged). Both DSNs are a documented manual step for the
+   project owner (`.env.example`); nothing needs them to ship. `tests/http.test.ts`
+   covers the 500 path. **Not done:** converting the frontend's many `console.error`
+   calls to structured logging, and any Sentry breadcrumb/context enrichment — the
+   backend 500 funnel was the high-value target; the rest can follow if it earns its
+   keep.
 10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
     hints…) — needs real schema/design work, no blockers, moderate value.
 11. `[x]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
@@ -1262,18 +1307,33 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     both preview and production, for items 12/13) put real, un-flagged noise back into the
     same day's numbers. The exclusion mechanism's correctness isn't in question; only the
     specific numbers reported here were a point-in-time fact, not a standing guarantee.
-    **New gap surfaced by that same-session traffic, not yet resolved:** this item only
-    ever pins *one* identity — the E2E smoke test's. Every contract-suite run against a
-    live deployment (this project's own standard PR-verification step, used repeatedly
-    this same session for items 12 and 13) mints many ordinary, un-flagged anonymous
-    players via `startUntil`'s retry loop and lands their games in production exactly like
-    a real player's — none of it is `is_ci`. As of this note, today's *filtered* dashboard
-    total sits at 114 games / 87 DAU, effectively all of it this session's own test
-    traffic, not real play. Whether/how to extend `is_ci`-style flagging to contract-suite
-    traffic too (a second pinned identity? a broader heuristic?) is an open decision,
-    deliberately not made here — flagged to the user rather than silently backfilled,
-    since it's the same class of production-data judgment call as the item-11 backfill
-    itself.
+    **Gap it left open — RESOLVED 2026-08-29 (PR #55).** As shipped, this item pinned
+    only *one* identity — the E2E smoke test's. Every contract-suite run against a live
+    deployment (the standard PR-verification step) still minted ~100+ ordinary,
+    un-flagged anonymous players via `start()` / `startUntil()`'s retry loops. Fixed by
+    giving `tests/contract.test.ts` a second pinned identity: `start()` (and so
+    `startUntil`) attach a `CONTRACT_CI_PLAYER_COOKIE` env var — a pre-signed `bv_anon`
+    value for a player row flagged `is_ci = true` in production — when it is set, so
+    every board probe reuses that one identity. Deliberately **not** applied to
+    `completeSmallGame` / `startWithCookie` / the direct-mint tests or the two
+    `startDashboardVisibleGame` dashboard tests: each asserts on fresh-player state
+    (`your_best.final_score` exact match, "mints a cookie on first visit", "a game today
+    is visible in games/day"), so a fresh identity is the correct fixture there — leaving
+    a bounded ~12 minted players per full run, down from 100+ (measured on the
+    verification run), and that residue is principled, not unfinished. A verification run
+    with the pinned cookie set attributed 31 games to the pinned identity.
+    **Backfill (user-approved, both the mint and the historical UPDATE):** the pinned
+    identity was bootstrapped in production (`02f522a7…`, `is_ci = true`), then 186
+    historical contract-suite player rows from the 2026-08-19 and 2026-08-21 dev sessions
+    were flagged `is_ci = true` — every day in a 12-day window other than those two had
+    zero games, so there was no organic-traffic baseline to confuse them with, and 176 of
+    the 186 had exactly one game; 3 more with sub-6-second multi-game bursts
+    (`completeSmallGame` loops) plus this session's own 12 verification-run players and 2
+    debug curls were flagged too. Result: 2026-08-19 / -20 / -21 / -29 all now read
+    **0 non-CI games / 0 DAU** on the dashboard. Reversible `UPDATE`, nothing deleted.
+    Going forward every contract-suite run against production still adds ~12 principled-
+    residue players; eliminating those would require weakening the fresh-player
+    assertions, which is out of scope.
     **Backfill (explicitly requested, not just going-forward):** 11 historical CI-minted
     player rows from before this fix (2026-08-20 through this session) were identified by a
     gameplay-shape heuristic (exactly one game, one correct guess, no display name — the
