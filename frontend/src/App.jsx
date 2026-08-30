@@ -357,21 +357,6 @@ function App() {
     }
   }, [foundWords, possibleWordsCount, totalScore, completionBonus, allPossibleWordsFound]);
 
-  // Daily puzzle (ROADMAP Batch 10 item 1): keep the panel's streak/leaderboard current.
-  useEffect(() => {
-    if (isSettingsOpen) refreshDailyView();
-  }, [isSettingsOpen, refreshDailyView]);
-
-  // After a daily game reaches its terminal state the server has graded the result
-  // (finalizeWordStats runs on the same give-up / reveal call). The short delay lets the
-  // reveal's getPossibleWords request — which is what triggers grading for a pure
-  // timeout — land first.
-  useEffect(() => {
-    if (!isDailyGame || !isTimeUp) return;
-    const id = setTimeout(() => { refreshDailyView(); }, 800);
-    return () => clearTimeout(id);
-  }, [isDailyGame, isTimeUp, refreshDailyView]);
-
   // Letter reveal animation effect
   useEffect(() => {
     if (!isAnimatingLetters || scrambledLetters.length === 0) return
@@ -532,6 +517,24 @@ function App() {
     setIsSettingsOpen(false)
     requestRestart(() => startNewGame(selectedLength, selectedWordlist, false, true))
   }, [requestRestart, startNewGame, selectedLength, selectedWordlist])
+
+  // Daily puzzle (ROADMAP Batch 10 item 1): keep the panel's streak/leaderboard current.
+  // These live *after* refreshDailyView's declaration on purpose — a useEffect's
+  // dependency array is evaluated during render, so referencing the callback above its
+  // `const` would be a temporal-dead-zone access that throws on first paint.
+  useEffect(() => {
+    if (isSettingsOpen) refreshDailyView()
+  }, [isSettingsOpen, refreshDailyView])
+
+  // After a daily game reaches its terminal state the server has already graded the
+  // result (finalizeWordStats runs on the same give-up / reveal call). The short delay
+  // lets the reveal's getPossibleWords request — which is what triggers grading for a
+  // pure timeout — land first.
+  useEffect(() => {
+    if (!isDailyGame || !isTimeUp) return
+    const id = setTimeout(() => { refreshDailyView() }, 800)
+    return () => clearTimeout(id)
+  }, [isDailyGame, isTimeUp, refreshDailyView])
 
   // UI language selector (ROADMAP 6.2) — independent of the wordlist above; never
   // restarts a game, since it only changes how text renders, not any game state.
