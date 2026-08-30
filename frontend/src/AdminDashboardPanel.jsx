@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAdminT } from './admin/adminI18n'
 
 // ROADMAP Batch 10 item 13: one small reusable table+bar component for any bucketed
 // games/DAU series (month, quarter, hour-of-day) — same CSS-bar pattern the daily series
 // below already uses, factored out once it's needed a third time.
 function BucketBarTable({ rows, bucketLabel, formatBucket }) {
+  const { t } = useAdminT()
   const maxGames = Math.max(1, ...rows.map((r) => r.games))
   return (
     <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
       <thead>
         <tr className="text-left border-b-2 border-game-border bg-blue-50">
           <th className="py-2 px-2">{bucketLabel}</th>
-          <th className="py-2 px-2">Játékok</th>
-          <th className="py-2 px-2">Aktív játékosok</th>
+          <th className="py-2 px-2">{t('dash.games')}</th>
+          <th className="py-2 px-2">{t('dash.dau')}</th>
           <th className="py-2 px-2 w-1/2">&nbsp;</th>
         </tr>
       </thead>
@@ -42,6 +44,7 @@ function BucketBarTable({ rows, bucketLabel, formatBucket }) {
 // Plain tables, no chart library — same "no component library" call as the rest of the
 // admin shell (5.1).
 export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
+  const { t } = useAdminT()
   const [stats, setStats] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -60,17 +63,17 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       setStats(await response.json())
     } catch (err) {
-      setError(err.message || 'Hiba történt a betöltéskor.')
+      setError(err.message || t('err.load'))
     } finally {
       setLoading(false)
     }
-  }, [authHeaders, onAuthError])
+  }, [authHeaders, onAuthError, t])
 
   useEffect(() => {
     load()
   }, [load])
 
-  if (loading && !stats) return <p className="text-sm text-game-primary/70">Betöltés...</p>
+  if (loading && !stats) return <p className="text-sm text-game-primary/70">{t('common.loading')}</p>
   if (error) return <p className="text-sm text-red-600">{error}</p>
   if (!stats) return null
 
@@ -81,23 +84,23 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
     <div>
       <section className="mb-8 grid grid-cols-2 gap-4 max-w-md">
         <div className="bg-white border-2 border-game-border rounded-lg p-4 shadow">
-          <div className="text-sm text-game-primary/60">Nyitott bejelentés</div>
+          <div className="text-sm text-game-primary/60">{t('dash.openReports')}</div>
           <div className="text-2xl font-extrabold text-game-primary">{stats.queue_size.reports}</div>
         </div>
         <div className="bg-white border-2 border-game-border rounded-lg p-4 shadow">
-          <div className="text-sm text-game-primary/60">Nyitott javaslat</div>
+          <div className="text-sm text-game-primary/60">{t('dash.openSuggestions')}</div>
           <div className="text-2xl font-extrabold text-game-primary">{stats.queue_size.suggestions}</div>
         </div>
       </section>
 
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Játékok / nap és aktív játékosok (utolsó 30 nap)</h2>
+        <h2 className="text-lg font-bold mb-2">{t('dash.dailyHeader')}</h2>
         <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
           <thead>
             <tr className="text-left border-b-2 border-game-border bg-blue-50">
-              <th className="py-2 px-2">Dátum</th>
-              <th className="py-2 px-2">Játékok</th>
-              <th className="py-2 px-2">Aktív játékosok</th>
+              <th className="py-2 px-2">{t('common.date')}</th>
+              <th className="py-2 px-2">{t('dash.games')}</th>
+              <th className="py-2 px-2">{t('dash.dau')}</th>
               <th className="py-2 px-2 w-1/2">&nbsp;</th>
             </tr>
           </thead>
@@ -122,17 +125,17 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Leggyakrabban elvétett szavak</h2>
+        <h2 className="text-lg font-bold mb-2">{t('dash.mostFailedHeader')}</h2>
         {stats.most_failed_words.length === 0 ? (
-          <p className="text-sm text-game-primary/60">Nincs még elég adat.</p>
+          <p className="text-sm text-game-primary/60">{t('common.noData')}</p>
         ) : (
           <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
             <thead>
               <tr className="text-left border-b-2 border-game-border bg-blue-50">
-                <th className="py-2 px-2">Szó</th>
-                <th className="py-2 px-2">Szótár</th>
-                <th className="py-2 px-2">Elvétve</th>
-                <th className="py-2 px-2">Megoldva</th>
+                <th className="py-2 px-2">{t('common.word')}</th>
+                <th className="py-2 px-2">{t('common.dict')}</th>
+                <th className="py-2 px-2">{t('dash.failed')}</th>
+                <th className="py-2 px-2">{t('dash.solved')}</th>
               </tr>
             </thead>
             <tbody>
@@ -153,17 +156,17 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
           raw fail count, and requires a minimum sample (lib/word-stats.ts) so a word tried
           only once or twice can't look artificially unbeatable. */}
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Legnehezebb szavak (megoldási arány szerint)</h2>
+        <h2 className="text-lg font-bold mb-2">{t('dash.hardestHeader')}</h2>
         {stats.hardest_words.length === 0 ? (
-          <p className="text-sm text-game-primary/60">Nincs még elég adat.</p>
+          <p className="text-sm text-game-primary/60">{t('common.noData')}</p>
         ) : (
           <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
             <thead>
               <tr className="text-left border-b-2 border-game-border bg-blue-50">
-                <th className="py-2 px-2">Szó</th>
-                <th className="py-2 px-2">Szótár</th>
-                <th className="py-2 px-2">Megoldási arány</th>
-                <th className="py-2 px-2">Próbálkozások</th>
+                <th className="py-2 px-2">{t('common.word')}</th>
+                <th className="py-2 px-2">{t('common.dict')}</th>
+                <th className="py-2 px-2">{t('dash.successRate')}</th>
+                <th className="py-2 px-2">{t('dash.attempts')}</th>
               </tr>
             </thead>
             <tbody>
@@ -187,34 +190,34 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
           terminal outcome (finished/given_up/expired) count toward either number. */}
       <section className="mb-8 grid grid-cols-2 gap-4 max-w-md">
         <div className="bg-white border-2 border-game-border rounded-lg p-4 shadow">
-          <div className="text-sm text-game-primary/60">Átlag játék / játékos</div>
+          <div className="text-sm text-game-primary/60">{t('dash.avgGamesPerPlayer')}</div>
           <div className="text-2xl font-extrabold text-game-primary">
             {stats.player_stats.avg_games_per_player.toFixed(1)}
           </div>
         </div>
         <div className="bg-white border-2 border-game-border rounded-lg p-4 shadow">
-          <div className="text-sm text-game-primary/60">Átlag játékidő</div>
+          <div className="text-sm text-game-primary/60">{t('dash.avgDuration')}</div>
           <div className="text-2xl font-extrabold text-game-primary">
-            {Math.round(stats.player_stats.avg_game_duration_seconds)} mp
+            {Math.round(stats.player_stats.avg_game_duration_seconds)} {t('dash.seconds')}
           </div>
         </div>
       </section>
 
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Játékok havi bontásban</h2>
-        <BucketBarTable rows={stats.games_by_month} bucketLabel="Hónap" />
+        <h2 className="text-lg font-bold mb-2">{t('dash.byMonth')}</h2>
+        <BucketBarTable rows={stats.games_by_month} bucketLabel={t('dash.month')} />
       </section>
 
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Játékok negyedéves bontásban</h2>
-        <BucketBarTable rows={stats.games_by_quarter} bucketLabel="Negyedév" />
+        <h2 className="text-lg font-bold mb-2">{t('dash.byQuarter')}</h2>
+        <BucketBarTable rows={stats.games_by_quarter} bucketLabel={t('dash.quarter')} />
       </section>
 
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Játékok napszak szerint (minden nap összesítve)</h2>
+        <h2 className="text-lg font-bold mb-2">{t('dash.byHour')}</h2>
         <BucketBarTable
           rows={stats.games_by_hour}
-          bucketLabel="Óra"
+          bucketLabel={t('dash.hour')}
           formatBucket={(b) => `${b.padStart(2, '0')}:00`}
         />
       </section>
@@ -224,12 +227,12 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
           UNKNOWN covers games from before this shipped, plus any request without the
           header (local dev). */}
       <section>
-        <h2 className="text-lg font-bold mb-2">Játékok ország szerint</h2>
+        <h2 className="text-lg font-bold mb-2">{t('dash.byCountry')}</h2>
         <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
           <thead>
             <tr className="text-left border-b-2 border-game-border bg-blue-50">
-              <th className="py-2 px-2">Ország</th>
-              <th className="py-2 px-2">Játékok</th>
+              <th className="py-2 px-2">{t('dash.country')}</th>
+              <th className="py-2 px-2">{t('dash.games')}</th>
               <th className="py-2 px-2 w-1/2">&nbsp;</th>
             </tr>
           </thead>

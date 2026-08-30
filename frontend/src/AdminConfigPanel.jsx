@@ -1,37 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAdminT } from './admin/adminI18n'
 
 // Admin-editable gameplay knobs (ROADMAP 5.2 item 2). Edits land in the `config` table
 // and take effect on other warm serverless instances within ~30s (lib/config.ts's cache
 // TTL) — not instantly everywhere, which is why the panel shows a small note about that
 // rather than implying an immediate global effect.
+//
+// ROADMAP Batch 10 item 14 — the second section toggles player-facing control visibility
+// (hiding a control also pins its value server-side in game/start, see lib/game.ts).
+// Labels for both come from the admin i18n catalog (`config.<key>` / `ui.<key>`).
 
-// ROADMAP Batch 10 item 14 — player-facing control visibility. Hiding a control also
-// pins its value server-side in game/start (see lib/game.ts), so a hidden length/wordlist
-// selector still yields a valid game. Labels stay Hungarian for now, the same as the rest
-// of the admin panel — the admin-shell i18n pass (item 14, follow-up PR) translates all
-// of them together.
-const UI_LABELS = {
-  show_length_selector: 'Szóhossz-választó látható',
-  show_wordlist_selector: 'Szótárválasztó látható',
-  show_easy_mode: 'Könnyű mód kapcsoló látható',
-  default_length: 'Rögzített szóhossz (ha a választó rejtve van)',
-  default_wordlist: 'Rögzített szótár (ha a választó rejtve van)',
-}
 const UI_WORDLISTS = [
   { code: 'hu', label: 'Magyar' },
   { code: 'en', label: 'English' },
 ]
 
-const LABELS = {
-  hint_cost: 'Segítség ára (pont)',
-  completion_bonus_multiplier: 'Teljesítési bónusz szorzó (pont/másodperc)',
-  guess_rate_limit_per_second: 'Tippelési sebességkorlát (helyes tipp/mp)',
-  min_word_length: 'Legrövidebb elfogadott szó (betű)',
-  timer_base_seconds: 'Alap időkeret (másodperc)',
-  timer_seconds_per_extra_length: 'Extra idő betűnként a minimum fölött (másodperc)',
-}
-
 export default function AdminConfigPanel({ authHeaders, onAuthError }) {
+  const { t } = useAdminT()
   const [config, setConfig] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -55,11 +40,11 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
       setConfig(body.config)
       setDrafts(Object.fromEntries(body.config.map((row) => [row.key, String(row.value)])))
     } catch (err) {
-      setError(err.message || 'Hiba történt a betöltéskor.')
+      setError(err.message || t('err.load'))
     } finally {
       setLoading(false)
     }
-  }, [authHeaders, onAuthError])
+  }, [authHeaders, onAuthError, t])
 
   useEffect(() => {
     load()
@@ -69,7 +54,7 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
     const raw = drafts[key]
     const value = Number(raw)
     if (!Number.isFinite(value)) {
-      setError(`${LABELS[key] || key}: a megadott érték nem szám.`)
+      setError(t('config.notNumber', { label: t(`config.${key}`) }))
       return
     }
     setPendingKeys((prev) => new Set(prev).add(key))
@@ -92,7 +77,7 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
       setTimeout(() => setSavedKey((current) => (current === key ? null : current)), 2000)
       await load()
     } catch (err) {
-      setError(err.message || 'Hiba történt a mentéskor.')
+      setError(err.message || t('err.save'))
     } finally {
       setPendingKeys((prev) => {
         const next = new Set(prev)
@@ -105,22 +90,19 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
   return (
     <>
     <section className="mb-10">
-      <p className="text-sm text-game-primary/60 mb-4">
-        A módosítások kb. 30 másodperc alatt érnek el minden szervert — nem azonnal
-        mindenhol, mert a beállításokat gyakori lekérdezés helyett gyorsítótárazzuk.
-      </p>
+      <p className="text-sm text-game-primary/60 mb-4">{t('config.propagationNote')}</p>
 
-      {loading && <p className="text-sm text-game-primary/70">Betöltés...</p>}
+      {loading && <p className="text-sm text-game-primary/70">{t('common.loading')}</p>}
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {config && (
         <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
           <thead>
             <tr className="text-left border-b-2 border-game-border bg-blue-50">
-              <th className="py-2 px-2">Beállítás</th>
-              <th className="py-2 px-2">Érték</th>
-              <th className="py-2 px-2">Alapérték</th>
-              <th className="py-2 px-2">Művelet</th>
+              <th className="py-2 px-2">{t('common.setting')}</th>
+              <th className="py-2 px-2">{t('common.value')}</th>
+              <th className="py-2 px-2">{t('common.default')}</th>
+              <th className="py-2 px-2">{t('common.action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -128,7 +110,7 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
               const busy = pendingKeys.has(row.key)
               return (
                 <tr key={row.key} className="border-b border-game-border/40">
-                  <td className="py-2 px-2 font-semibold">{LABELS[row.key] || row.key}</td>
+                  <td className="py-2 px-2 font-semibold">{t(`config.${row.key}`)}</td>
                   <td className="py-2 px-2">
                     <input
                       type="number"
@@ -144,10 +126,10 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
                       disabled={busy || drafts[row.key] === String(row.value)}
                       className="text-game-secondary underline font-semibold hover:text-blue-700 disabled:opacity-40"
                     >
-                      Mentés
+                      {t('common.save')}
                     </button>
                     {savedKey === row.key && (
-                      <span className="ml-2 text-green-700">Mentve.</span>
+                      <span className="ml-2 text-green-700">{t('common.saved')}</span>
                     )}
                   </td>
                 </tr>
@@ -163,9 +145,10 @@ export default function AdminConfigPanel({ authHeaders, onAuthError }) {
 }
 
 // ROADMAP Batch 10 item 14 — toggle which start-screen controls players see. Changes
-// apply immediately (no draft + Mentés step): each is a single boolean/enum, and the same
+// apply immediately (no draft + save step): each is a single boolean/enum, and the same
 // ~30s cache-propagation caveat as the table above still holds.
 function UiVisibilitySection({ authHeaders, onAuthError }) {
+  const { t } = useAdminT()
   const [rows, setRows] = useState(null)
   const [error, setError] = useState(null)
   const [savingKey, setSavingKey] = useState(null)
@@ -182,9 +165,9 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       setRows((await response.json()).config)
     } catch (err) {
-      setError(err.message || 'Hiba történt a betöltéskor.')
+      setError(err.message || t('err.load'))
     }
-  }, [authHeaders, onAuthError])
+  }, [authHeaders, onAuthError, t])
 
   useEffect(() => {
     load()
@@ -211,7 +194,7 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
       setTimeout(() => setSavedKey((current) => (current === key ? null : current)), 2000)
       await load()
     } catch (err) {
-      setError(err.message || 'Hiba történt a mentéskor.')
+      setError(err.message || t('err.save'))
     } finally {
       setSavingKey(null)
     }
@@ -221,14 +204,11 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
 
   return (
     <section>
-      <h3 className="text-lg font-bold mb-1">Játékos-felület elemei</h3>
-      <p className="text-sm text-game-primary/60 mb-4">
-        Egy elrejtett vezérlő a szerveren is rögzítve lesz (a lenti alapértékre), tehát a
-        játék így is indítható. A módosítás ugyanúgy kb. 30 másodperc alatt terjed szét.
-      </p>
+      <h3 className="text-lg font-bold mb-1">{t('ui.sectionTitle')}</h3>
+      <p className="text-sm text-game-primary/60 mb-4">{t('ui.sectionNote')}</p>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-      {!rows && <p className="text-sm text-game-primary/70">Betöltés...</p>}
+      {!rows && <p className="text-sm text-game-primary/70">{t('common.loading')}</p>}
 
       {rows && (
         <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
@@ -237,7 +217,7 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
               const busy = savingKey === row.key
               return (
                 <tr key={row.key} className="border-b border-game-border/40">
-                  <td className="py-2 px-2 font-semibold">{UI_LABELS[row.key] || row.key}</td>
+                  <td className="py-2 px-2 font-semibold">{t(`ui.${row.key}`)}</td>
                   <td className="py-2 px-2">
                     {typeof row.value === 'boolean' && (
                       <label className="inline-flex items-center gap-2">
@@ -248,7 +228,7 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
                           onChange={(e) => patch(row.key, e.target.checked)}
                           className="h-4 w-4"
                         />
-                        <span>{row.value ? 'Látható' : 'Rejtve'}</span>
+                        <span>{row.value ? t('ui.visible') : t('ui.hidden')}</span>
                       </label>
                     )}
                     {row.key === 'default_length' && (
@@ -259,7 +239,7 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
                         className="border-2 border-game-border rounded p-1"
                       >
                         {[5, 6, 7, 8, 9, 10].map((n) => (
-                          <option key={n} value={n}>{n} betű</option>
+                          <option key={n} value={n}>{t('ui.lengthOption', { n })}</option>
                         ))}
                       </select>
                     )}
@@ -278,11 +258,11 @@ function UiVisibilitySection({ authHeaders, onAuthError }) {
                   </td>
                   <td className="py-2 px-2 text-game-primary/50">
                     {typeof row.default === 'boolean'
-                      ? row.default ? 'Látható' : 'Rejtve'
+                      ? row.default ? t('ui.visible') : t('ui.hidden')
                       : String(row.default)}
                   </td>
                   <td className="py-2 px-2">
-                    {savedKey === row.key && <span className="text-green-700">Mentve.</span>}
+                    {savedKey === row.key && <span className="text-green-700">{t('common.saved')}</span>}
                   </td>
                 </tr>
               )
