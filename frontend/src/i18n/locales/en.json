@@ -29,6 +29,16 @@
     "enable": "Turn sound effects on",
     "disable": "Turn sound effects off"
   },
+  "settings": {
+    "open": "Settings",
+    "title": "Settings",
+    "close": "Close settings",
+    "displaySection": "Display",
+    "gameSection": "Game",
+    "languageLabel": "Language:",
+    "themeLabel": "Theme:",
+    "soundLabel": "Sound effects:"
+  },
   "score": {
     "pointsSuffix": "points",
     "ariaLabel": "Score: {{score}} points",
