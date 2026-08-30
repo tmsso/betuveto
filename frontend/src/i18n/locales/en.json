@@ -84,6 +84,9 @@
     "placeholder": "guess",
     "clearAriaLabel": "Clear guess"
   },
+  "preGame": {
+    "hint": "Press \"New game\" to start."
+  },
   "suggestion": {
     "prompt": "Think this is a real word?",
     "submit": "Submit",

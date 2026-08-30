@@ -59,9 +59,15 @@ test('start a game, guess a word, and see the score update', async ({ page }) =>
 
   await page.goto('/')
 
-  // The game auto-starts on load (no "start" button) — wait for the board to render.
+  // ROADMAP Batch 10 item 17: the app opens on an inert pre-game board — click the start
+  // button ("Új játék", the only control on that board) to begin a game. Pre-game the
+  // board holds plain <div> placeholder tiles, so the real letter <button>s appear only
+  // once the game has started.
+  await page.getByRole('button', { name: 'Új játék', exact: true }).click()
+
   const board = page.getByRole('group', { name: 'Kirakható betűk' })
   await expect(board).toBeVisible()
+  await expect(board.getByRole('button').first()).toBeVisible()
   const letters = (await board.getByRole('button').allTextContents()).join('')
   expect(letters.length).toBeGreaterThan(0)
 
