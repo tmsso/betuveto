@@ -174,6 +174,13 @@ function App() {
   // A hidden control is also *forced* server-side, so the echoed target_length / wordlist
   // / difficulty already carry the pinned value; startNewGame syncs the selectors to it.
   const [uiConfig, setUiConfig] = useState(null)
+  // Daily puzzle (ROADMAP Batch 10 item 1). isDailyGame = the *current* game is today's
+  // shared puzzle (an ordinary game with daily_puzzle_id set server-side); dailyView is
+  // the /api/v1/daily payload (puzzle meta + this player's streak/result + leaderboard),
+  // refreshed when the settings panel opens and shortly after a daily game ends.
+  const [isDailyGame, setIsDailyGame] = useState(false)
+  const [dailyView, setDailyView] = useState(null)
+  const [dailyLoading, setDailyLoading] = useState(false)
   // Accepted on-screen-keyboard letters for the active game's wordlist (ROADMAP 6.2) —
   // echoed back by game/start (lib/game.ts), replacing the old hardcoded Hungarian-only
   // whitelist. Seeded with hu's own alphabet so the very first render (before any
@@ -350,6 +357,21 @@ function App() {
     }
   }, [foundWords, possibleWordsCount, totalScore, completionBonus, allPossibleWordsFound]);
 
+  // Daily puzzle (ROADMAP Batch 10 item 1): keep the panel's streak/leaderboard current.
+  useEffect(() => {
+    if (isSettingsOpen) refreshDailyView();
+  }, [isSettingsOpen, refreshDailyView]);
+
+  // After a daily game reaches its terminal state the server has graded the result
+  // (finalizeWordStats runs on the same give-up / reveal call). The short delay lets the
+  // reveal's getPossibleWords request — which is what triggers grading for a pure
+  // timeout — land first.
+  useEffect(() => {
+    if (!isDailyGame || !isTimeUp) return;
+    const id = setTimeout(() => { refreshDailyView(); }, 800);
+    return () => clearTimeout(id);
+  }, [isDailyGame, isTimeUp, refreshDailyView]);
+
   // Letter reveal animation effect
   useEffect(() => {
     if (!isAnimatingLetters || scrambledLetters.length === 0) return
@@ -368,11 +390,17 @@ function App() {
     animate()
   }, [isAnimatingLetters, scrambledLetters])
 
-  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST, easyMode = false) => {
+  const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST, easyMode = false, daily = false) => {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await betuAPI.startGame(length, wordlist, easyMode ? 'easy' : 'normal')
+      // A daily game (ROADMAP Batch 10 item 1) hits a different start endpoint but returns
+      // the same body shape, so every setter below is unchanged — it just plays the shared
+      // board. easyMode is ignored for the daily (always a normal pick).
+      const response = daily
+        ? await betuAPI.startDailyGame(wordlist, length)
+        : await betuAPI.startGame(length, wordlist, easyMode ? 'easy' : 'normal')
+      setIsDailyGame(daily)
       setScrambledLetters(response.scrambled_letters.split(' '))
       setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
       setGameWordlist(response.wordlist ?? wordlist)
@@ -482,6 +510,27 @@ function App() {
       setSelectedEasyMode(easyMode)
       startNewGame(selectedLength, selectedWordlist, easyMode)
     })
+  }, [requestRestart, startNewGame, selectedLength, selectedWordlist])
+
+  // Daily puzzle (ROADMAP Batch 10 item 1). The view (streak + leaderboard + this
+  // player's result) is read-only and identity-optional; refreshed on settings-panel
+  // open and shortly after a daily game ends.
+  const refreshDailyView = useCallback(async () => {
+    setDailyLoading(true)
+    try {
+      setDailyView(await betuAPI.getDaily(selectedWordlist, selectedLength))
+    } catch (err) {
+      console.error('Error loading daily puzzle:', err)
+    } finally {
+      setDailyLoading(false)
+    }
+  }, [selectedWordlist, selectedLength])
+
+  // Starting the daily routes through the same confirm-before-restart funnel as the
+  // length/wordlist selectors — losing real progress still prompts first.
+  const handlePlayDaily = useCallback(() => {
+    setIsSettingsOpen(false)
+    requestRestart(() => startNewGame(selectedLength, selectedWordlist, false, true))
   }, [requestRestart, startNewGame, selectedLength, selectedWordlist])
 
   // UI language selector (ROADMAP 6.2) — independent of the wordlist above; never
@@ -871,6 +920,14 @@ function App() {
             </div>
         )}
 
+        {/* Daily-puzzle indicator (ROADMAP Batch 10 item 1) — the current game is today's
+            shared board; the result is graded once, at its terminal transition. */}
+        {isDailyGame && (
+            <div className="absolute top-0 right-0 p-2 bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-blue-200 dark:border-blue-900">
+                🗓️ {t('daily.badge')}
+            </div>
+        )}
+
         {/* Length / wordlist / easy-mode selectors moved into <SettingsPanel> (ROADMAP
             Batch 10 item 15). The 🌱 indicator above stays here — it reports the server's
             actual pick, not a control. */}
@@ -1195,6 +1252,10 @@ function App() {
         onToggleStats={() => setShowStats((v) => !v)}
         stats={stats}
         statsLoading={statsLoading}
+        daily={dailyView}
+        dailyLoading={dailyLoading}
+        isDailyGame={isDailyGame}
+        onPlayDaily={handlePlayDaily}
       />
 
       <ConfirmationModal

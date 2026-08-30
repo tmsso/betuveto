@@ -22,6 +22,7 @@ import {
   updateUiConfigValue,
 } from "../../lib/admin-config.js";
 import { getDashboardStats } from "../../lib/admin-dashboard.js";
+import { getDailyView, startDailyGame } from "../../lib/daily.js";
 import {
   disqualifyGame,
   getGameDetail,
@@ -103,19 +104,30 @@ function requestCountry(req: VercelRequest): string | undefined {
   return value && /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : undefined;
 }
 
-function startGameRoute(req: VercelRequest) {
+/** The signed anon identity from the request cookie, minting a fresh one (and the
+ *  Set-Cookie to echo it back) when there isn't one yet. Shared by the two game-start
+ *  routes so their identity handling can't drift apart. */
+function resolveOrMintIdentity(req: VercelRequest): {
+  playerId: string;
+  setCookieHeader: string | undefined;
+} {
   const secret = process.env.ANON_SESSION_SECRET;
   if (!secret) throw new Error("ANON_SESSION_SECRET is not set.");
 
-  let resolvedPlayerId = verifyIdentity(secret, req.headers.cookie);
-  let setCookieHeader: string | undefined;
-  if (!resolvedPlayerId) {
-    const minted = mintIdentity(secret);
-    resolvedPlayerId = minted.playerId;
-    setCookieHeader =
+  const existing = verifyIdentity(secret, req.headers.cookie);
+  if (existing) return { playerId: existing, setCookieHeader: undefined };
+
+  const minted = mintIdentity(secret);
+  return {
+    playerId: minted.playerId,
+    setCookieHeader:
       `bv_anon=${minted.cookieValue}; Path=/; HttpOnly; Secure; SameSite=Lax; ` +
-      `Max-Age=${ANON_COOKIE_MAX_AGE_SECONDS}`;
-  }
+      `Max-Age=${ANON_COOKIE_MAX_AGE_SECONDS}`,
+  };
+}
+
+function startGameRoute(req: VercelRequest) {
+  const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
 
   return startGame(
     intQuery(req, "target_length", DEFAULT_TARGET_LENGTH),
@@ -126,6 +138,32 @@ function startGameRoute(req: VercelRequest) {
     setCookieHeader,
     stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
     stringQuery(req, "difficulty", "normal"),
+    requestCountry(req),
+  );
+}
+
+// ROADMAP Batch 10 item 1 — daily puzzle. GET returns today's puzzle meta + this player's
+// result/streak + the daily leaderboard; POST /daily/start begins (or replays) it. The
+// day boundary is Europe/Budapest, computed server-side in lib/daily.ts.
+function dailyViewRoute(req: VercelRequest) {
+  const secret = process.env.ANON_SESSION_SECRET;
+  // No identity needed to see the puzzle or its leaderboard — only "your result"/streak
+  // are gated on it, and those degrade to empty rather than erroring.
+  const resolvedPlayerId = secret ? verifyIdentity(secret, req.headers.cookie) : null;
+  return getDailyView(
+    resolvedPlayerId,
+    stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
+    intQuery(req, "target_length", DEFAULT_TARGET_LENGTH),
+  );
+}
+
+function startDailyRoute(req: VercelRequest) {
+  const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+  return startDailyGame(
+    resolvedPlayerId,
+    setCookieHeader,
+    stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
+    intQuery(req, "target_length", DEFAULT_TARGET_LENGTH),
     requestCountry(req),
   );
 }
@@ -274,6 +312,14 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
   if (segments.length === 2 && a === "game" && b === "start") {
     return methodHandler({ POST: startGameRoute });
+  }
+
+  if (segments.length === 2 && a === "daily" && b === "start") {
+    return methodHandler({ POST: startDailyRoute });
+  }
+
+  if (segments.length === 1 && a === "daily") {
+    return methodHandler({ GET: dailyViewRoute });
   }
 
   if (a === "game" && b !== undefined) {

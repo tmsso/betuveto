@@ -39,6 +39,22 @@
     "themeLabel": "Theme:",
     "soundLabel": "Sound effects:"
   },
+  "daily": {
+    "title": "Daily puzzle",
+    "badge": "Daily puzzle",
+    "loading": "Loading...",
+    "forDate": "For {{date}}",
+    "play": "▶ Play today's puzzle",
+    "replay": "↻ Play again (for fun)",
+    "playing": "You're playing today's puzzle",
+    "currentStreak": "{{count}}-day streak",
+    "bestStreak": "best: {{count}}",
+    "yourResult": {
+      "completed": "Solved",
+      "notCompleted": "Not solved",
+      "score": "{{score}} pts"
+    }
+  },
   "score": {
     "pointsSuffix": "points",
     "ariaLabel": "Score: {{score}} points",

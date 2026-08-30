@@ -4,6 +4,7 @@ import ThemeToggle from './ThemeToggle'
 import SoundToggle from './SoundToggle'
 import HighScoresPanel from './HighScoresPanel'
 import StatsPanel from './StatsPanel'
+import DailyPanel from './DailyPanel'
 
 /**
  * ROADMAP Batch 10 item 15 — start-screen cleanup. Everything that isn't the core play
@@ -46,6 +47,10 @@ export default function SettingsPanel({
   onToggleStats,
   stats,
   statsLoading,
+  daily,
+  dailyLoading,
+  isDailyGame,
+  onPlayDaily,
 }) {
   const { t } = useTranslation()
   const closeButtonRef = useRef(null)
@@ -203,6 +208,15 @@ export default function SettingsPanel({
             )}
           </div>
         )}
+
+        {/* Daily puzzle (ROADMAP Batch 10 item 1) */}
+        <DailyPanel
+          daily={daily}
+          loading={dailyLoading}
+          isDailyGame={isDailyGame}
+          onPlayDaily={onPlayDaily}
+          controlsDisabled={controlsDisabled}
+        />
 
         {/* Leaderboard */}
         <div className="flex flex-col gap-2">

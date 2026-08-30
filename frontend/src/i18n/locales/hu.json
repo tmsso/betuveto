@@ -39,6 +39,22 @@
     "themeLabel": "Színséma:",
     "soundLabel": "Hangeffektek:"
   },
+  "daily": {
+    "title": "Napi rejtvény",
+    "badge": "Napi rejtvény",
+    "loading": "Betöltés...",
+    "forDate": "{{date}}",
+    "play": "▶ Mai rejtvény indítása",
+    "replay": "↻ Újra (csak szórakozásból)",
+    "playing": "A mai rejtvényt játszod",
+    "currentStreak": "{{count}} napos sorozat",
+    "bestStreak": "legjobb: {{count}}",
+    "yourResult": {
+      "completed": "Megfejtve",
+      "notCompleted": "Nincs megfejtve",
+      "score": "{{score}} pont"
+    }
+  },
   "score": {
     "pointsSuffix": "pont",
     "ariaLabel": "Pontszám: {{score}} pont",

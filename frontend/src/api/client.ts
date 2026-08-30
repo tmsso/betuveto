@@ -31,6 +31,31 @@ export interface StartGameResult {
     show_wordlist_selector: boolean;
     show_easy_mode: boolean;
   };
+  /** Present only on a daily-puzzle game (ROADMAP Batch 10 item 1). `already_graded` marks
+   *  a replay whose result won't count toward the streak / leaderboard. */
+  daily?: {
+    puzzle_date: string;
+    already_graded: boolean;
+  };
+}
+
+export interface DailyLeaderEntry {
+  display_name: string;
+  final_score: number;
+  /** Whether this player found the target word (vs. ran out of time / gave up). */
+  completed: boolean;
+}
+
+export interface DailyView {
+  /** 'YYYY-MM-DD' in Europe/Budapest. */
+  puzzle_date: string;
+  wordlist: string;
+  target_length: number;
+  possible_count: number;
+  already_played: boolean;
+  your_result: { completed: boolean; final_score: number } | null;
+  streak: { current: number; best: number };
+  leaderboard: DailyLeaderEntry[];
 }
 
 export interface GameResult {
@@ -217,6 +242,34 @@ class BetuAPIClient {
       method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to start game');
+    const data: StartGameResult = await response.json();
+    this.gameId = data.game_id;
+    return data;
+  }
+
+  // Daily puzzle (ROADMAP Batch 10 item 1). GET is identity-optional — the puzzle meta
+  // and leaderboard come back regardless; your_result/streak are empty without a cookie.
+  async getDaily(wordlist?: string, targetLength?: number): Promise<DailyView> {
+    const params = new URLSearchParams();
+    if (wordlist) params.set('wordlist', wordlist);
+    if (targetLength) params.set('target_length', String(targetLength));
+    const qs = params.toString();
+    const response = await fetch(`${this.baseUrl}/v1/daily${qs ? `?${qs}` : ''}`);
+    if (!response.ok) throw new Error(`Failed to fetch daily puzzle (${response.status})`);
+    return response.json();
+  }
+
+  /** Starts (or replays) today's puzzle. Returns the same shape as startGame plus a
+   *  `daily` block, and sets currentGameId the same way — the whole game flow is reused. */
+  async startDailyGame(wordlist?: string, targetLength?: number): Promise<StartGameResult> {
+    const params = new URLSearchParams();
+    if (wordlist) params.set('wordlist', wordlist);
+    if (targetLength) params.set('target_length', String(targetLength));
+    const qs = params.toString();
+    const response = await fetch(`${this.baseUrl}/v1/daily/start${qs ? `?${qs}` : ''}`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to start daily game');
     const data: StartGameResult = await response.json();
     this.gameId = data.game_id;
     return data;
