@@ -15,7 +15,12 @@ import {
   resolveReport,
   resolveSuggestion,
 } from "../../lib/admin-queue.js";
-import { getConfigList, updateConfigValue } from "../../lib/admin-config.js";
+import {
+  getConfigList,
+  getUiConfigList,
+  updateConfigValue,
+  updateUiConfigValue,
+} from "../../lib/admin-config.js";
 import { getDashboardStats } from "../../lib/admin-dashboard.js";
 import {
   disqualifyGame,
@@ -355,6 +360,21 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
     if (segments.length === 2 && b === "config") {
       return methodHandler({ GET: requireAdmin(() => getConfigList()) });
+    }
+
+    // ROADMAP Batch 10 item 14 — player-facing control visibility. Separate route from
+    // "config" above because the values are booleans / a wordlist code, not the
+    // non-negative numbers updateConfigValue validates.
+    if (segments.length === 2 && b === "ui-config") {
+      return methodHandler({ GET: requireAdmin(() => getUiConfigList()) });
+    }
+
+    if (segments.length === 3 && b === "ui-config") {
+      if (c === undefined) return undefined;
+      const key = c;
+      return methodHandler({
+        PATCH: requireAdmin((req) => updateUiConfigValue(key, bodyField(req, "value"))),
+      });
     }
 
     if (segments.length === 2 && b === "dashboard") {

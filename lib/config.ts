@@ -87,3 +87,117 @@ export async function listConfig(): Promise<
   const current = await getConfig();
   return CONFIG_KEYS.map((key) => ({ key, value: current[key], default: CONFIG_DEFAULTS[key] }));
 }
+
+/* --------------------------------------------------------------------------
+ * UI config (ROADMAP Batch 10 item 14): admin-controlled visibility of the
+ * player-facing start-screen controls, so a given audience can get a simplified
+ * game without a redeploy. Stored in the same `config` table under `ui.`-prefixed
+ * keys; kept as a separate interface/reader because the values are booleans and a
+ * string, not the numbers-only shape GameConfig assumes.
+ *
+ * "Hidden also forces a default" (product decision): when a control is hidden,
+ * `startGame` ignores the client's value (and any saved per-player preference) and
+ * pins the configured default — a hidden control is a fixed axis for everyone, not
+ * just a removed widget. The forcing lives in lib/game.ts's startGame().
+ * ------------------------------------------------------------------------ */
+
+const UI_WORDLIST_CODES = ["hu", "en"] as const;
+
+export interface UiConfig {
+  show_length_selector: boolean;
+  show_wordlist_selector: boolean;
+  show_easy_mode: boolean;
+  /** Forced when show_length_selector is false. Any 5–10 board is currently available
+   *  for both wordlists (ROADMAP 6.1), so the range check alone keeps startGame safe;
+   *  a future wordlist with length gaps would need an availability check there too. */
+  default_length: number;
+  /** Forced when show_wordlist_selector is false. */
+  default_wordlist: (typeof UI_WORDLIST_CODES)[number];
+}
+
+/** Also the fallback for any `ui.*` row missing or malformed in the table — same
+ *  degrade-to-default behaviour as getConfig(). Defaults are "show everything", so an
+ *  un-seeded / not-yet-migrated environment behaves exactly as before this feature. */
+export const UI_CONFIG_DEFAULTS: UiConfig = {
+  show_length_selector: true,
+  show_wordlist_selector: true,
+  show_easy_mode: true,
+  default_length: 7,
+  default_wordlist: "hu",
+};
+
+const UI_CONFIG_KEYS = Object.keys(UI_CONFIG_DEFAULTS) as (keyof UiConfig)[];
+const UI_KEY_PREFIX = "ui.";
+
+export function isUiConfigKey(key: string): key is keyof UiConfig {
+  return (UI_CONFIG_KEYS as string[]).includes(key);
+}
+
+/** Per-key validation: a boolean key rejects a non-boolean, default_length must be an
+ *  integer 5–10, default_wordlist must be a known code. Anything else → the compiled-in
+ *  default for that one key (never a throw — a bad edit must not 500 game/start). */
+function coerceUiValue<K extends keyof UiConfig>(key: K, raw: unknown): UiConfig[K] | undefined {
+  if (key === "default_length") {
+    return typeof raw === "number" && Number.isInteger(raw) && raw >= 5 && raw <= 10
+      ? (raw as UiConfig[K])
+      : undefined;
+  }
+  if (key === "default_wordlist") {
+    return typeof raw === "string" && (UI_WORDLIST_CODES as readonly string[]).includes(raw)
+      ? (raw as UiConfig[K])
+      : undefined;
+  }
+  // the three show_* booleans
+  return typeof raw === "boolean" ? (raw as UiConfig[K]) : undefined;
+}
+
+let uiCache: { value: UiConfig; expiresAt: number } | null = null;
+
+export async function getUiConfig(): Promise<UiConfig> {
+  const now = Date.now();
+  if (uiCache && uiCache.expiresAt > now) return uiCache.value;
+
+  const sql = db();
+  const rows = await sql<{ key: string; value: unknown }[]>`
+    select key, value from config where key like ${UI_KEY_PREFIX + "%"}
+  `;
+  const value = { ...UI_CONFIG_DEFAULTS };
+  for (const row of rows) {
+    const bare = row.key.slice(UI_KEY_PREFIX.length);
+    if (!isUiConfigKey(bare)) continue;
+    const coerced = coerceUiValue(bare, row.value);
+    if (coerced !== undefined) (value[bare] as UiConfig[typeof bare]) = coerced;
+  }
+  uiCache = { value, expiresAt: now + CACHE_TTL_MS };
+  return value;
+}
+
+export async function setUiConfigValue<K extends keyof UiConfig>(
+  key: K,
+  value: UiConfig[K],
+): Promise<void> {
+  const sql = db();
+  await sql`
+    insert into config (key, value) values (${UI_KEY_PREFIX + key}, ${sql.json(value)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  uiCache = null;
+}
+
+export function coerceUiConfigValue<K extends keyof UiConfig>(
+  key: K,
+  raw: unknown,
+): UiConfig[K] | undefined {
+  return coerceUiValue(key, raw);
+}
+
+export async function listUiConfig(): Promise<
+  Array<{ key: keyof UiConfig; value: UiConfig[keyof UiConfig]; default: UiConfig[keyof UiConfig] }>
+> {
+  const current = await getUiConfig();
+  return UI_CONFIG_KEYS.map((key) => ({
+    key,
+    value: current[key],
+    default: UI_CONFIG_DEFAULTS[key],
+  }));
+}

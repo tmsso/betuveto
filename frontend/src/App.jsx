@@ -168,6 +168,12 @@ function App() {
   // request.
   const [selectedEasyMode, setSelectedEasyMode] = useState(false)
   const [gameEasyMode, setGameEasyMode] = useState(false)
+  // Which start-screen controls the admin has left visible (ROADMAP Batch 10 item 14),
+  // echoed by game/start. `null` until the first response — treated as "show everything",
+  // matching the pre-feature default and how an older deployment (no `ui` field) behaves.
+  // A hidden control is also *forced* server-side, so the echoed target_length / wordlist
+  // / difficulty already carry the pinned value; startNewGame syncs the selectors to it.
+  const [uiConfig, setUiConfig] = useState(null)
   // Accepted on-screen-keyboard letters for the active game's wordlist (ROADMAP 6.2) —
   // echoed back by game/start (lib/game.ts), replacing the old hardcoded Hungarian-only
   // whitelist. Seeded with hu's own alphabet so the very first render (before any
@@ -372,6 +378,15 @@ function App() {
       setGameWordlist(response.wordlist ?? wordlist)
       setGameEasyMode(response.difficulty === 'easy')
       if (response.alphabet) setGameAlphabet(response.alphabet)
+      // ROADMAP Batch 10 item 14: sync the "next game" selectors to whatever the server
+      // actually used for any control the admin has hidden — the server forces it there
+      // regardless, this just keeps the (hidden) selector and a later "Új játék" press in
+      // step rather than sending a stale value the server would override anyway.
+      const ui = response.ui ?? null
+      setUiConfig(ui)
+      if (ui && !ui.show_length_selector) setSelectedLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
+      if (ui && !ui.show_wordlist_selector) setSelectedWordlist(response.wordlist ?? DEFAULT_WORDLIST)
+      if (ui && !ui.show_easy_mode) setSelectedEasyMode(false)
       setFoundWords([])
       setCurrentGuess('')
       setGuessCount(0)
@@ -1169,6 +1184,7 @@ function App() {
         selectedEasyMode={selectedEasyMode}
         onEasyModeChange={handleEasyModeChange}
         controlsDisabled={isLoading}
+        uiConfig={uiConfig}
         showHighScores={showHighScores}
         onToggleHighScores={() => setShowHighScores((v) => !v)}
         serverScores={serverScores}

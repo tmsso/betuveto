@@ -35,6 +35,7 @@ export default function SettingsPanel({
   selectedEasyMode,
   onEasyModeChange,
   controlsDisabled,
+  uiConfig,
   showHighScores,
   onToggleHighScores,
   serverScores,
@@ -70,6 +71,14 @@ export default function SettingsPanel({
   }, [isOpen])
 
   if (!isOpen) return null
+
+  // ROADMAP Batch 10 item 14: an admin can hide any of these. `uiConfig` is null until
+  // the first game/start response (and on an older deployment that doesn't send it) —
+  // "show everything" in that case, matching the pre-feature default.
+  const showLength = uiConfig?.show_length_selector ?? true
+  const showWordlist = uiConfig?.show_wordlist_selector ?? true
+  const showEasyMode = uiConfig?.show_easy_mode ?? true
+  const showGameSection = showLength || showWordlist || showEasyMode
 
   const fieldRow = 'flex items-center justify-between gap-3 text-sm'
   const selectClass =
@@ -132,58 +141,68 @@ export default function SettingsPanel({
         </div>
 
         {/* Game — changing any of these starts a fresh game (confirmed first if one is in
-            progress; see App.jsx's handleLengthChange / handleWordlistChange / handleEasyModeChange). */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-game-muted">{t('settings.gameSection')}</h3>
-          <div className={fieldRow}>
-            <label htmlFor="settings-length" className="text-game-muted font-semibold">
-              {t('lengthSelector.label')}
-            </label>
-            <select
-              id="settings-length"
-              value={selectedLength}
-              disabled={controlsDisabled}
-              onChange={(e) => onLengthChange(Number(e.target.value))}
-              aria-label={t('lengthSelector.ariaLabel')}
-              className={selectClass}
-            >
-              {availableLengths.map((length) => (
-                <option key={length} value={length}>{t('lengthSelector.option', { length })}</option>
-              ))}
-            </select>
+            progress; see App.jsx's handleLengthChange / handleWordlistChange /
+            handleEasyModeChange). An admin can hide any of them (ROADMAP Batch 10 item
+            14); a hidden control is also pinned server-side in game/start. */}
+        {showGameSection && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-game-muted">{t('settings.gameSection')}</h3>
+            {showLength && (
+              <div className={fieldRow}>
+                <label htmlFor="settings-length" className="text-game-muted font-semibold">
+                  {t('lengthSelector.label')}
+                </label>
+                <select
+                  id="settings-length"
+                  value={selectedLength}
+                  disabled={controlsDisabled}
+                  onChange={(e) => onLengthChange(Number(e.target.value))}
+                  aria-label={t('lengthSelector.ariaLabel')}
+                  className={selectClass}
+                >
+                  {availableLengths.map((length) => (
+                    <option key={length} value={length}>{t('lengthSelector.option', { length })}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {showWordlist && (
+              <div className={fieldRow}>
+                <label htmlFor="settings-wordlist" className="text-game-muted font-semibold">
+                  {t('wordlistSelector.label')}
+                </label>
+                <select
+                  id="settings-wordlist"
+                  value={selectedWordlist}
+                  disabled={controlsDisabled}
+                  onChange={(e) => onWordlistChange(e.target.value)}
+                  aria-label={t('wordlistSelector.ariaLabel')}
+                  className={selectClass}
+                >
+                  {wordlists.map(({ code, label }) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {showEasyMode && (
+              <div className={fieldRow}>
+                <label htmlFor="settings-easy-mode" className="text-game-muted font-semibold flex items-center gap-1.5 cursor-pointer">
+                  {t('easyModeToggle.label')}
+                </label>
+                <input
+                  id="settings-easy-mode"
+                  type="checkbox"
+                  checked={selectedEasyMode}
+                  disabled={controlsDisabled}
+                  onChange={(e) => onEasyModeChange(e.target.checked)}
+                  aria-label={t('easyModeToggle.ariaLabel')}
+                  className="h-4 w-4 accent-game-secondary disabled:opacity-50"
+                />
+              </div>
+            )}
           </div>
-          <div className={fieldRow}>
-            <label htmlFor="settings-wordlist" className="text-game-muted font-semibold">
-              {t('wordlistSelector.label')}
-            </label>
-            <select
-              id="settings-wordlist"
-              value={selectedWordlist}
-              disabled={controlsDisabled}
-              onChange={(e) => onWordlistChange(e.target.value)}
-              aria-label={t('wordlistSelector.ariaLabel')}
-              className={selectClass}
-            >
-              {wordlists.map(({ code, label }) => (
-                <option key={code} value={code}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div className={fieldRow}>
-            <label htmlFor="settings-easy-mode" className="text-game-muted font-semibold flex items-center gap-1.5 cursor-pointer">
-              {t('easyModeToggle.label')}
-            </label>
-            <input
-              id="settings-easy-mode"
-              type="checkbox"
-              checked={selectedEasyMode}
-              disabled={controlsDisabled}
-              onChange={(e) => onEasyModeChange(e.target.checked)}
-              aria-label={t('easyModeToggle.ariaLabel')}
-              className="h-4 w-4 accent-game-secondary disabled:opacity-50"
-            />
-          </div>
-        </div>
+        )}
 
         {/* Leaderboard */}
         <div className="flex flex-col gap-2">
