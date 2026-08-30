@@ -75,6 +75,10 @@
     "ariaLabel": "Available letters",
     "letterAriaLabel": "letter {{letter}}"
   },
+  "wordlistPill": {
+    "title": "Board language: {{language}}",
+    "lang": { "hu": "Hungarian", "en": "English" }
+  },
   "guessInput": {
     "ariaLabel": "Enter your guess",
     "placeholder": "guess",

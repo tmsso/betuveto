@@ -964,6 +964,21 @@ function App() {
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
+          {/* Wordlist-language pill (ROADMAP Batch 10 item 16) — shown only when the board's
+              wordlist differs from the UI language, so the mismatch isn't missed now that the
+              wordlist selector lives behind the settings drawer (item 15). A two-letter pill,
+              not a flag emoji: flag glyphs fall back to bare letter pairs on Windows Chrome. */}
+          {gameWordlist && gameWordlist !== i18n.language && (
+            <div className="mb-3 flex justify-center">
+              <span
+                className="inline-flex items-center text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 border border-game-border text-game-muted"
+                title={t('wordlistPill.title', { language: t(`wordlistPill.lang.${gameWordlist}`) })}
+                aria-label={t('wordlistPill.title', { language: t(`wordlistPill.lang.${gameWordlist}`) })}
+              >
+                {gameWordlist.toUpperCase()}
+              </span>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label={t('board.ariaLabel')}>
             {scrambledLetters.map((letter, index) => (
               <button

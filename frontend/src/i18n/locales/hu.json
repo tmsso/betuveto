@@ -75,6 +75,10 @@
     "ariaLabel": "Kirakható betűk",
     "letterAriaLabel": "{{letter}} betű"
   },
+  "wordlistPill": {
+    "title": "A tábla nyelve: {{language}}",
+    "lang": { "hu": "magyar", "en": "angol" }
+  },
   "guessInput": {
     "ariaLabel": "Tipp beírása",
     "placeholder": "tipp",
