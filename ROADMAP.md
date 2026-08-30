@@ -1439,7 +1439,7 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     exists, which a permanently-null column would also satisfy — it did not catch this,
     direct production data did. Worth remembering for any future "did this actually write
     real data" question: check the data, not just that the endpoint responds.
-14. `[ ]` **Admin: UI-language override + player-facing element visibility toggles**
+14. `[x]` **Admin: UI-language override + player-facing element visibility toggles**
     (requested 2026-08-29, deferred by the requester to a later session). Two related
     admin controls:
     - **Admin panel in English.** `AdminApp` and the 5 `Admin*Panel` files are
@@ -1458,6 +1458,52 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       also *forces* a default server-side (a hidden length selector should still pin a
       length) or only removes the control. Keep the keys few and specific; this is a
       curation lever, not a general CMS.
+
+    **Shipped 2026-08-30 as two PRs, both verified live.** Split on advisor's call —
+    they're independent features sharing only this bullet, with very different blast
+    radius. The checkbox closes because both landed.
+
+    **14a — visibility toggles (PR #60).** `lib/config.ts` gains a `UiConfig` alongside
+    `GameConfig` — `show_length_selector` / `show_wordlist_selector` / `show_easy_mode`
+    booleans + `default_length` + `default_wordlist` — stored in the same `config` table
+    under `ui.`-prefixed keys. **No migration:** `getUiConfig()` falls back to
+    "show everything" for unseeded rows (its own per-key validation degrades a malformed
+    edit to the default, same as `getConfig`), so an un-migrated environment is unchanged.
+    **"Hidden also forces a default"** (the user's answer to the open question above):
+    `lib/game.ts`'s `startGame` overrides the client's value *and* any saved per-player
+    preference for a hidden control, before the range check — a hidden control is a fixed
+    axis for everyone, not just a removed widget. The `game/start` response gained a `ui`
+    object (three booleans; the forced values ride the existing `target_length` /
+    `wordlist` / `difficulty` echoes). `GET`/`PATCH /api/v1/admin/ui-config` (own route,
+    since the values are booleans / a wordlist code, not the non-negative numbers
+    `updateConfigValue` takes); an "Játékos-felület elemei" section in
+    `AdminConfigPanel`; `SettingsPanel` renders each game control only when visible and
+    drops the whole "Game" section when all three are off. Contract test asserts
+    `game/start?target_length=9` comes back with the *configured* length, not 9, when the
+    selector is hidden (value-checked, per item 13's lesson) — skips against production
+    since it toggles a player-visible setting, restores in `finally`. Verified on the
+    preview (69/69 suite incl. that test, plus a direct `game/start?target_length=10&wordlist=en`
+    → forced `6`, plus a headless click-through of the admin toggle hiding/showing the
+    player's selector). **Production `ui.*` config deliberately left at defaults** — hiding
+    a control there is a real behaviour change for players, the user's call, not a
+    verification step. Prod verified at defaults: `game/start` returns the `ui` object
+    all-true, `target_length` honoured.
+
+    **14b — admin-shell language switch (PR #61).** The admin panel (login, tab bar, all
+    five `Admin*Panel` screens — every header, button, status line, confirm dialog, error
+    message) was hardcoded Hungarian. Now a small admin-only string map:
+    `frontend/src/admin/adminI18n.js` (hu/en catalog ~120 keys with shared `common.*` /
+    `err.*` groups, `translate()` with `{{var}}` interpolation, `useAdminT()` context
+    hook, `adminLocale()` for `Date#toLocale*`) + `AdminLangProvider.jsx` (split out so
+    each file has one export kind — Vite fast-refresh rule). A language `<select>` in the
+    admin header, persisted in `localStorage` (`bv_admin_lang`), **independent of any
+    player's `preferred_language`**. **Deliberately not react-i18next:** the player app
+    owns one shared i18next instance (`main.jsx`) and `changeLanguage` on it is global —
+    the roadmap text above names "a lighter admin-only string map" as exactly this
+    alternative. `AdminApp` became a thin `<AdminLangProvider><AdminAppInner/>` wrapper.
+    14a's section labels moved into the same catalog (`ui.*` keys). Frontend-only, no
+    migration. Verified: full hu↔en flip across all five panels + login on the preview;
+    the login screen confirmed rendering in English from a stored pref on production.
 15. `[x]` **Start-screen UI cleanup — move non-core controls into a settings panel**
     (requested 2026-08-29, deferred by the requester). The play screen currently stacks
     every control above the board. Move everything not needed for the core loop —
