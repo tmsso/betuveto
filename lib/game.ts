@@ -53,6 +53,9 @@ export interface GameRow {
   found_count: number;
   status: string;
   ends_at: Date;
+  // Non-null on a daily-puzzle game (ROADMAP Batch 10 item 1) — finalizeWordStats then
+  // also grades a daily_results row at the terminal transition.
+  daily_puzzle_id: number | null;
   // Raw components, not a precomputed total: see effectiveScore's doc comment for why
   // flooring has to happen at the point of use rather than once here.
   raw_guess_score: number;
@@ -86,7 +89,7 @@ export async function loadGame(sql: Sql, gameId: string): Promise<GameRow | null
   }
   const [game] = await sql<GameRow[]>`
     select g.id, g.wordlist_id, g.player_id, g.target_word, g.target_length, g.scrambled_letters,
-           g.possible_count, g.found_count, g.status, g.ends_at,
+           g.possible_count, g.found_count, g.status, g.ends_at, g.daily_puzzle_id,
            coalesce((select sum(score)::int from game_guesses
                       where game_id = g.id and correct), 0) as raw_guess_score,
            coalesce((select sum(cost)::int from game_hints
@@ -161,6 +164,27 @@ async function finalizeWordStats(sql: Sql, game: GameRow, config: GameConfig): P
   `;
   const fraction = letterClearFraction(possible, foundRows.map((row) => row.word));
   await applyGameMastery(sql, game.player_id, game.wordlist_id, game.target_word, fraction);
+
+  // ROADMAP Batch 10 item 1: a daily-puzzle game grades its result here — the one place
+  // all three terminal transitions already pass through. `completed` = the target word
+  // was found (the same `solved` check above), not a full board clear. The final_score is
+  // re-read from the row (every caller has already written it by now: the full-clear
+  // UPDATE sets it in the same statement, finalizeExpiry/giveUp in the statement right
+  // before calling this). `on conflict do nothing` on the (puzzle, player) unique index
+  // means only the first attempt to reach a terminal state is recorded — later replays
+  // still play, but don't overwrite the streak/leaderboard result. Anonymous players
+  // (no player_id) aren't graded: a streak needs a stable identity.
+  if (game.daily_puzzle_id && game.player_id) {
+    const [row] = await sql<{ final_score: number | null }[]>`
+      select final_score from games where id = ${game.id}
+    `;
+    await sql`
+      insert into daily_results (puzzle_id, player_id, game_id, completed, final_score)
+      values (${game.daily_puzzle_id}, ${game.player_id}, ${game.id},
+              ${Boolean(solved)}, ${row?.final_score ?? 0})
+      on conflict (puzzle_id, player_id) do nothing
+    `;
+  }
 }
 
 export async function startGame(

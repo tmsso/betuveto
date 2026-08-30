@@ -1017,7 +1017,56 @@ social value, creates a retention loop that nothing else here does) — cheap-bu
 items shouldn't bury the one item that's both cheap *and* high-value. Order isn't a hard
 dependency chain (most items are independent); it's a priority queue, revisit freely.
 
-1. `[ ]` **Daily puzzle + streaks** (see 7.2 note — arguably belongs before multiplayer).
+1. `[x]` **Daily puzzle + streaks** (see 7.2 note — arguably belongs before multiplayer).
+   **Shipped.** One shared board per calendar day per (wordlist, length) — every player
+   who starts today's puzzle for a combo gets the same scrambled letters and target word.
+   Playing it creates an ordinary `games` row with a new nullable `games.daily_puzzle_id`;
+   every existing mechanic (guess / give_up / hints / server timer / lazy expiry) operates
+   on it unchanged. New: `migrations/0018_daily_puzzles.sql` (`daily_puzzles`,
+   `daily_results`, the `games` column), `lib/daily.ts`, `GET /api/v1/daily` +
+   `POST /api/v1/daily/start`, a `<DailyPanel>` inside `<SettingsPanel>`, and a 🗓️ badge
+   on the active board.
+   **Design decisions (confirmed with the project owner 2026-08-29, recorded here):**
+   - **per-(wordlist, length) puzzle**, not one global canonical daily.
+   - **day boundary Europe/Budapest**, computed in SQL as `(now() at time zone
+     'Europe/Budapest')::date` — no timezone arithmetic in JS.
+   - **"completed" = the target word was found**, not `status='finished'`. A Betűvető game
+     only reaches `finished` on a full board clear (`found_count >= possible_count`),
+     which is rare — keying the streak on that would make it near-unreachable. Completion
+     is derived from "the target was among the correct guesses" at the terminal
+     transition.
+   - **one graded attempt per day**: replayable for fun, but only the first attempt to
+     reach a terminal state writes `daily_results` (`insert … on conflict (puzzle_id,
+     player_id) do nothing`). A replay's start response carries `daily.already_graded:
+     true` so the frontend can say so.
+   - **streak** = consecutive Budapest days with *any* completed daily; the current run
+     may end **today or yesterday** (so it doesn't read 0 before you've played today), a
+     ≥2-day gap breaks it. `best` is the longest such run ever.
+   **Implementation notes / gotchas:**
+   - The daily target is a **plain `order by random()`** pick over active words — *not*
+     `startGame`'s `pickPersonalizedWord` (that biases per-player and would either favour
+     whoever loaded first or re-pick per player).
+   - Generation is race-safe: `insert … on conflict (puzzle_date, wordlist_id,
+     target_length) do nothing` then unconditionally `select` the row back and use *that*
+     — never the pre-insert pick (same class as the `found_count` check-then-act bug).
+   - The **item-14a hidden-selector forcing is re-applied on the daily path** (`lib/daily.ts`
+     `resolveDailyAxes`), so a hidden length/wordlist can't be bypassed via `/daily/start`.
+   - Grading is one `insert` inside `finalizeWordStats` (`lib/game.ts`) — the single hook
+     all three terminal transitions (full clear / lazy timeout / give-up) already funnel
+     through. `final_score` is re-read from the `games` row there (every caller has
+     written it by the time the hook runs). Anonymous players (`player_id is null`) aren't
+     graded — a streak needs a stable identity.
+   - Daily duration is the full length-scaled clock with no client override (a daily is
+     once-a-day and shared; the shorter-timer path `game/start` has for tests isn't
+     needed).
+   - Contract tests (`tests/contract.test.ts`, Batch 10 item 1 section) are gated
+     `if (IS_PRODUCTION) return` — a test run against production would mint that day's real
+     `daily_puzzles` row.
+   - **Frontend refactor NOT done here** — see the "Frontend refactor" bullet below. Daily
+     mode reuses the whole existing game state machine (`startNewGame` gained one `daily`
+     flag that swaps the start endpoint; nothing else changed), so unlike item 15 it did
+     not force the `App.jsx` → `components/` split. That leaves the split with **no
+     remaining carrier in Batch 10** — a deliberate handoff fact, not an oversight.
 2. `[x]` **Difficulty rating per word** — % of games where the target was found; feed back
    into word selection ("easy mode" picks well-known words). Data starts accruing the
    moment Batch 1 lands, so log now, build later. Pairs naturally with the 5.2 item 4
@@ -1565,14 +1614,20 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       unchanged, zero `/api/game/start`), confirm/cancel selector flow.
     - **Refactor status:** this took `HighScoresPanel` / `StatsPanel` / `SettingsPanel`
       out of `App.jsx` (~80 lines lighter). Board / GuessInput / Timer / Scoreboard +
-      `useGame` still unextracted — left for the daily-puzzle item (1), which restructures
-      game state anyway.
+      `useGame` still unextracted — was expected to land with the daily-puzzle item (1),
+      but see item 1's shipped note: daily mode reused the game state machine wholesale
+      and did not force it either.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
-  `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
+  `App.jsx` is a ~1200-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
-  above substantially touches `App.jsx` first (daily puzzle or dark mode are the two
-  likeliest candidates) — never standalone (those go badly with AI implementers; always
-  pair refactors with a feature that exercises them).
+  substantially touches `App.jsx` first — never standalone (those go badly with AI
+  implementers; always pair refactors with a feature that exercises them).
+  **Status after Batch 10:** item 7 (dark mode) did the trivial-component slice, item 15
+  extracted the three settings panels, item 1 (daily puzzle) added only a `daily` flag to
+  `startNewGame`. **No Batch 10 item remains as a carrier.** The next item anywhere in the
+  plan that reshapes game state (a plausible one: multiplayer, 7.2 — it rebuilds scoring
+  and adds an opponent sidebar) should absorb the `useGame` + Board/GuessInput/Timer/
+  Scoreboard extraction; until then `App.jsx` stays monolithic by explicit decision.
 - **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
   constraint, not priority) — not urgent while identity is anonymous-only, but must land
   no later than **Batch 8** (Google OAuth): that's the moment real email addresses start

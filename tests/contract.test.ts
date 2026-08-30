@@ -1332,6 +1332,118 @@ describeApi("Betűvető API contract", () => {
     }
   }, 30000);
 
+  // --- Batch 10 item 1: daily puzzle + streaks -------------------------------
+  // These create and read today's real `daily_puzzles` row, so they run only against a
+  // preview deployment (isolated, disposable Neon DB) — never production, where a test's
+  // random pick would silently become the actual daily puzzle everyone gets that day.
+
+  async function startDaily(
+    cookie?: string,
+    query = "",
+  ): Promise<{ json: any; cookie: string }> {
+    const { status, json, headers } = await call(
+      "POST",
+      `/api/v1/daily/start${query}`,
+      undefined,
+      cookie ? { Cookie: cookie } : undefined,
+    );
+    expect(status).toBe(200);
+    const resolved = cookie ?? headers.get("set-cookie")?.split(";", 1)[0];
+    if (!resolved) throw new Error("No identity cookie for daily/start.");
+    return { json, cookie: resolved };
+  }
+
+  it("daily/start hands every player the same board for the day", async () => {
+    if (IS_PRODUCTION) return;
+    const a = await startDaily();
+    const b = await startDaily();
+    expect(a.json.scrambled_letters).toBe(b.json.scrambled_letters);
+    expect(a.json.target_length).toBe(b.json.target_length);
+    expect(a.json.possible_count).toBe(b.json.possible_count);
+    expect(a.json.game_id).not.toBe(b.json.game_id); // separate games, one shared board
+    expect(a.json.daily.puzzle_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(a.json.difficulty).toBe("normal");
+  });
+
+  it("grades only the first daily attempt; a replay is flagged as not counting", async () => {
+    if (IS_PRODUCTION) return;
+
+    // A fresh identity so the streak starts from nothing.
+    const first = await startDaily(undefined, "?target_length=5");
+    const { cookie } = first;
+
+    // Reconstruct the board and play every findable word — that necessarily includes the
+    // target, so the game is "completed" — then force a terminal transition.
+    const board = (first.json.scrambled_letters as string).split(" ").join("");
+    const words = dictionary
+      .filter((w) => letterCount(w) <= letterCount(board) && canFormWord(w, board))
+      .slice(0, 40);
+    for (const word of words) {
+      await call("POST", `/api/v1/game/${first.json.game_id}/guess`, { word }, { Cookie: cookie });
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    await call("POST", `/api/v1/game/${first.json.game_id}/give_up`, undefined, { Cookie: cookie });
+
+    const view1 = await call("GET", "/api/v1/daily?target_length=5", undefined, { Cookie: cookie });
+    expect(view1.status).toBe(200);
+    expect(view1.json.already_played).toBe(true);
+    expect(view1.json.your_result).not.toBeNull();
+    expect(typeof view1.json.your_result.final_score).toBe("number");
+    expect(view1.json.leaderboard.length).toBeGreaterThanOrEqual(1);
+    const { final_score: gradedScore, completed: gradedCompleted } = view1.json.your_result;
+    // The loop guessed every findable word, so the target was among them unless it was
+    // deactivated server-side — if completed, the day counts toward the streak.
+    if (gradedCompleted) expect(view1.json.streak.current).toBeGreaterThanOrEqual(1);
+
+    // A replay still plays, but the server marks it as already graded.
+    const replay = await startDaily(cookie, "?target_length=5");
+    expect(replay.json.daily.already_graded).toBe(true);
+    await call("POST", `/api/v1/game/${replay.json.game_id}/give_up`, undefined, { Cookie: cookie });
+
+    const view2 = await call("GET", "/api/v1/daily?target_length=5", undefined, { Cookie: cookie });
+    expect(view2.json.your_result.final_score).toBe(gradedScore); // first attempt frozen
+    expect(view2.json.your_result.completed).toBe(gradedCompleted);
+  }, 60000);
+
+  it("a hidden length selector also pins the daily puzzle's length", async () => {
+    if (!ADMIN_TOKEN || IS_PRODUCTION) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const list = await call("GET", "/api/v1/admin/ui-config", undefined, adminHeaders);
+    const origShow = list.json.config.find((r: any) => r.key === "show_length_selector").value;
+    const origLen = list.json.config.find((r: any) => r.key === "default_length").value;
+    const forcedLen = origLen === 6 ? 8 : 6;
+
+    try {
+      expect(
+        (await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: forcedLen }, adminHeaders)).status,
+      ).toBe(200);
+      expect(
+        (await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: false }, adminHeaders)).status,
+      ).toBe(200);
+
+      let view: { status: number; json: any } | undefined;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        view = await call("GET", "/api/v1/daily?target_length=9", undefined, PINNED_COOKIE_HEADER);
+        if (view.json?.target_length === forcedLen) break;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      expect(view?.json.target_length).toBe(forcedLen); // NOT the requested 9
+
+      const started = await call(
+        "POST",
+        "/api/v1/daily/start?target_length=9",
+        undefined,
+        { ...PINNED_COOKIE_HEADER },
+      );
+      expect(started.json.target_length).toBe(forcedLen);
+      expect(started.json.ui.show_length_selector).toBe(false);
+    } finally {
+      await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: origShow }, adminHeaders);
+      await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: origLen }, adminHeaders);
+    }
+  }, 30000);
+
   // --- Batch 5.2 item 3: player and leaderboard maintenance -------------------
   it("gates player/score maintenance behind the admin token", async () => {
     const noToken = await call("GET", "/api/v1/admin/players?q=xyz");
