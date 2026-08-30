@@ -5,9 +5,9 @@ import ReactCanvasConfetti from 'react-canvas-confetti'
 import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
-import ThemeToggle from './components/ThemeToggle'
-import SoundToggle from './components/SoundToggle'
+import SettingsPanel from './components/SettingsPanel'
 import { useSound } from './components/useSound'
+import { useTheme } from './components/useTheme'
 import { definitionUrl } from './dictionary'
 
 const canvasStyles = {
@@ -61,6 +61,10 @@ function App() {
   // ROADMAP Batch 10 item 8 — synthesised sound effects. Lifted here (not inside
   // <SoundToggle>) because `play` below has to read the same on/off value the toggle sets.
   const { soundEnabled, setSoundEnabled, play } = useSound()
+  // ROADMAP Batch 10 item 7 — colour theme. Lifted here (rather than left inside
+  // <ThemeToggle>, which now lives in the settings drawer) so useTheme's one-time
+  // server-preference fetch still runs on app load, not only when the drawer is opened.
+  const { theme, setTheme } = useTheme()
 
   // Accessibility (ROADMAP Batch 10): <html lang> drives screen-reader pronunciation and
   // was hardcoded "hu" in index.html since before the language selector (ROADMAP 6.2)
@@ -95,7 +99,14 @@ function App() {
   const [isAnimatingLetters, setIsAnimatingLetters] = useState(false)
   const [currentAnimatingIndex, setCurrentAnimatingIndex] = useState(-1)
   const [isScoreFlashing, setIsScoreFlashing] = useState(false)
-  const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false)
+  // ROADMAP Batch 10 item 15 — the settings slide-over (language, theme, sound, length,
+  // wordlist, easy mode, leaderboard, stats) opened by the header gear button.
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  // A single confirmation gate. `null` when nothing is pending; otherwise `{ message, run }`
+  // and `run()` fires once the player confirms. Both the "Új játék" button and a
+  // game-restarting selector change (length / wordlist / easy mode, item 15) funnel
+  // through here so an in-progress game is never discarded without a prompt.
+  const [pendingConfirm, setPendingConfirm] = useState(null)
   // Local top-3, kept only as an offline/error fallback now that scores are
   // server-side (ROADMAP 2.2) — the panel below prefers `serverScores` whenever it loads.
   const [highScores, setHighScores] = useState([])
@@ -399,56 +410,64 @@ function App() {
     }
   }, [])
 
-  const handleNewGameClick = () => {
+  // "Új játék" and every game-restarting selector (length / wordlist / easy mode) route
+  // through here. If the player has real progress to lose, the restart waits behind the
+  // confirmation modal; otherwise it runs straight away. ROADMAP Batch 10 item 15's
+  // confirm-then-restart-now rule — it replaces the old silent "apply on the next new
+  // game" deferral, which made a mid-game selector change look like it did nothing.
+  const requestRestart = useCallback((run) => {
     if (foundWords.length > 0 && !isTimeUp) {
-      setIsNewGameModalOpen(true);
+      setPendingConfirm({ message: t('confirmModal.message'), run })
     } else {
-      startNewGame(selectedLength, selectedWordlist, selectedEasyMode);
+      run()
     }
-  };
+  }, [foundWords.length, isTimeUp, t])
 
-  // Length selector (ROADMAP 2.3): always updates the selection and saves it as the
-  // player's preference; only restarts immediately if there's no in-progress game to
-  // lose (a fresh load, or a finished one) — otherwise the choice just applies to
-  // whatever "Új játék" starts next, same as picking it before that click.
+  const handleNewGameClick = useCallback(() => {
+    requestRestart(() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode))
+  }, [requestRestart, startNewGame, selectedLength, selectedWordlist, selectedEasyMode])
+
+  // Length selector (ROADMAP 2.3): a board's length is fixed for its game, so applying a
+  // new one always starts a fresh game. The choice is persisted as the player's
+  // preference (players.preferred_length) only once it's actually applied — a cancelled
+  // confirm leaves both the game and the saved preference untouched.
   const handleLengthChange = useCallback((length) => {
-    setSelectedLength(length)
-    betuAPI.setPreferredLength(length).catch((err) => {
-      console.error('Error saving length preference:', err)
-    })
-    if (foundWords.length === 0 || isTimeUp) {
+    requestRestart(() => {
+      setSelectedLength(length)
+      betuAPI.setPreferredLength(length).catch((err) => {
+        console.error('Error saving length preference:', err)
+      })
       startNewGame(length, selectedWordlist, selectedEasyMode)
-    }
-  }, [foundWords.length, isTimeUp, selectedWordlist, selectedEasyMode, startNewGame])
+    })
+  }, [requestRestart, startNewGame, selectedWordlist, selectedEasyMode])
 
-  // Wordlist/language selector (ROADMAP 6.1): same "only restart if safe" rule as the
-  // length selector. Available lengths differ per wordlist (a length that clears the
-  // >=500-candidate threshold in one language may not in another — lib/game.ts's
-  // getAvailableLengths is now wordlist-scoped), so this also re-fetches that list and
-  // falls back to the default length if the current selection isn't offered anymore.
-  const handleWordlistChange = useCallback(async (wordlist) => {
-    setSelectedWordlist(wordlist)
-    try {
-      const lengths = await betuAPI.getAvailableLengths(wordlist)
-      setAvailableLengths(lengths)
-      const nextLength = lengths.includes(selectedLength) ? selectedLength : DEFAULT_TARGET_LENGTH
-      setSelectedLength(nextLength)
-      if (foundWords.length === 0 || isTimeUp) {
+  // Wordlist selector (ROADMAP 6.1): also re-fetches available lengths, since the
+  // >=500-candidate threshold can admit a different length set per wordlist
+  // (lib/game.ts's getAvailableLengths is wordlist-scoped) — falling back to the default
+  // length if the current pick isn't offered for the new wordlist.
+  const handleWordlistChange = useCallback((wordlist) => {
+    requestRestart(async () => {
+      setSelectedWordlist(wordlist)
+      try {
+        const lengths = await betuAPI.getAvailableLengths(wordlist)
+        setAvailableLengths(lengths)
+        const nextLength = lengths.includes(selectedLength) ? selectedLength : DEFAULT_TARGET_LENGTH
+        setSelectedLength(nextLength)
         startNewGame(nextLength, wordlist, selectedEasyMode)
+      } catch (err) {
+        console.error('Error loading lengths for wordlist:', err)
       }
-    } catch (err) {
-      console.error('Error loading lengths for wordlist:', err)
-    }
-  }, [foundWords.length, isTimeUp, selectedLength, selectedEasyMode, startNewGame])
+    })
+  }, [requestRestart, startNewGame, selectedLength, selectedEasyMode])
 
-  // Easy-mode toggle (ROADMAP Batch 10): same "only restart if safe" rule as the length
-  // and wordlist selectors above; not a saved preference, so no setPreferred* call.
+  // Easy-mode toggle (ROADMAP Batch 10 "difficulty rating per word"): not a saved
+  // preference, so no setPreferred* call — otherwise the same confirm-then-restart rule.
   const handleEasyModeChange = useCallback((easyMode) => {
-    setSelectedEasyMode(easyMode)
-    if (foundWords.length === 0 || isTimeUp) {
+    requestRestart(() => {
+      setSelectedEasyMode(easyMode)
       startNewGame(selectedLength, selectedWordlist, easyMode)
-    }
-  }, [foundWords.length, isTimeUp, selectedLength, selectedWordlist, startNewGame])
+    })
+  }, [requestRestart, startNewGame, selectedLength, selectedWordlist])
 
   // UI language selector (ROADMAP 6.2) — independent of the wordlist above; never
   // restarts a game, since it only changes how text renders, not any game state.
@@ -646,10 +665,18 @@ function App() {
     }
   }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, totalScore, showTemporaryError, t, play])
 
-  // On mount: load which lengths are worth offering and the player's saved preference
-  // (ROADMAP 2.3, both no-ops for a first-ever visitor with no cookie yet), then start
-  // the first game at that length. startNewGame is a stable useCallback ([] deps), so
-  // listing it here satisfies exhaustive-deps without causing repeated restarts.
+  // On mount only: load which lengths are worth offering and the player's saved
+  // preferences (ROADMAP 2.3 / 6.2, all no-ops for a first-ever visitor with no cookie
+  // yet), then start the first game.
+  //
+  // Deliberately a [] dependency array (ROADMAP Batch 10 item 15 bug fix). This used to
+  // list `[startNewGame, i18n]`: `startNewGame` is a stable [] useCallback, and the
+  // `i18n` from useTranslation() *used to be* the stable i18next singleton — but
+  // react-i18next 17 wraps it in a fresh object (Object.create) on every `languageChanged`
+  // event, so `handleLanguageChange` → `i18n.changeLanguage()` was giving this effect a
+  // new `i18n` identity, re-running it, and silently restarting the player's in-progress
+  // game (and resetting it to the default wordlist). This effect must run exactly once;
+  // `let cancelled` still handles StrictMode's mount/unmount/mount double-invoke correctly.
   useEffect(() => {
     let cancelled = false
     const init = async () => {
@@ -683,7 +710,8 @@ function App() {
     }
     init()
     return () => { cancelled = true }
-  }, [startNewGame, i18n])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 
   const handleLetterClick = useCallback((letter) => {
@@ -801,25 +829,20 @@ function App() {
       {/* Header */}
       <div className="text-center mb-8 w-full flex flex-col items-center">
         <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-display leading-tight">{t('app.title')}</h1>
-        {/* UI language selector (ROADMAP 6.2) — independent of the wordlist selector below;
-            never restarts a game. Labels are endonyms, same convention as the wordlist
-            selector's labels. */}
-        <div className="mt-1 flex items-center justify-center gap-2">
-          <select
-            value={i18n.language}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            aria-label={t('languageSelector.ariaLabel')}
-            className="text-xs border border-game-border rounded-lg px-2 py-0.5 text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary"
-          >
-            {UI_LANGUAGES.map(({ code, label }) => (
-              <option key={code} value={code}>{label}</option>
-            ))}
-          </select>
-          {/* ROADMAP Batch 10 item 7 — colour-theme picker, beside the language one. */}
-          <ThemeToggle />
-          {/* ROADMAP Batch 10 item 8 — sound-effects on/off. */}
-          <SoundToggle enabled={soundEnabled} onToggle={setSoundEnabled} />
-        </div>
+        {/* ROADMAP Batch 10 item 15 — every non-core control (language, theme, sound,
+            length, wordlist, easy mode, leaderboard, stats) now lives behind this one
+            gear button, in <SettingsPanel>, leaving the board / input / score / timer /
+            actions as the default view. */}
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label={t('settings.open')}
+          title={t('settings.open')}
+          className="mt-1 inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+        >
+          <span aria-hidden="true">⚙️</span>
+          <span>{t('settings.open')}</span>
+        </button>
       </div>
 
       <div className="bg-game-surface rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
@@ -833,63 +856,9 @@ function App() {
             </div>
         )}
 
-        {/* Word length selector (ROADMAP 2.3) — applies to the next game; a change
-            mid-game is only saved and applied once the current game ends or restarts. */}
-        <div className="flex items-center justify-center gap-2 mb-4 text-sm">
-          <label htmlFor="length-select" className="text-game-muted font-semibold">
-            {t('lengthSelector.label')}
-          </label>
-          <select
-            id="length-select"
-            value={selectedLength}
-            disabled={isLoading}
-            onChange={(e) => handleLengthChange(Number(e.target.value))}
-            aria-label={t('lengthSelector.ariaLabel')}
-            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
-          >
-            {availableLengths.map((length) => (
-              <option key={length} value={length}>{t('lengthSelector.option', { length })}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Wordlist selector (ROADMAP 6.1) — which dictionary the target word comes from;
-            same "restart only if safe" rule as the length selector above. */}
-        <div className="flex items-center justify-center gap-2 mb-4 text-sm">
-          <label htmlFor="wordlist-select" className="text-game-muted font-semibold">
-            {t('wordlistSelector.label')}
-          </label>
-          <select
-            id="wordlist-select"
-            value={selectedWordlist}
-            disabled={isLoading}
-            onChange={(e) => handleWordlistChange(e.target.value)}
-            aria-label={t('wordlistSelector.ariaLabel')}
-            className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
-          >
-            {WORDLISTS.map(({ code, label }) => (
-              <option key={code} value={code}>{label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Easy-mode toggle (ROADMAP Batch 10) — biases target-word selection toward
-            words with a proven-high solve rate; same "restart only if safe" rule as the
-            selectors above. */}
-        <div className="flex items-center justify-center gap-2 mb-4 text-sm">
-          <label htmlFor="easy-mode-toggle" className="text-game-muted font-semibold flex items-center gap-1.5 cursor-pointer">
-            <input
-              id="easy-mode-toggle"
-              type="checkbox"
-              checked={selectedEasyMode}
-              disabled={isLoading}
-              onChange={(e) => handleEasyModeChange(e.target.checked)}
-              aria-label={t('easyModeToggle.ariaLabel')}
-              className="h-4 w-4 accent-game-secondary disabled:opacity-50"
-            />
-            {t('easyModeToggle.label')}
-          </label>
-        </div>
+        {/* Length / wordlist / easy-mode selectors moved into <SettingsPanel> (ROADMAP
+            Batch 10 item 15). The 🌱 indicator above stays here — it reports the server's
+            actual pick, not a control. */}
 
         {/* Score and New Game Button */}
         <div className="flex justify-between items-center mb-6">
@@ -916,57 +885,7 @@ function App() {
           </div>
         </div>
 
-        {/* High Scores toggle (ROADMAP 2.2: server-side leaderboard) */}
-        <div className="mb-4 flex justify-center">
-          <button
-            onClick={() => setShowHighScores(!showHighScores)}
-            className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300"
-          >
-            {showHighScores ? t('highScores.hide') : t('highScores.show', { length: targetLength })}
-          </button>
-        </div>
-
-        {showHighScores && (
-          <div className="mb-6 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700">
-            <h4 className="text-sm font-bold mb-2 text-center text-game-muted">
-              {t('highScores.panelTitle', { length: targetLength })}
-            </h4>
-            {serverScoresLoading && (
-              <p className="text-xs text-center text-game-muted">{t('highScores.loading')}</p>
-            )}
-            {!serverScoresLoading && serverScores && serverScores.top.length > 0 && (
-              <ol className="text-sm space-y-1 max-w-xs mx-auto">
-                {serverScores.top.map((entry, i) => (
-                  <li key={i} className="flex justify-between gap-4">
-                    <span className="truncate">{i + 1}. {entry.display_name}</span>
-                    <span className="font-bold">{entry.final_score}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {!serverScoresLoading && serverScores && serverScores.top.length === 0 && (
-              <p className="text-xs text-center text-game-muted">{t('highScores.empty')}</p>
-            )}
-            {!serverScoresLoading && serverScores?.your_best && (
-              <p className="text-xs text-center mt-3 text-game-muted">
-                {t('highScores.yourBest')} <span className="font-bold">{serverScores.your_best.final_score}</span>
-              </p>
-            )}
-            {!serverScoresLoading && !serverScores && highScores.length > 0 && (
-              <>
-                <p className="text-xs text-center text-game-muted mb-2">{t('highScores.offlineWithLocal')}</p>
-                <div className="flex gap-4 justify-center text-xs text-game-muted">
-                  {highScores.map((s, i) => (
-                    <span key={i} className="font-bold">#{i + 1}: {s.score}</span>
-                  ))}
-                </div>
-              </>
-            )}
-            {!serverScoresLoading && !serverScores && highScores.length === 0 && (
-              <p className="text-xs text-center text-game-muted">{t('highScores.offlineNone')}</p>
-            )}
-          </div>
-        )}
+        {/* Leaderboard toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
 
         {/* Scrambled letters */}
         <div className="mb-8 text-center">
@@ -1129,48 +1048,7 @@ function App() {
           </div>
         )}
 
-        {/* Player stats (ROADMAP 3.3): server-side, replaces the old localStorage
-            "Előzmények" (failed-words) panel. */}
-        <div className="mb-6 flex justify-center">
-            <button
-                onClick={() => setShowStats(!showStats)}
-                className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300"
-            >
-                {showStats ? t('stats.hide') : t('stats.show')}
-            </button>
-        </div>
-
-        {showStats && (
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700">
-                {statsLoading && <p className="text-xs text-center text-game-muted">{t('stats.loading')}</p>}
-                {!statsLoading && stats && stats.games_played === 0 && (
-                    <p className="text-xs text-center text-game-muted">{t('stats.noGames')}</p>
-                )}
-                {!statsLoading && stats && stats.games_played > 0 && (
-                    <>
-                        <div className="text-sm text-center text-game-muted mb-3 space-y-1">
-                            <p>{t('stats.gamesPlayed')} <span className="font-bold">{stats.games_played}</span></p>
-                            <p>{t('stats.completionRate')} <span className="font-bold">{Math.round(stats.completion_rate * 100)}%</span></p>
-                        </div>
-                        {Object.keys(stats.average_score_by_length).length > 0 && (
-                            <div className="text-xs text-center text-game-muted mb-3">
-                                <p className="font-bold mb-1">{t('stats.avgScoreHeader')}</p>
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                    {Object.entries(stats.average_score_by_length).map(([len, avg]) => (
-                                        <span key={len} className="px-2 py-1 bg-game-surface rounded border border-gray-200 dark:border-slate-700">
-                                            {t('stats.avgScoreEntry', { length: len, avg: Math.round(avg) })}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </>
-                )}
-                {!statsLoading && !stats && (
-                    <p className="text-xs text-center text-game-muted">{t('stats.offline')}</p>
-                )}
-            </div>
-        )}
+        {/* Stats toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
 
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
@@ -1272,11 +1150,42 @@ function App() {
         )}
       </div>
 
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        languages={UI_LANGUAGES}
+        language={i18n.language}
+        onLanguageChange={handleLanguageChange}
+        theme={theme}
+        onThemeChange={setTheme}
+        soundEnabled={soundEnabled}
+        onSoundToggle={setSoundEnabled}
+        wordlists={WORDLISTS}
+        selectedWordlist={selectedWordlist}
+        onWordlistChange={handleWordlistChange}
+        availableLengths={availableLengths}
+        selectedLength={selectedLength}
+        onLengthChange={handleLengthChange}
+        selectedEasyMode={selectedEasyMode}
+        onEasyModeChange={handleEasyModeChange}
+        controlsDisabled={isLoading}
+        showHighScores={showHighScores}
+        onToggleHighScores={() => setShowHighScores((v) => !v)}
+        serverScores={serverScores}
+        serverScoresLoading={serverScoresLoading}
+        highScores={highScores}
+        targetLength={targetLength}
+        showStats={showStats}
+        onToggleStats={() => setShowStats((v) => !v)}
+        stats={stats}
+        statsLoading={statsLoading}
+      />
+
       <ConfirmationModal
-        isOpen={isNewGameModalOpen}
-        onClose={() => setIsNewGameModalOpen(false)}
-        onConfirm={() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode)}
-        message={t('confirmModal.message')}
+        isOpen={pendingConfirm !== null}
+        onClose={() => setPendingConfirm(null)}
+        onConfirm={() => pendingConfirm?.run()}
+        message={pendingConfirm?.message ?? ''}
       />
     </div>
   )

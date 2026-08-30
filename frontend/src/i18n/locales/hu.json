@@ -29,6 +29,16 @@
     "enable": "Hangeffektek bekapcsolása",
     "disable": "Hangeffektek kikapcsolása"
   },
+  "settings": {
+    "open": "Beállítások",
+    "title": "Beállítások",
+    "close": "Beállítások bezárása",
+    "displaySection": "Megjelenés",
+    "gameSection": "Játék",
+    "languageLabel": "Nyelv:",
+    "themeLabel": "Színséma:",
+    "soundLabel": "Hangeffektek:"
+  },
   "score": {
     "pointsSuffix": "pont",
     "ariaLabel": "Pontszám: {{score}} pont",
