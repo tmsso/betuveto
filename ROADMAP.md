@@ -1644,7 +1644,7 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     "Board language: English". Presentational only — no endpoint, no migration. Verified:
     lint / typecheck / unit / build / E2E green, plus a headless check of both states
     (hu/hu → no pill; hu-UI + en-board → "EN" pill with the localised label).
-17. `[ ]` **Config change shouldn't auto-start the next game — require an explicit start**
+17. `[x]` **Config change shouldn't auto-start the next game — require an explicit start**
     (requested 2026-08-30, deferred by the requester). Was: confirming a game-restarting
     selector change (word length / wordlist / easy mode — routed through
     `ConfirmationModal` since item 15) *immediately* started a fresh game with the
@@ -1671,6 +1671,22 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       timer block are all gated off (no active game to act on); the E2E smoke test
       (`frontend/e2e/game.spec.ts`, which assumes "auto-starts on load") clicks the start
       button before reading the board.
+    **Shipped 2026-08-30 (PR #64).** New `preGame` state in `App.jsx` (starts `true`).
+    `startNewGame` clears it; a new `enterPreGame()` (the reset half of `startNewGame`,
+    no `/start` call) sets it — the three config-change handlers now call that instead of
+    `startNewGame`, and the mount effect no longer auto-starts (just `setIsLoading(false)`
+    once prefs are loaded). Pre-game the board renders `selectedLength` dashed placeholder
+    `<div>`s (not buttons), a "press Új játék" hint, and a single `animate-breathe` start
+    button that *is* `handleNewGameClick`; the timer block, progress line, guess input,
+    submit / scramble / give-up / hint and the item-16 pill are all gated on `!preGame`.
+    New `breathe` keyframe in `tailwind.config.js` — **box-shadow glow only, no
+    `transform: scale`**, because a scaling interactive element fails Playwright's
+    "element is stable" actionability check (and wobbles under the cursor). `preGame.hint`
+    i18n key (hu/en). Verified: lint / typecheck / unit / build / E2E green; headless
+    check confirmed **zero `game/start` calls on first load or on a config change** (only
+    on the "Új játék" click), the placeholder count tracking `selectedLength` (7 → 6 → 9),
+    and no timer pre-game. The mount-spinner sub-text ("Játék indítása…") is left as-is —
+    it still fits the mid-session "Új játék" path and is a sub-second flash on load.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a ~1200-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item

@@ -39,8 +39,19 @@ export default {
         'bounce-in': 'bounceIn 0.6s',
         'letter-fly': 'letterFly 0.3s ease-out',
         'celebrate': 'celebrate 1s ease-in-out',
+        // ROADMAP Batch 10 item 17 — a gentle pulse on the pre-game "start" button, so an
+        // empty board reads as "waiting for you" rather than broken. Auto-neutralised by
+        // the prefers-reduced-motion block in index.css like every other animation here.
+        'breathe': 'breathe 2.6s ease-in-out infinite',
       },
       keyframes: {
+        // A pulsing glow ring only — deliberately no `transform: scale`, so the button's
+        // hit target never moves (a scaling interactive element wobbles under the cursor
+        // and fails Playwright's "element is stable" actionability check).
+        breathe: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgb(var(--game-secondary) / 0.5)' },
+          '50%': { boxShadow: '0 0 0 14px rgb(var(--game-secondary) / 0)' },
+        },
         shake: {
           '0%, 100%': { transform: 'translateX(0)' },
           '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },

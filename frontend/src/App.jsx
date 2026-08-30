@@ -107,6 +107,10 @@ function App() {
   // game-restarting selector change (length / wordlist / easy mode, item 15) funnel
   // through here so an in-progress game is never discarded without a prompt.
   const [pendingConfirm, setPendingConfirm] = useState(null)
+  // ROADMAP Batch 10 item 17 — `true` means the board is inert: no game has been started
+  // yet (first page load) or a config change dropped back here. Nothing is running
+  // server-side (no game/start call → no clock); the player presses "Új játék" to begin.
+  const [preGame, setPreGame] = useState(true)
   // Local top-3, kept only as an offline/error fallback now that scores are
   // server-side (ROADMAP 2.2) — the panel below prefers `serverScores` whenever it loads.
   const [highScores, setHighScores] = useState([])
@@ -386,6 +390,7 @@ function App() {
         ? await betuAPI.startDailyGame(wordlist, length)
         : await betuAPI.startGame(length, wordlist, easyMode ? 'easy' : 'normal')
       setIsDailyGame(daily)
+      setPreGame(false) // ROADMAP Batch 10 item 17 — a game is now live; leave the inert board.
       setScrambledLetters(response.scrambled_letters.split(' '))
       setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
       setGameWordlist(response.wordlist ?? wordlist)
@@ -438,6 +443,35 @@ function App() {
     }
   }, [])
 
+  // ROADMAP Batch 10 item 17 — drop to the inert pre-game board without starting a game
+  // (so no `game/start` call is made and the server clock never begins). This is the
+  // reset half of `startNewGame`, minus everything that depends on a `/start` response.
+  const enterPreGame = useCallback(() => {
+    setPreGame(true)
+    setScrambledLetters([])
+    setFoundWords([])
+    setCurrentGuess('')
+    setGuessCount(0)
+    setJustFoundWord(null)
+    setPossibleWordsCount(0)
+    setAllPossibleWords([])
+    setAllPossibleWordsFound(false)
+    setShowRemainingWords(false)
+    setIsAnimatingLetters(false)
+    setCurrentAnimatingIndex(-1)
+    setIsTimerActive(false)
+    setEndsAt(null)
+    setIsTimeUp(false)
+    setScoreAtExpiry(0)
+    setCompletionBonus(0)
+    setHintPenalty(0)
+    setHintMessage(null)
+    setIsDailyGame(false)
+    setGameEasyMode(false) // clears the 🌱 board indicator until the next game echoes one
+    setSuggestPrompt(null)
+    setSuggestThanks(false)
+  }, [])
+
   // "Új játék" and every game-restarting selector (length / wordlist / easy mode) route
   // through here. If the player has real progress to lose, the restart waits behind the
   // confirmation modal; otherwise it runs straight away. ROADMAP Batch 10 item 15's
@@ -456,23 +490,26 @@ function App() {
   }, [requestRestart, startNewGame, selectedLength, selectedWordlist, selectedEasyMode])
 
   // Length selector (ROADMAP 2.3): a board's length is fixed for its game, so applying a
-  // new one always starts a fresh game. The choice is persisted as the player's
-  // preference (players.preferred_length) only once it's actually applied — a cancelled
-  // confirm leaves both the game and the saved preference untouched.
+  // new one ends the current game. ROADMAP Batch 10 item 17 — it no longer auto-starts a
+  // replacement; it drops to the inert pre-game board so the player starts (and the clock
+  // starts) when they're ready. The choice is persisted as the player's preference
+  // (players.preferred_length) only once it's actually applied — a cancelled confirm
+  // leaves both the game and the saved preference untouched.
   const handleLengthChange = useCallback((length) => {
     requestRestart(() => {
       setSelectedLength(length)
       betuAPI.setPreferredLength(length).catch((err) => {
         console.error('Error saving length preference:', err)
       })
-      startNewGame(length, selectedWordlist, selectedEasyMode)
+      enterPreGame()
     })
-  }, [requestRestart, startNewGame, selectedWordlist, selectedEasyMode])
+  }, [requestRestart, enterPreGame])
 
   // Wordlist selector (ROADMAP 6.1): also re-fetches available lengths, since the
   // >=500-candidate threshold can admit a different length set per wordlist
   // (lib/game.ts's getAvailableLengths is wordlist-scoped) — falling back to the default
-  // length if the current pick isn't offered for the new wordlist.
+  // length if the current pick isn't offered for the new wordlist. Then to pre-game
+  // (item 17), not a fresh game.
   const handleWordlistChange = useCallback((wordlist) => {
     requestRestart(async () => {
       setSelectedWordlist(wordlist)
@@ -481,21 +518,21 @@ function App() {
         setAvailableLengths(lengths)
         const nextLength = lengths.includes(selectedLength) ? selectedLength : DEFAULT_TARGET_LENGTH
         setSelectedLength(nextLength)
-        startNewGame(nextLength, wordlist, selectedEasyMode)
       } catch (err) {
         console.error('Error loading lengths for wordlist:', err)
       }
+      enterPreGame()
     })
-  }, [requestRestart, startNewGame, selectedLength, selectedEasyMode])
+  }, [requestRestart, enterPreGame, selectedLength])
 
   // Easy-mode toggle (ROADMAP Batch 10 "difficulty rating per word"): not a saved
-  // preference, so no setPreferred* call — otherwise the same confirm-then-restart rule.
+  // preference, so no setPreferred* call — otherwise the same confirm-then-pre-game rule.
   const handleEasyModeChange = useCallback((easyMode) => {
     requestRestart(() => {
       setSelectedEasyMode(easyMode)
-      startNewGame(selectedLength, selectedWordlist, easyMode)
+      enterPreGame()
     })
-  }, [requestRestart, startNewGame, selectedLength, selectedWordlist])
+  }, [requestRestart, enterPreGame])
 
   // Daily puzzle (ROADMAP Batch 10 item 1). The view (streak + leaderboard + this
   // player's result) is read-only and identity-optional; refreshed on settings-panel
@@ -734,7 +771,9 @@ function App() {
 
   // On mount only: load which lengths are worth offering and the player's saved
   // preferences (ROADMAP 2.3 / 6.2, all no-ops for a first-ever visitor with no cookie
-  // yet), then start the first game.
+  // yet). ROADMAP Batch 10 item 17 — the app then sits on the inert pre-game board; it no
+  // longer auto-starts a game (which would start the server clock before the player is
+  // looking). `preGame` state starts `true`; `startNewGame` (from "Új játék") clears it.
   //
   // Deliberately a [] dependency array (ROADMAP Batch 10 item 15 bug fix). This used to
   // list `[startNewGame, i18n]`: `startNewGame` is a stable [] useCallback, and the
@@ -773,7 +812,9 @@ function App() {
       }
       if (cancelled) return
       setSelectedLength(initialLength)
-      startNewGame(initialLength)
+      // No startNewGame() here (ROADMAP Batch 10 item 17) — open on the pre-game board.
+      // `startNewGame`'s finally-block used to be what cleared the initial spinner.
+      setIsLoading(false)
     }
     init()
     return () => { cancelled = true }
@@ -945,19 +986,25 @@ function App() {
             >
               🏆 {displayScore} <span className="hidden sm:inline">{t('score.pointsSuffix')}</span>
             </div>
-            <div className={`text-md text-game-muted transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
-              {t('score.progress', { found: foundWords.length, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && '✨'}
-            </div>
+            {/* Progress line and timer are hidden on the inert pre-game board (item 17) —
+                there is no game to report progress for and no clock running yet. */}
+            {!preGame && (
+              <div className={`text-md text-game-muted transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
+                {t('score.progress', { found: foundWords.length, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && '✨'}
+              </div>
+            )}
           </div>
-          <div className="flex items-center justify-center space-x-2">
-            <div
-              className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-game-primary'}`}
-              role="timer"
-              aria-label={t('score.timerAriaLabel', { time: `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` })}
-            >
-              ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          {!preGame && (
+            <div className="flex items-center justify-center space-x-2">
+              <div
+                className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-game-primary'}`}
+                role="timer"
+                aria-label={t('score.timerAriaLabel', { time: `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` })}
+              >
+                ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Leaderboard toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
@@ -968,7 +1015,7 @@ function App() {
               wordlist differs from the UI language, so the mismatch isn't missed now that the
               wordlist selector lives behind the settings drawer (item 15). A two-letter pill,
               not a flag emoji: flag glyphs fall back to bare letter pairs on Windows Chrome. */}
-          {gameWordlist && gameWordlist !== i18n.language && (
+          {!preGame && gameWordlist && gameWordlist !== i18n.language && (
             <div className="mb-3 flex justify-center">
               <span
                 className="inline-flex items-center text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 border border-game-border text-game-muted"
@@ -980,16 +1027,27 @@ function App() {
             </div>
           )}
           <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label={t('board.ariaLabel')}>
-            {scrambledLetters.map((letter, index) => (
+            {preGame
+              ? /* Inert placeholder tiles (ROADMAP Batch 10 item 17) — the real letters
+                   aren't known until game/start; these just give the empty board a shape.
+                   Plain divs, so `board.getByRole('button')` finds nothing pre-game. */
+                Array.from({ length: selectedLength }).map((_, index) => (
+                  <div
+                    key={index}
+                    aria-hidden="true"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border-2 border-dashed border-game-border opacity-30"
+                  />
+                ))
+              : scrambledLetters.map((letter, index) => (
               <button
                 key={index}
                 onClick={() => handleLetterClick(letter)}
                 aria-label={t('board.letterAriaLabel', { letter })}
                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold shadow-md transition-all transform active:scale-90 focus:outline-none focus:ring-2 focus:ring-opacity-50
-                ${currentAnimatingIndex === index 
-                  ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10' 
-                  : usedLetters[index] 
-                    ? 'bg-gray-300 dark:bg-slate-600 border-gray-400 dark:border-slate-500 text-gray-700 dark:text-slate-200' 
+                ${currentAnimatingIndex === index
+                  ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10'
+                  : usedLetters[index]
+                    ? 'bg-gray-300 dark:bg-slate-600 border-gray-400 dark:border-slate-500 text-gray-700 dark:text-slate-200'
                     : 'bg-blue-100 dark:bg-blue-500/20 border-2 border-blue-300 dark:border-blue-400/50 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:-translate-y-1 hover:scale-110 focus:ring-blue-500'}`}
                 disabled={usedLetters[index]}
               >
@@ -997,11 +1055,34 @@ function App() {
               </button>
             ))}
           </div>
+          {preGame && (
+            <p className="mt-4 text-sm text-game-muted" aria-live="polite">
+              {t('preGame.hint')}
+            </p>
+          )}
         </div>
 
+        {/* Pre-game start (ROADMAP Batch 10 item 17) — the empty board's only control. It
+            reuses handleNewGameClick, so it is literally the "Új játék" action; there is no
+            separate "Start" button. The breathe animation draws the eye here. */}
+        {preGame && (
+          <div className="mb-6 flex justify-center">
+            <button
+              onClick={handleNewGameClick}
+              aria-label={t('actions.newGameAriaLabel')}
+              className="animate-breathe h-14 px-8 rounded-full shadow-lg bg-game-secondary text-white text-lg font-semibold hover:bg-blue-600 transition-colors inline-flex items-center justify-center gap-2"
+            >
+              <span aria-hidden="true">🎲</span>
+              <span>{t('actions.newGame')}</span>
+            </button>
+          </div>
+        )}
+
+        {!preGame && (
+        <>
         {/* Current guess input area */}
         <div className="mb-6 relative">
-          
+
           {/* Temporary Error Overlay */}
           {guessErrorMsg && (
              <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
@@ -1136,6 +1217,8 @@ function App() {
           <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900 rounded-lg px-3 py-2">
             {hintMessage}
           </div>
+        )}
+        </>
         )}
 
         {/* Stats toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}

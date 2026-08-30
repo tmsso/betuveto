@@ -84,6 +84,9 @@
     "placeholder": "tipp",
     "clearAriaLabel": "Tipp törlése"
   },
+  "preGame": {
+    "hint": "Nyomd meg az „Új játék” gombot a kezdéshez."
+  },
   "suggestion": {
     "prompt": "Szerinted létező szó?",
     "submit": "Beküldöm",
