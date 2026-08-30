@@ -1628,6 +1628,13 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
   plan that reshapes game state (a plausible one: multiplayer, 7.2 — it rebuilds scoring
   and adds an opponent sidebar) should absorb the `useGame` + Board/GuessInput/Timer/
   Scoreboard extraction; until then `App.jsx` stays monolithic by explicit decision.
+  **Caveat on that decision:** the file was ~640 lines when the "never standalone" rule
+  was written and is ~1200 now, with daily state added as a fifth concern (game / timer /
+  hints / panels / daily). 7.2 is Batch 7 — the largest feature in the plan — so "wait for
+  a carrier" is a long hold. If `App.jsx` keeps growing before then, treat the pairing
+  rule as due for review rather than a hard block: a deliberately-scoped extraction paired
+  with a *smaller* App.jsx-touching item (or even a carefully-reviewed standalone slice)
+  may become the lesser risk.
 - **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
   constraint, not priority) — not urgent while identity is anonymous-only, but must land
   no later than **Batch 8** (Google OAuth): that's the moment real email addresses start
