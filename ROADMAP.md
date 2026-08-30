@@ -1617,6 +1617,60 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       `useGame` still unextracted — was expected to land with the daily-puzzle item (1),
       but see item 1's shipped note: daily mode reused the game state machine wholesale
       and did not force it either.
+16. `[x]` **Wordlist-language flag indicator** (requested 2026-08-30, deferred by the
+    requester). Show a small flag / language marker on the play screen **only when the
+    wordlist being played differs from the display language** — e.g. Hungarian UI but the
+    English wordlist selected → a small 🇬🇧 / "EN" marker near the board; nothing shown
+    when the two match. Now that the wordlist selector lives behind the ⚙️ settings drawer
+    (item 15), a UI-language / board-language mismatch is no longer visible at a glance, so
+    this is a cheap clarity fix.
+    - Both axes are already separate and already on the client: `i18n.language` (UI
+      language, Batch 6.2 `players.preferred_language`) vs. the board's wordlist code
+      (`gameWordlist` / `selectedWordlist` state, Batch 6.1 — already used for
+      `localeCompare` collation per the PR #37 follow-up). The render condition is just
+      `wordlistCode !== i18n.language`.
+    - Same visual treatment as the existing 🗓️ daily badge / 🌱 easy-mode indicator on the
+      board. Keep the wordlist-code → marker mapping in one place so Batch 6.3's third
+      language is one new row.
+    - Purely presentational: no endpoint change, no migration. Needs a localised
+      `title` / `aria-label` naming the language (item 4 accessibility standard).
+    - **Resolved with the requester 2026-08-30: a styled two-letter pill** ("HU" / "EN"),
+      not an emoji flag — regional-indicator flag emoji fall back to letter pairs on
+      Windows Chrome, and "which English flag" has no clean answer.
+    **Shipped 2026-08-30 (PR #63).** A neutral pill centred above the scrambled letters,
+    rendered only when `gameWordlist !== i18n.language` (both already client-side —
+    Batch 6.1 / 6.2). New `wordlistPill` i18n block (`title` + a `lang.{hu,en}` exonym
+    map, one row per future wordlist for Batch 6.3); `title` + `aria-label` both say e.g.
+    "Board language: English". Presentational only — no endpoint, no migration. Verified:
+    lint / typecheck / unit / build / E2E green, plus a headless check of both states
+    (hu/hu → no pill; hu-UI + en-board → "EN" pill with the localised label).
+17. `[ ]` **Config change shouldn't auto-start the next game — require an explicit start**
+    (requested 2026-08-30, deferred by the requester). Was: confirming a game-restarting
+    selector change (word length / wordlist / easy mode — routed through
+    `ConfirmationModal` since item 15) *immediately* started a fresh game with the
+    server-owned countdown already running. Now: a config change (and first page load)
+    leaves the player on an **empty board** that stays inert until they start a game.
+    **Decisions (resolved with the requester 2026-08-30):**
+    - **Empty board, not blurred letters.** Pre-game shows an empty placeholder board (the
+      real letters aren't known until `game/start`) with a subtle "breathing" attention cue
+      toward the start button. No countdown shown or running.
+    - **Start = the existing "Új játék" button** — no new "Start" control. A config change
+      just updates the selected value and drops to the pre-game board; "Új játék" (already
+      the fresh-game action) is what calls `game/start`.
+    - **The gate applies on first page load too** — the app opens on the pre-game board
+      rather than auto-starting.
+    - **Approach (a): defer the `game/start` call until start is pressed.** Chosen over
+      (b) a nullable-`ends_at` migration (correct but expensive — touches every server-side
+      timer path: `effectiveStatus` / `finalizeExpiredGame` / `guess`) and (c)
+      blur-the-real-letters-while-the-clock-ticks (silent time loss). If the empty-board
+      interim proves unsatisfying, (b) is the documented next step.
+    - **Server-timer note (verified 2026-08-30):** `games.started_at` is `not null default
+      now()` and `game/start` stamps `ends_at = now() + duration` at insert (`lib/game.ts`),
+      so the clock genuinely can't be paused client-side — hence (a) defers the call itself.
+    - Pre-game, the guess input / submit / scramble / give-up / hint controls and the
+      timer block are all gated off (no active game to act on); the E2E smoke test
+      (`frontend/e2e/game.spec.ts`, which assumes "auto-starts on load") clicks the start
+      button before reading the board.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a ~1200-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
@@ -1628,6 +1682,10 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
   plan that reshapes game state (a plausible one: multiplayer, 7.2 — it rebuilds scoring
   and adds an opponent sidebar) should absorb the `useGame` + Board/GuessInput/Timer/
   Scoreboard extraction; until then `App.jsx` stays monolithic by explicit decision.
+  **Update 2026-08-30:** new backlog item 17 (explicit Start gate) reshapes the
+  game-start path and timer lifecycle and is the nearest plausible carrier for a scoped
+  `useGame` + Timer + Board slice — *contingent on item 17's (a)/(b)/(c) decision*: under
+  option (a) it barely touches game state and isn't much of a carrier.
   **Caveat on that decision:** the file was ~640 lines when the "never standalone" rule
   was written and is ~1200 now, with daily state added as a fifth concern (game / timer /
   hints / panels / daily). 7.2 is Batch 7 — the largest feature in the plan — so "wait for
