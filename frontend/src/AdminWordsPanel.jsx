@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react'
+import { useAdminT } from './admin/adminI18n'
 
 // Word maintenance (ROADMAP 5.2 item 1): search the wordlist, fix a typo in place, or
 // remove a row outright. Toggling active/inactive already lives in the queue tab
 // (accept/reject/reactivate) — this tab is only for the word text itself.
 export default function AdminWordsPanel({ authHeaders, onAuthError }) {
+  const { t } = useAdminT()
   const [query, setQuery] = useState('')
   const [words, setWords] = useState(null)
   const [error, setError] = useState(null)
@@ -27,11 +29,11 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       const body = await response.json()
       setWords(body.words)
     } catch (err) {
-      setError(err.message || 'Hiba történt a keresés során.')
+      setError(err.message || t('err.search'))
     } finally {
       setLoading(false)
     }
-  }, [authHeaders, onAuthError])
+  }, [authHeaders, onAuthError, t])
 
   const handleSearchSubmit = (e) => {
     e.preventDefault()
@@ -63,7 +65,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       setEditingId(null)
       await runSearch(query)
     } catch (err) {
-      setError(err.message || 'Hiba történt a mentéskor.')
+      setError(err.message || t('err.save'))
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)
@@ -74,7 +76,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
   }
 
   const deleteWord = async (word) => {
-    if (!window.confirm(`Biztosan törlöd: "${word.word}"?`)) return
+    if (!window.confirm(t('words.confirmDelete', { word: word.word }))) return
     setPendingIds((prev) => new Set(prev).add(word.id))
     setError(null)
     try {
@@ -92,7 +94,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       }
       await runSearch(query)
     } catch (err) {
-      setError(err.message || 'Hiba történt a törléskor.')
+      setError(err.message || t('err.delete'))
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)
@@ -109,7 +111,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Keresés a szólistában..."
+          placeholder={t('words.searchPlaceholder')}
           className="flex-1 border-2 border-game-border rounded p-2 focus:outline-none focus:ring-2 focus:ring-game-secondary"
         />
         <button
@@ -117,24 +119,24 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
           disabled={loading}
           className="bg-game-secondary text-white font-semibold rounded px-4 py-2 hover:bg-blue-600 transition-colors disabled:opacity-40"
         >
-          Keresés
+          {t('common.search')}
         </button>
       </form>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-      {loading && <p className="text-sm text-game-primary/70">Betöltés...</p>}
+      {loading && <p className="text-sm text-game-primary/70">{t('common.loading')}</p>}
 
       {words && (
         words.length === 0 ? (
-          <p className="text-sm text-game-primary/60">Nincs találat.</p>
+          <p className="text-sm text-game-primary/60">{t('common.noResults')}</p>
         ) : (
           <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
             <thead>
               <tr className="text-left border-b-2 border-game-border bg-blue-50">
-                <th className="py-2 px-2">Szó</th>
-                <th className="py-2 px-2">Aktív?</th>
-                <th className="py-2 px-2">Forrás</th>
-                <th className="py-2 px-2">Művelet</th>
+                <th className="py-2 px-2">{t('common.word')}</th>
+                <th className="py-2 px-2">{t('common.activeQ')}</th>
+                <th className="py-2 px-2">{t('words.source')}</th>
+                <th className="py-2 px-2">{t('common.action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -156,8 +158,8 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
                         w.word
                       )}
                     </td>
-                    <td className="py-2 px-2">{w.active ? 'igen' : 'nem'}</td>
-                    <td className="py-2 px-2">{w.source === 'suggested' ? 'javasolt' : 'eredeti'}</td>
+                    <td className="py-2 px-2">{w.active ? t('common.yes') : t('common.no')}</td>
+                    <td className="py-2 px-2">{w.source === 'suggested' ? t('words.sourceSuggested') : t('words.sourceOriginal')}</td>
                     <td className="py-2 px-2 whitespace-nowrap">
                       {editing ? (
                         <>
@@ -166,14 +168,14 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
                             disabled={busy}
                             className="text-green-700 underline font-semibold hover:text-green-900 disabled:opacity-40 mr-3"
                           >
-                            Mentés
+                            {t('common.save')}
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
                             disabled={busy}
                             className="text-game-primary/60 underline hover:text-game-primary disabled:opacity-40"
                           >
-                            Mégsem
+                            {t('common.cancel')}
                           </button>
                         </>
                       ) : (
@@ -183,14 +185,14 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
                             disabled={busy}
                             className="text-game-secondary underline font-semibold hover:text-blue-700 disabled:opacity-40 mr-3"
                           >
-                            Szerkesztés
+                            {t('words.edit')}
                           </button>
                           <button
                             onClick={() => deleteWord(w)}
                             disabled={busy}
                             className="text-red-600 underline font-semibold hover:text-red-800 disabled:opacity-40"
                           >
-                            Törlés
+                            {t('words.delete')}
                           </button>
                         </>
                       )}

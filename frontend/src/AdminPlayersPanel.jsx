@@ -1,9 +1,11 @@
 import { Fragment, useCallback, useState } from 'react'
+import { adminLocale, useAdminT } from './admin/adminI18n'
 
 // Player and leaderboard maintenance (ROADMAP 5.2 item 3). Merging duplicate players is
 // deliberately not here — it's the same operation Batch 8's Google OAuth merge rule
 // needs, and belongs with that design, not pre-empted here.
 export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
+  const { lang, t } = useAdminT()
   const [playerQuery, setPlayerQuery] = useState('')
   const [players, setPlayers] = useState(null)
   const [editingPlayerId, setEditingPlayerId] = useState(null)
@@ -40,9 +42,9 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
       const body = await response.json()
       setPlayers(body.players)
     } catch (err) {
-      setError(err.message || 'Hiba történt a keresés során.')
+      setError(err.message || t('err.search'))
     }
-  }, [authHeaders, withAuthCheck])
+  }, [authHeaders, withAuthCheck, t])
 
   const loadEntries = useCallback(async () => {
     setError(null)
@@ -56,9 +58,9 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
       setEntries(body.entries)
       setEntriesLoaded(true)
     } catch (err) {
-      setError(err.message || 'Hiba történt a betöltéskor.')
+      setError(err.message || t('err.load'))
     }
-  }, [authHeaders, withAuthCheck])
+  }, [authHeaders, withAuthCheck, t])
 
   const saveName = async (playerId) => {
     setPendingIds((prev) => new Set(prev).add(playerId))
@@ -77,7 +79,7 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
       setEditingPlayerId(null)
       await searchPlayers(playerQuery)
     } catch (err) {
-      setError(err.message || 'Hiba történt a mentéskor.')
+      setError(err.message || t('err.save'))
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)
@@ -103,12 +105,12 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
       const body = await response.json()
       setGameDetail(body)
     } catch (err) {
-      setError(err.message || 'Hiba történt a részletek betöltésekor.')
+      setError(err.message || t('err.details'))
     }
   }
 
   const disqualify = async (gameId) => {
-    if (!window.confirm('Biztosan törlöd ezt az eredményt a ranglistáról?')) return
+    if (!window.confirm(t('players.confirmDisqualify'))) return
     setPendingIds((prev) => new Set(prev).add(gameId))
     setError(null)
     try {
@@ -123,7 +125,7 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
       }
       await loadEntries()
     } catch (err) {
-      setError(err.message || 'Hiba történt a törléskor.')
+      setError(err.message || t('err.delete'))
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)
@@ -138,7 +140,7 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       <section className="mb-8">
-        <h2 className="text-lg font-bold mb-2">Játékosok</h2>
+        <h2 className="text-lg font-bold mb-2">{t('players.header')}</h2>
         <form
           onSubmit={(e) => { e.preventDefault(); searchPlayers(playerQuery) }}
           className="mb-4 flex gap-2"
@@ -147,29 +149,29 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
             type="text"
             value={playerQuery}
             onChange={(e) => setPlayerQuery(e.target.value)}
-            placeholder="Keresés név szerint..."
+            placeholder={t('players.searchPlaceholder')}
             className="flex-1 border-2 border-game-border rounded p-2 focus:outline-none focus:ring-2 focus:ring-game-secondary"
           />
           <button
             type="submit"
             className="bg-game-secondary text-white font-semibold rounded px-4 py-2 hover:bg-blue-600 transition-colors"
           >
-            Keresés
+            {t('common.search')}
           </button>
         </form>
 
         {players && (
           players.length === 0 ? (
-            <p className="text-sm text-game-primary/60">Nincs találat.</p>
+            <p className="text-sm text-game-primary/60">{t('common.noResults')}</p>
           ) : (
             <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
               <thead>
                 <tr className="text-left border-b-2 border-game-border bg-blue-50">
-                  <th className="py-2 px-2">Név</th>
-                  <th className="py-2 px-2">Játszott</th>
-                  <th className="py-2 px-2">Legjobb pont</th>
-                  <th className="py-2 px-2">Regisztrált</th>
-                  <th className="py-2 px-2">Művelet</th>
+                  <th className="py-2 px-2">{t('players.name')}</th>
+                  <th className="py-2 px-2">{t('players.played')}</th>
+                  <th className="py-2 px-2">{t('players.bestScore')}</th>
+                  <th className="py-2 px-2">{t('players.registered')}</th>
+                  <th className="py-2 px-2">{t('common.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -188,13 +190,13 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                             autoFocus
                           />
                         ) : (
-                          p.display_name || <span className="font-normal text-game-primary/40">névtelen</span>
+                          p.display_name || <span className="font-normal text-game-primary/40">{t('common.anonymous')}</span>
                         )}
-                        {p.is_admin && <span className="ml-1 text-xs text-game-secondary">(admin)</span>}
+                        {p.is_admin && <span className="ml-1 text-xs text-game-secondary">{t('players.adminTag')}</span>}
                       </td>
                       <td className="py-2 px-2">{p.games_played}</td>
                       <td className="py-2 px-2">{p.best_score ?? '—'}</td>
-                      <td className="py-2 px-2">{new Date(p.created_at).toLocaleDateString('hu-HU')}</td>
+                      <td className="py-2 px-2">{new Date(p.created_at).toLocaleDateString(adminLocale(lang))}</td>
                       <td className="py-2 px-2 whitespace-nowrap">
                         {editing ? (
                           <>
@@ -203,14 +205,14 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                               disabled={busy}
                               className="text-green-700 underline font-semibold hover:text-green-900 disabled:opacity-40 mr-3"
                             >
-                              Mentés
+                              {t('common.save')}
                             </button>
                             <button
                               onClick={() => setEditingPlayerId(null)}
                               disabled={busy}
                               className="text-game-primary/60 underline hover:text-game-primary disabled:opacity-40"
                             >
-                              Mégsem
+                              {t('common.cancel')}
                             </button>
                           </>
                         ) : (
@@ -219,7 +221,7 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                             disabled={busy}
                             className="text-game-secondary underline font-semibold hover:text-blue-700 disabled:opacity-40"
                           >
-                            Átnevezés
+                            {t('players.rename')}
                           </button>
                         )}
                       </td>
@@ -234,29 +236,29 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
 
       <section>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold">Ranglista bejegyzések</h2>
+          <h2 className="text-lg font-bold">{t('players.entriesHeader')}</h2>
           {!entriesLoaded && (
             <button
               onClick={loadEntries}
               className="text-sm text-game-secondary underline hover:text-blue-700"
             >
-              Betöltés
+              {t('players.loadEntries')}
             </button>
           )}
         </div>
 
         {entries && (
           entries.length === 0 ? (
-            <p className="text-sm text-game-primary/60">Nincs eredmény.</p>
+            <p className="text-sm text-game-primary/60">{t('players.noEntries')}</p>
           ) : (
             <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
               <thead>
                 <tr className="text-left border-b-2 border-game-border bg-blue-50">
-                  <th className="py-2 px-2">Játékos</th>
-                  <th className="py-2 px-2">Pont</th>
-                  <th className="py-2 px-2">Hossz</th>
-                  <th className="py-2 px-2">Dátum</th>
-                  <th className="py-2 px-2">Művelet</th>
+                  <th className="py-2 px-2">{t('players.player')}</th>
+                  <th className="py-2 px-2">{t('players.score')}</th>
+                  <th className="py-2 px-2">{t('players.length')}</th>
+                  <th className="py-2 px-2">{t('common.date')}</th>
+                  <th className="py-2 px-2">{t('common.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,25 +269,25 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                     <Fragment key={e.id}>
                       <tr className="border-b border-game-border/40">
                         <td className="py-2 px-2">
-                          {e.display_name || <span className="text-game-primary/40">névtelen</span>}
-                          {e.hinted && <span className="ml-1" title="Segítséggel">💡</span>}
+                          {e.display_name || <span className="text-game-primary/40">{t('common.anonymous')}</span>}
+                          {e.hinted && <span className="ml-1" title={t('players.hintedTitle')}>💡</span>}
                         </td>
                         <td className="py-2 px-2 font-semibold">{e.final_score}</td>
                         <td className="py-2 px-2">{e.target_length}</td>
-                        <td className="py-2 px-2">{new Date(e.ended_at).toLocaleString('hu-HU')}</td>
+                        <td className="py-2 px-2">{new Date(e.ended_at).toLocaleString(adminLocale(lang))}</td>
                         <td className="py-2 px-2 whitespace-nowrap">
                           <button
                             onClick={() => toggleGameDetail(e.id)}
                             className="text-game-secondary underline font-semibold hover:text-blue-700 mr-3"
                           >
-                            {expanded ? 'Bezárás' : 'Részletek'}
+                            {expanded ? t('players.close') : t('players.details')}
                           </button>
                           <button
                             onClick={() => disqualify(e.id)}
                             disabled={busy}
                             className="text-red-600 underline font-semibold hover:text-red-800 disabled:opacity-40"
                           >
-                            Törlés a ranglistáról
+                            {t('players.disqualify')}
                           </button>
                         </td>
                       </tr>
@@ -293,24 +295,24 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                         <tr className="border-b border-game-border/40 bg-blue-50/50">
                           <td colSpan={5} className="py-3 px-2">
                             {!gameDetail ? (
-                              <p className="text-sm text-game-primary/60">Betöltés...</p>
+                              <p className="text-sm text-game-primary/60">{t('common.loading')}</p>
                             ) : (
                               <div className="text-sm">
                                 <p className="mb-2">
-                                  <span className="font-semibold">Célszó:</span> {gameDetail.game.target_word}
+                                  <span className="font-semibold">{t('players.targetWord')}</span> {gameDetail.game.target_word}
                                   {' · '}
-                                  <span className="font-semibold">Megtalált:</span>{' '}
+                                  <span className="font-semibold">{t('players.found')}</span>{' '}
                                   {gameDetail.game.found_count}/{gameDetail.game.possible_count}
                                   {' · '}
-                                  <span className="font-semibold">Állapot:</span> {gameDetail.game.status}
-                                  {gameDetail.game.disqualified_at && ' (törölve a ranglistáról)'}
+                                  <span className="font-semibold">{t('players.status')}</span> {gameDetail.game.status}
+                                  {gameDetail.game.disqualified_at && t('players.disqualified')}
                                   {' · '}
-                                  <span className="font-semibold">Ország:</span>{' '}
-                                  {gameDetail.game.country || 'ismeretlen'}
+                                  <span className="font-semibold">{t('players.gameCountry')}</span>{' '}
+                                  {gameDetail.game.country || t('players.countryUnknown')}
                                 </p>
-                                <p className="font-semibold mb-1">Tippek időrendben:</p>
+                                <p className="font-semibold mb-1">{t('players.guessTimeline')}</p>
                                 {gameDetail.guesses.length === 0 ? (
-                                  <p className="text-game-primary/60 mb-2">Nincs rögzített tipp.</p>
+                                  <p className="text-game-primary/60 mb-2">{t('players.noGuesses')}</p>
                                 ) : (
                                   <ul className="mb-2 space-y-0.5">
                                     {gameDetail.guesses.map((g, i) => (
@@ -318,9 +320,9 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                                         <span className={g.correct ? 'text-green-700' : 'text-red-600'}>
                                           {g.correct ? '✅' : '❌'}
                                         </span>{' '}
-                                        {g.word} {g.correct && `(+${g.score} pont)`}{' '}
+                                        {g.word} {g.correct && `(+${g.score} ${t('players.points')})`}{' '}
                                         <span className="text-game-primary/40">
-                                          {new Date(g.created_at).toLocaleTimeString('hu-HU')}
+                                          {new Date(g.created_at).toLocaleTimeString(adminLocale(lang))}
                                         </span>
                                       </li>
                                     ))}
@@ -328,13 +330,13 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                                 )}
                                 {gameDetail.hints.length > 0 && (
                                   <>
-                                    <p className="font-semibold mb-1">Segítségek:</p>
+                                    <p className="font-semibold mb-1">{t('players.hintsHeader')}</p>
                                     <ul className="space-y-0.5">
                                       {gameDetail.hints.map((h, i) => (
                                         <li key={i}>
-                                          💡 {h.word} ({h.position}. betű: {h.letter}, -{h.cost} pont){' '}
+                                          💡 {h.word} ({t('players.hintLine', { position: h.position, letter: h.letter, cost: h.cost })}){' '}
                                           <span className="text-game-primary/40">
-                                            {new Date(h.created_at).toLocaleTimeString('hu-HU')}
+                                            {new Date(h.created_at).toLocaleTimeString(adminLocale(lang))}
                                           </span>
                                         </li>
                                       ))}
