@@ -1458,7 +1458,7 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       also *forces* a default server-side (a hidden length selector should still pin a
       length) or only removes the control. Keep the keys few and specific; this is a
       curation lever, not a general CMS.
-15. `[ ]` **Start-screen UI cleanup — move non-core controls into a settings panel**
+15. `[x]` **Start-screen UI cleanup — move non-core controls into a settings panel**
     (requested 2026-08-29, deferred by the requester). The play screen currently stacks
     every control above the board. Move everything not needed for the core loop —
     **language, dark/light theme, word length, wordlist, leaderboard toggle, stats
@@ -1482,6 +1482,45 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
       change to the next "Új játék" instead of restarting when a game is in progress —
       decide whether the wanted UX is confirm-then-restart-now, or keep the defer but
       surface it (right now a mid-game length change looks like it did nothing).
+
+    **Shipped 2026-08-30 (PR #59), verified live.** New `frontend/src/components/
+    SettingsPanel.jsx` — a right-side slide-over (role="dialog" + focus/Escape handling
+    mirroring `ConfirmationModal`) opened by one ⚙️ gear button in the header. Everything
+    listed above moved into it: UI language, theme (`<ThemeToggle>`), sound
+    (`<SoundToggle>`), word length, wordlist, easy mode, and the leaderboard + stats
+    panels (extracted as `HighScoresPanel.jsx` / `StatsPanel.jsx`, rendered inside the
+    drawer under their toggles). Default play view is now just board / input / score /
+    timer / actions + the 🌱 easy-mode *indicator* (kept — it reports the server's actual
+    pick, not a control).
+    - **Language-restart bug — root cause was not the one the note above guessed.** The
+      `init()` effect's dep array *did* list `i18n`, but the reason that mattered is
+      `react-i18next@17`: its `useTranslation()` returns a **fresh wrapper object**
+      (`Object.create` on the instance, rebuilt on every `languageChanged` event) rather
+      than the stable singleton earlier majors returned — so the line's own comment
+      ("listing it here … without causing repeated restarts") was true when written and
+      silently broke on a minor-version bump. Fixed by making the effect `[]` (mount-only,
+      `// eslint-disable-next-line react-hooks/exhaustive-deps`); `let cancelled` still
+      covers StrictMode's double-invoke. Lesson: don't list a third-party hook's return
+      value to satisfy exhaustive-deps — its render-identity stability isn't part of the
+      hook's API contract.
+    - **Selector-change UX: confirm-then-restart-now** (user's pick). `handleLengthChange`
+      / `handleWordlistChange` / `handleEasyModeChange` now funnel through a shared
+      `requestRestart(run)` → a single `pendingConfirm` `{message, run}` gate that also
+      replaced the old `isNewGameModalOpen`. Mid-game (`foundWords.length > 0 && !isTimeUp`)
+      it opens the existing `ConfirmationModal`; Cancel leaves the game, the `<select>`
+      value (it's controlled, so it snaps back) **and** the saved `preferred_length`
+      untouched — the preference is now written only in the applied path, not eagerly.
+    - `useTheme` lifted into `<App>` (same pattern as `useSound`) and `<ThemeToggle>` made
+      presentational — otherwise the hook's one-time server-`preferred_theme` fetch would
+      only fire when the drawer is first opened, not on load.
+    - Verified: lint / build / typecheck / unit tests green; E2E smoke test green;
+      20-check headless click-through against the **Vercel preview** and again against
+      **production** post-deploy — drawer contents, no-restart-on-language-switch (board
+      unchanged, zero `/api/game/start`), confirm/cancel selector flow.
+    - **Refactor status:** this took `HighScoresPanel` / `StatsPanel` / `SettingsPanel`
+      out of `App.jsx` (~80 lines lighter). Board / GuessInput / Timer / Scoreboard +
+      `useGame` still unextracted — left for the daily-puzzle item (1), which restructures
+      game state anyway.
 - **Frontend refactor** (not separately numbered — explicitly not a standalone task) —
   `App.jsx` is a 640-line single component; split into `components/` (Board, GuessInput,
   Timer, Scoreboard, Modal…) and a `useGame` hook *as part of* whichever numbered item
