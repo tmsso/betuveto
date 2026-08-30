@@ -64,7 +64,7 @@ export async function isAdminAuthorized(req: VercelRequest): Promise<boolean> {
  *  mutation logs the same way without re-implementing this. */
 export async function logAdminAction(
   action: string,
-  payload: Record<string, string | number>,
+  payload: Record<string, string | number | boolean>,
 ): Promise<void> {
   const sql = db();
   await sql`

@@ -74,6 +74,11 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 // Skip rather than fail when no deployment is configured: the unit tests still run.
 const describeApi = BASE_URL ? describe : describe.skip;
 
+// The canonical production alias. A test that has to mutate a *visible* setting (e.g.
+// hiding the length selector for the forcing check below) skips against production —
+// preview deployments have their own isolated Neon DB and no real players.
+const IS_PRODUCTION = BASE_URL === "https://betuveto.vercel.app";
+
 interface StartResult {
   game_id: string;
   scrambled_letters: string;
@@ -1220,6 +1225,112 @@ describeApi("Betűvető API contract", () => {
     expect(restored.status).toBe(200);
   }, 15000); // longer than the default: the read-back above polls for up to ~8s to ride
   // out lib/config.ts's per-instance cache (see that assertion's own comment).
+
+  // --- Batch 10 item 14: player-facing control visibility --------------------
+  it("gates the UI-config endpoints behind the admin token", async () => {
+    const noToken = await call("GET", "/api/v1/admin/ui-config");
+    expect(noToken.status).toBe(401);
+
+    const wrongToken = await call(
+      "PATCH",
+      "/api/v1/admin/ui-config/show_length_selector",
+      { value: false },
+      { "x-admin-token": "definitely-not-the-real-token" },
+    );
+    expect(wrongToken.status).toBe(401);
+  });
+
+  it("lists UI config and rejects unknown keys / malformed values", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const list = await call("GET", "/api/v1/admin/ui-config", undefined, adminHeaders);
+    expect(list.status).toBe(200);
+    const keys = list.json.config.map((row: any) => row.key).sort();
+    expect(keys).toEqual(
+      [
+        "default_length",
+        "default_wordlist",
+        "show_easy_mode",
+        "show_length_selector",
+        "show_wordlist_selector",
+      ].sort(),
+    );
+
+    const unknownKey = await call(
+      "PATCH",
+      "/api/v1/admin/ui-config/not_a_real_key",
+      { value: true },
+      adminHeaders,
+    );
+    expect(unknownKey.status).toBe(404);
+
+    // a boolean key must reject a non-boolean
+    const badBool = await call(
+      "PATCH",
+      "/api/v1/admin/ui-config/show_length_selector",
+      { value: "maybe" },
+      adminHeaders,
+    );
+    expect(badBool.status).toBe(422);
+
+    // default_length must stay in 5..10
+    const badLength = await call(
+      "PATCH",
+      "/api/v1/admin/ui-config/default_length",
+      { value: 99 },
+      adminHeaders,
+    );
+    expect(badLength.status).toBe(422);
+
+    // default_wordlist must be a known code
+    const badWordlist = await call(
+      "PATCH",
+      "/api/v1/admin/ui-config/default_wordlist",
+      { value: "de" },
+      adminHeaders,
+    );
+    expect(badWordlist.status).toBe(422);
+  });
+
+  it("a hidden length selector forces the configured default in game/start", async () => {
+    if (!ADMIN_TOKEN || IS_PRODUCTION) return; // mutates a player-visible setting
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const list = await call("GET", "/api/v1/admin/ui-config", undefined, adminHeaders);
+    const origShow = list.json.config.find((r: any) => r.key === "show_length_selector").value;
+    const origLen = list.json.config.find((r: any) => r.key === "default_length").value;
+    const forcedLen = origLen === 6 ? 8 : 6; // a value we can prove wasn't the request
+
+    try {
+      expect(
+        (await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: forcedLen }, adminHeaders)).status,
+      ).toBe(200);
+      expect(
+        (await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: false }, adminHeaders)).status,
+      ).toBe(200);
+
+      // Ride out lib/config.ts's per-instance cache (~30s TTL, only the PATCH-serving
+      // instance is cleared) by starting a few games until the forcing takes effect.
+      let started: { status: number; json: any } | undefined;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        started = await call(
+          "POST",
+          "/api/v1/game/start?target_length=9",
+          undefined,
+          { ...PINNED_COOKIE_HEADER },
+        );
+        if (started.json?.target_length === forcedLen) break;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      expect(started?.status).toBe(200);
+      expect(started?.json.target_length).toBe(forcedLen); // NOT the requested 9
+      expect(started?.json.ui.show_length_selector).toBe(false);
+    } finally {
+      await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: origShow }, adminHeaders);
+      await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: origLen }, adminHeaders);
+    }
+  }, 30000);
 
   // --- Batch 5.2 item 3: player and leaderboard maintenance -------------------
   it("gates player/score maintenance behind the admin token", async () => {

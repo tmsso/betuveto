@@ -11,7 +11,7 @@
  * adapters in api/ stay trivial and the contract can be tested without a server.
  */
 import type { Sql } from "postgres";
-import { type GameConfig, getConfig } from "./config.js";
+import { type GameConfig, getConfig, getUiConfig } from "./config.js";
 import { DEFAULT_WORDLIST_CODE, db, wordlistAlphabet, wordlistId } from "./db.js";
 import {
   MAX_TARGET_LENGTH,
@@ -180,6 +180,19 @@ export async function startGame(
   // back to the client.
   country?: string,
 ): Promise<Reply> {
+  const sql = db();
+  const config = await getConfig();
+
+  // ROADMAP Batch 10 item 14: an admin can hide any of the three start-screen controls.
+  // A hidden control is a fixed axis for everyone — ignore whatever the client sent (and,
+  // since this runs before either would be read, any saved per-player preference too) and
+  // pin the configured default. Runs before the range check below so a client that still
+  // sends an out-of-range target_length for a hidden selector is corrected, not 422'd.
+  const ui = await getUiConfig();
+  if (!ui.show_length_selector) targetLength = ui.default_length;
+  if (!ui.show_wordlist_selector) wordlistCode = ui.default_wordlist;
+  if (!ui.show_easy_mode) difficultyMode = "normal";
+
   if (
     !Number.isInteger(targetLength) ||
     targetLength < MIN_TARGET_LENGTH ||
@@ -196,9 +209,6 @@ export async function startGame(
   if (durationSeconds !== undefined && !Number.isInteger(durationSeconds)) {
     return { status: 422, body: { detail: "duration_seconds must be an integer." } };
   }
-
-  const sql = db();
-  const config = await getConfig();
 
   // Longer boards have (combinatorially) many more findable words, so the ceiling itself
   // scales with length (ROADMAP 2.3, admin-editable via lib/config.ts). Below that ceiling,
@@ -283,6 +293,14 @@ export async function startGame(
       // falls back to "normal" when no word yet qualifies (see the pick above) — echoing
       // the real outcome keeps the client from claiming an easy-mode game that isn't one.
       difficulty: actualDifficulty,
+      // ROADMAP Batch 10 item 14: which start-screen controls the frontend should render.
+      // The forced *values* for any hidden control are already carried by target_length /
+      // wordlist / difficulty above, so only the booleans are needed here.
+      ui: {
+        show_length_selector: ui.show_length_selector,
+        show_wordlist_selector: ui.show_wordlist_selector,
+        show_easy_mode: ui.show_easy_mode,
+      },
       // Not the auth token itself (that stays HttpOnly) — just the id, so a black-box
       // test (or a future /me endpoint) can assert continuity across requests.
       player_id: playerId,

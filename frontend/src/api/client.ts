@@ -23,6 +23,14 @@ export interface StartGameResult {
    *  an "easy" request silently falls back to "normal" server-side when no word yet
    *  qualifies, so this reflects the real outcome. */
   difficulty: 'easy' | 'normal';
+  /** ROADMAP Batch 10 item 14 — which start-screen controls the admin has left visible.
+   *  A hidden control is also forced server-side, so target_length / wordlist / difficulty
+   *  above already carry the pinned value. Absent on older deployments → treat as all-true. */
+  ui?: {
+    show_length_selector: boolean;
+    show_wordlist_selector: boolean;
+    show_easy_mode: boolean;
+  };
 }
 
 export interface GameResult {
