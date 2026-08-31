@@ -1330,7 +1330,27 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    (`@sentry/node`) stays lazy-loaded on the first error only, so it adds nothing to a
    happy-path cold start.
 10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
-    hints…) — needs real schema/design work, no blockers, moderate value.
+    hints…) — no blockers, moderate value. **The only remaining unshipped Batch 10 item.**
+    **Data-source check (2026-08-30):** every candidate achievement reads a table that
+    already exists — `game_hints` (migration 0002, one row per hint → "full clear, no
+    hints"), `game_guesses` (0001, `correct`-flagged rows → "found a 10-letter word";
+    *not* `word_stats`, which only ever stores a game's target word), `daily_results` +
+    `computeStreak` (item 1 → streak achievements), `games.status = 'finished'` → full
+    board clear. So this needs **one migration** — `player_achievements` (`player_id`,
+    `achievement_key`, `unlocked_at`, PK on the pair) — and **no new tracking columns**.
+    Plus `lib/achievements.ts` (code-defined catalog + predicates, evaluated in
+    `finalizeWordStats` and on the daily-result insert), `GET /api/v1/me/achievements`, a
+    badge section in `<StatsPanel>`, ~16 i18n keys.
+    **Open product decisions — confirm with the requester before building:**
+    1. The starter set: first word found · found a 10-letter word · full board clear ·
+       full clear with no hints · 7-day daily streak · 30-day daily streak · 100 games
+       played · daily completed in both wordlists.
+    2. Display: a section inside the existing `<StatsPanel>` drawer, or its own panel?
+    3. Unlock feedback: silent (badge just appears unlocked), or a toast on unlock?
+    4. Anonymous players: catalog visible, nothing unlocks (needs a stable identity, same
+       as streaks) — acceptable?
+    5. Retroactive backfill: award from existing players' historical games on deploy (a
+       production-data write → needs explicit sign-off), or award-forward-only?
 11. `[x]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
     above already flagged and left open: every CI run of the E2E smoke test mints a real
     anonymous player and plays one real game against production, so `games/day`/DAU on the
