@@ -59,6 +59,7 @@ import {
   setPreferredTheme,
   setSoundEnabled,
 } from "../../lib/players.js";
+import { getMyAchievements } from "../../lib/achievements.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
@@ -377,6 +378,10 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
         });
       case "stats":
         return methodHandler({ GET: (req) => getMyStats(playerId(req)) });
+      case "achievements":
+        // ROADMAP Batch 10 item 10 — full catalog + this player's unlock timestamps.
+        // No identity reads as "everything locked" (getMyAchievements handles null).
+        return methodHandler({ GET: (req) => getMyAchievements(playerId(req)) });
       default:
         return undefined;
     }

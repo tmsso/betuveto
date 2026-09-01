@@ -125,6 +125,16 @@ function App() {
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [showStats, setShowStats] = useState(false)
+  // Achievements (ROADMAP Batch 10 item 10). `achievements` is the full catalog (locked
+  // entries included); `achievementToast` holds keys newly unlocked at the last game end,
+  // shown briefly then cleared. `achievementBaselineRef` guards against toasting a
+  // returning player's whole earned set on their first game-end before the mount fetch
+  // has established what they already had.
+  const [achievements, setAchievements] = useState(null)
+  const [achievementsLoading, setAchievementsLoading] = useState(false)
+  const [achievementToast, setAchievementToast] = useState([])
+  const achievementUnlockedRef = useRef(new Set())
+  const achievementBaselineRef = useRef(false)
   // Hints (ROADMAP 3.1). Mirrors lib/hints.ts's HINT_COST the same way durationForLength
   // mirrors lib/words.ts — the frontend build doesn't share modules with the API's lib/.
   const [hintPenalty, setHintPenalty] = useState(0)
@@ -285,6 +295,55 @@ function App() {
   useEffect(() => {
     fetchMyStats();
   }, [isTimeUp, fetchMyStats]);
+
+  // Achievements (ROADMAP Batch 10 item 10). The server evaluates + persists them at a
+  // game's terminal transition (lib/game.ts finalizeWordStats); the client just re-reads
+  // the catalog and diffs it. `toastNew` compares the fresh unlocked set against the last
+  // one we saw and surfaces anything new — skipped until the mount fetch has run once
+  // (achievementBaselineRef), so a returning player doesn't get their whole history
+  // toasted at the first game-end.
+  const fetchMyAchievements = useCallback(async ({ toastNew = false } = {}) => {
+    setAchievementsLoading(true);
+    try {
+      const result = await betuAPI.getMyAchievements();
+      const unlocked = new Set(
+        result.achievements.filter((a) => a.unlocked_at).map((a) => a.key),
+      );
+      if (toastNew && achievementBaselineRef.current) {
+        const fresh = [...unlocked].filter((k) => !achievementUnlockedRef.current.has(k));
+        if (fresh.length > 0) setAchievementToast(fresh);
+      }
+      achievementUnlockedRef.current = unlocked;
+      achievementBaselineRef.current = true;
+      setAchievements(result);
+    } catch (err) {
+      console.error('Error fetching achievements:', err);
+      setAchievements(null);
+    } finally {
+      setAchievementsLoading(false);
+    }
+  }, []);
+
+  // Baseline on mount.
+  useEffect(() => {
+    fetchMyAchievements();
+  }, [fetchMyAchievements]);
+
+  // On game end, re-fetch and toast anything new. `allPossibleWords` is a dependency
+  // because the timeout path finalizes the game server-side only when the reveal list is
+  // fetched (lib/game.ts finalizeExpiry), which can land after `isTimeUp` has already
+  // flipped from the client clock — a second fetch once the reveal arrives catches it.
+  useEffect(() => {
+    if (!isTimeUp) return;
+    fetchMyAchievements({ toastNew: true });
+  }, [isTimeUp, allPossibleWords, fetchMyAchievements]);
+
+  // Auto-dismiss the unlock toast.
+  useEffect(() => {
+    if (achievementToast.length === 0) return;
+    const id = setTimeout(() => setAchievementToast([]), 7000);
+    return () => clearTimeout(id);
+  }, [achievementToast]);
 
   const totalScore = foundWords.reduce((sum, word) => sum + word.length * word.length, 0)
   const rawDisplayScore = allPossibleWordsFound ? scoreAtExpiry : (isTimeUp ? scoreAtExpiry : totalScore)
@@ -1221,6 +1280,23 @@ function App() {
         </>
         )}
 
+        {/* Achievement unlock toast (ROADMAP Batch 10 item 10). Word-agnostic copy — a
+            badge never names the word that earned it (betuveto-no-player-facing-word-history). */}
+        {achievementToast.length > 0 && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-4 text-center text-sm font-semibold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 rounded-lg px-3 py-2"
+          >
+            <p className="mb-1">{t('achievements.unlockedToast')}</p>
+            <p className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+              {achievementToast.map((key) => (
+                <span key={key}>🏆 {t(`achievements.items.${key}.name`)}</span>
+              ))}
+            </p>
+          </div>
+        )}
+
         {/* Stats toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
 
         {/* Found words display (Alphabetical Sort) */}
@@ -1353,6 +1429,8 @@ function App() {
         onToggleStats={() => setShowStats((v) => !v)}
         stats={stats}
         statsLoading={statsLoading}
+        achievements={achievements}
+        achievementsLoading={achievementsLoading}
         daily={dailyView}
         dailyLoading={dailyLoading}
         isDailyGame={isDailyGame}

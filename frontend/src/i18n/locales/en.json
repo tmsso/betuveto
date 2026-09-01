@@ -118,6 +118,45 @@
     "avgScoreEntry": "{{length}} letters: {{avg}}",
     "offline": "No connection to the server."
   },
+  "achievements": {
+    "title": "🏆 Achievements",
+    "unlockedToast": "Achievement unlocked!",
+    "unlockedOn": "Unlocked {{date}}",
+    "items": {
+      "first_word": {
+        "name": "First word",
+        "desc": "Find a word in a game."
+      },
+      "ten_letter_word": {
+        "name": "Ten letters",
+        "desc": "Find a word of at least 10 letters."
+      },
+      "full_clear": {
+        "name": "Full board",
+        "desc": "Find every word on a board."
+      },
+      "full_clear_no_hints": {
+        "name": "No hints needed",
+        "desc": "Clear a full board without taking a hint."
+      },
+      "daily_streak_7": {
+        "name": "One week",
+        "desc": "Complete the daily puzzle 7 days in a row."
+      },
+      "daily_streak_30": {
+        "name": "One month",
+        "desc": "Complete the daily puzzle 30 days in a row."
+      },
+      "games_100": {
+        "name": "Century",
+        "desc": "Play 100 games."
+      },
+      "daily_both_wordlists": {
+        "name": "Bilingual",
+        "desc": "Complete the daily puzzle in both languages."
+      }
+    }
+  },
   "foundWords": {
     "header": "Words found:",
     "points": "{{points}} pts",

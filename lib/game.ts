@@ -34,6 +34,7 @@ import {
   recordFailed,
   recordSolved,
 } from "./word-stats.js";
+import { evaluateAchievements } from "./achievements.js";
 
 export interface Reply {
   status: number;
@@ -162,29 +163,47 @@ async function finalizeWordStats(sql: Sql, game: GameRow, config: GameConfig): P
   const foundRows = await sql<{ word: string }[]>`
     select word from game_guesses where game_id = ${game.id} and correct
   `;
-  const fraction = letterClearFraction(possible, foundRows.map((row) => row.word));
+  const foundWords = foundRows.map((row) => row.word);
+  const fraction = letterClearFraction(possible, foundWords);
   await applyGameMastery(sql, game.player_id, game.wordlist_id, game.target_word, fraction);
+
+  // One read of the just-written row, shared by the daily grade and the achievement
+  // evaluation below. `status` is authoritative for "was this a full board clear"
+  // ('finished'); a length comparison against `possible` would be wrong, since a findable
+  // word can be deactivated mid-game (ROADMAP 4.1) and shrink that list. `final_score`
+  // and `hint_count` are likewise final by now — every caller wrote final_score in the
+  // statement right before calling this (the full-clear UPDATE in the same statement).
+  const [after] = await sql<{ status: string; final_score: number | null; hint_count: number }[]>`
+    select g.status, g.final_score,
+           (select count(*)::int from game_hints where game_id = g.id) as hint_count
+      from games g where g.id = ${game.id}
+  `;
 
   // ROADMAP Batch 10 item 1: a daily-puzzle game grades its result here — the one place
   // all three terminal transitions already pass through. `completed` = the target word
-  // was found (the same `solved` check above), not a full board clear. The final_score is
-  // re-read from the row (every caller has already written it by now: the full-clear
-  // UPDATE sets it in the same statement, finalizeExpiry/giveUp in the statement right
-  // before calling this). `on conflict do nothing` on the (puzzle, player) unique index
-  // means only the first attempt to reach a terminal state is recorded — later replays
-  // still play, but don't overwrite the streak/leaderboard result. Anonymous players
-  // (no player_id) aren't graded: a streak needs a stable identity.
+  // was found (the same `solved` check above), not a full board clear. `on conflict do
+  // nothing` on the (puzzle, player) unique index means only the first attempt to reach a
+  // terminal state is recorded — later replays still play, but don't overwrite the
+  // streak/leaderboard result. Anonymous players (no player_id) aren't graded: a streak
+  // needs a stable identity.
   if (game.daily_puzzle_id && game.player_id) {
-    const [row] = await sql<{ final_score: number | null }[]>`
-      select final_score from games where id = ${game.id}
-    `;
     await sql`
       insert into daily_results (puzzle_id, player_id, game_id, completed, final_score)
       values (${game.daily_puzzle_id}, ${game.player_id}, ${game.id},
-              ${Boolean(solved)}, ${row?.final_score ?? 0})
+              ${Boolean(solved)}, ${after?.final_score ?? 0})
       on conflict (puzzle_id, player_id) do nothing
     `;
   }
+
+  // ROADMAP Batch 10 item 10: evaluate + persist achievements. After the daily grade
+  // above, so a just-completed daily counts toward streak achievements. No-op for an
+  // anonymous player. Return value (newly-unlocked keys) is unused here — the frontend
+  // re-fetches GET /api/v1/me/achievements at game end and toasts the diff.
+  await evaluateAchievements(sql, game, {
+    foundWords,
+    status: after?.status ?? game.status,
+    hintCount: after?.hint_count ?? 0,
+  });
 }
 
 export async function startGame(

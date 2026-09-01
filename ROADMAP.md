@@ -1329,28 +1329,45 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    substantially; or gate it behind an opt-in rather than load-always. Backend
    (`@sentry/node`) stays lazy-loaded on the first error only, so it adds nothing to a
    happy-path cold start.
-10. `[ ]` **Achievements** (first 10-letter word, 7-day streak, full clear without
-    hints…) — no blockers, moderate value. **The only remaining unshipped Batch 10 item.**
-    **Data-source check (2026-08-30):** every candidate achievement reads a table that
-    already exists — `game_hints` (migration 0002, one row per hint → "full clear, no
-    hints"), `game_guesses` (0001, `correct`-flagged rows → "found a 10-letter word";
-    *not* `word_stats`, which only ever stores a game's target word), `daily_results` +
-    `computeStreak` (item 1 → streak achievements), `games.status = 'finished'` → full
-    board clear. So this needs **one migration** — `player_achievements` (`player_id`,
-    `achievement_key`, `unlocked_at`, PK on the pair) — and **no new tracking columns**.
-    Plus `lib/achievements.ts` (code-defined catalog + predicates, evaluated in
-    `finalizeWordStats` and on the daily-result insert), `GET /api/v1/me/achievements`, a
-    badge section in `<StatsPanel>`, ~16 i18n keys.
-    **Open product decisions — confirm with the requester before building:**
-    1. The starter set: first word found · found a 10-letter word · full board clear ·
-       full clear with no hints · 7-day daily streak · 30-day daily streak · 100 games
-       played · daily completed in both wordlists.
-    2. Display: a section inside the existing `<StatsPanel>` drawer, or its own panel?
-    3. Unlock feedback: silent (badge just appears unlocked), or a toast on unlock?
-    4. Anonymous players: catalog visible, nothing unlocks (needs a stable identity, same
-       as streaks) — acceptable?
-    5. Retroactive backfill: award from existing players' historical games on deploy (a
-       production-data write → needs explicit sign-off), or award-forward-only?
+10. `[x]` **Achievements** (first 10-letter word, 7-day streak, full clear without
+    hints…). **Shipped 2026-09-01 (PR #65).** `migrations/0019_player_achievements.sql`
+    (`player_id`, `achievement_key`, `unlocked_at`, PK on the pair, `on delete cascade` —
+    no new tracking columns), `lib/achievements.ts` (code-defined catalog of 8 +
+    predicates), `GET /api/v1/me/achievements`, a badge grid in `<StatsPanel>`, an unlock
+    toast in `App.jsx`, `achievements.*` i18n block (hu/en, ~19 keys/lang).
+    **Product decisions (confirmed with the project owner 2026-09-01):**
+    1. Starter set = all 8 as proposed: `first_word` · `ten_letter_word` · `full_clear` ·
+       `full_clear_no_hints` · `daily_streak_7` · `daily_streak_30` · `games_100` ·
+       `daily_both_wordlists`.
+    2. Display: a section inside the existing `<StatsPanel>` drawer (not its own panel).
+    3. Unlock feedback: a toast at game end listing anything newly unlocked, auto-cleared
+       after 7s. Frontend re-fetches `/me/achievements` on the game-end transition and
+       diffs against the last-seen set — no threading through the guess/give-up responses.
+    4. Anonymous players: full catalog visible, nothing unlocks (`evaluateAchievements`
+       no-ops without `player_id` — a stable identity is required, same as streaks).
+    5. **Award-forward-only** — no retroactive backfill on deploy (no production-data
+       write). The cumulative predicates (`games_100`, streaks, `daily_both_wordlists`)
+       still catch up naturally on a player's next terminal game because they count
+       current state; the point-in-time ones (`first_word`, `ten_letter_word`,
+       `full_clear*`) only fire on a game played after this shipped.
+    **Design notes:**
+    - Single write hook: `evaluateAchievements` is called at the end of `lib/game.ts`'s
+      `finalizeWordStats` (after the daily-result grade, so a just-completed daily counts
+      toward streak achievements). That hook runs at a game's *terminal* transition only
+      (full clear / lazy timeout / give-up), so `first_word` means "ended a game in which
+      you found ≥1 word", not "found a word this instant" — a bounded delay, accepted to
+      keep the per-guess path untouched.
+    - `full_clear` is read from `games.status = 'finished'`, **not** a
+      `foundWords.length >= possible.length` comparison — a findable non-target word can be
+      deactivated mid-game (item 4.1), shrinking `possible` and making a give-up/timeout
+      falsely satisfy the length check. `full_clear_no_hints` checks the real
+      `game_hints` row count, not `hint_cost_total` (admin-editable, can be 0).
+    - `computeStreak` + `dayNumber` were extracted from `lib/daily.ts` into a new
+      `lib/streak.ts` so `lib/achievements.ts` can reuse them without the
+      `daily.ts → game.ts → achievements.ts` import cycle (`achievements.ts` imports
+      `GameRow`/`Reply` from `game.ts` as `import type` only, so no runtime cycle there).
+    - Badge/toast copy is deliberately word-agnostic ("Found a word of at least 10
+      letters", never the word) per the standing no-player-facing-word-history rule.
 11. `[x]` **CI-minted players flagged out of dashboard metrics** — closes the gap item 5
     above already flagged and left open: every CI run of the E2E smoke test mints a real
     anonymous player and plays one real game against production, so `games/day`/DAU on the
