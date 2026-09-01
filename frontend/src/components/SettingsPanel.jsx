@@ -47,6 +47,8 @@ export default function SettingsPanel({
   onToggleStats,
   stats,
   statsLoading,
+  achievements,
+  achievementsLoading,
   daily,
   dailyLoading,
   isDailyGame,
@@ -246,7 +248,14 @@ export default function SettingsPanel({
           >
             {showStats ? t('stats.hide') : t('stats.show')}
           </button>
-          {showStats && <StatsPanel stats={stats} statsLoading={statsLoading} />}
+          {showStats && (
+            <StatsPanel
+              stats={stats}
+              statsLoading={statsLoading}
+              achievements={achievements}
+              achievementsLoading={achievementsLoading}
+            />
+          )}
         </div>
       </div>
     </div>

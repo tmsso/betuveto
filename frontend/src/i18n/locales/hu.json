@@ -118,6 +118,45 @@
     "avgScoreEntry": "{{length}} betű: {{avg}}",
     "offline": "Nincs kapcsolat a szerverrel."
   },
+  "achievements": {
+    "title": "🏆 Kitüntetések",
+    "unlockedToast": "Új kitüntetés!",
+    "unlockedOn": "Megszerezve: {{date}}",
+    "items": {
+      "first_word": {
+        "name": "Első szó",
+        "desc": "Találj meg egy szót egy játékban."
+      },
+      "ten_letter_word": {
+        "name": "Tízbetűs",
+        "desc": "Találj meg egy legalább 10 betűs szót."
+      },
+      "full_clear": {
+        "name": "Teljes tábla",
+        "desc": "Találd meg egy tábla összes szavát."
+      },
+      "full_clear_no_hints": {
+        "name": "Segítség nélkül",
+        "desc": "Üríts ki egy teljes táblát segítség kérése nélkül."
+      },
+      "daily_streak_7": {
+        "name": "Egy hét",
+        "desc": "7 napig megszakítás nélkül fejtsd meg a napi rejtvényt."
+      },
+      "daily_streak_30": {
+        "name": "Egy hónap",
+        "desc": "30 napig megszakítás nélkül fejtsd meg a napi rejtvényt."
+      },
+      "games_100": {
+        "name": "Századik játék",
+        "desc": "Játssz le 100 játékot."
+      },
+      "daily_both_wordlists": {
+        "name": "Kétnyelvű",
+        "desc": "Fejtsd meg a napi rejtvényt mindkét nyelven."
+      }
+    }
+  },
   "foundWords": {
     "header": "Talált szavak:",
     "points": "{{points}} pont",

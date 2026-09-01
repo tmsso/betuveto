@@ -31,6 +31,7 @@ import {
   normalizeWord,
   signatureOf,
 } from "../lib/words.js";
+import { ACHIEVEMENT_KEYS } from "../lib/achievements.js";
 
 // Not BASE_URL: that is a Vite/Vitest reserved variable (the app's public base path), so
 // Vitest would overwrite whatever the shell set with "/".
@@ -839,6 +840,77 @@ describeApi("Betűvető API contract", () => {
     const game = await start();
     expect(game).not.toHaveProperty("is_previously_failed");
   });
+
+  // --- Achievements (ROADMAP Batch 10 item 10) ------------------------------------
+  //
+  // Evaluated + persisted server-side only at a game's terminal transition
+  // (lib/game.ts finalizeWordStats), so "first_word" means "ended a game in which you
+  // found at least one word", not "found a word this instant". The daily-streak and
+  // both-wordlists achievements aren't exercised here — they'd need a real daily_puzzles
+  // row minted against the target deployment (see the IS_PRODUCTION-gated daily tests).
+  it("me/achievements with no identity returns the full catalog, everything locked", async () => {
+    const { status, json } = await call("GET", "/api/v1/me/achievements");
+    expect(status).toBe(200);
+    const keys = json.achievements.map((a: { key: string }) => a.key);
+    expect(new Set(keys)).toEqual(new Set(ACHIEVEMENT_KEYS));
+    expect(
+      json.achievements.every((a: { unlocked_at: string | null }) => a.unlocked_at === null),
+    ).toBe(true);
+  });
+
+  it("finishing a game with a found word unlocks first_word (and full_clear on a real clear)", async () => {
+    // A small board played to the end as one identity. Whether it actually clears depends
+    // on the local wordlist file agreeing with the live `words` table (a divergence this
+    // repo has hit — PR #27/#47), so the full-clear assertions are gated on the last
+    // guess actually reporting game_ended.
+    let cookie: string | undefined;
+    let game: StartResult | undefined;
+    for (let attempt = 0; attempt < 20 && !game; attempt++) {
+      const r = await startWithCookie(5, cookie);
+      cookie = r.cookie;
+      if (r.game.possible_count <= 10) game = r.game;
+    }
+    if (!game || !cookie) throw new Error("No small-enough 5-letter board found after 20 tries.");
+
+    let anyFound = false;
+    let lastEnded = false;
+    for (const word of findable(game)) {
+      const { json } = await call(
+        "POST",
+        `/api/game/${game.game_id}/guess`,
+        { word },
+        { Cookie: cookie },
+      );
+      if (json.valid) {
+        anyFound = true;
+        lastEnded = Boolean(json.game_ended);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    expect(anyFound).toBe(true);
+    // Guarantee a terminal transition so finalizeWordStats (and the achievement eval) runs
+    // even if the board didn't clear.
+    if (!lastEnded) {
+      await call("POST", `/api/game/${game.game_id}/give_up`, undefined, { Cookie: cookie });
+    }
+
+    const { status, json } = await call("GET", "/api/v1/me/achievements", undefined, {
+      Cookie: cookie,
+    });
+    expect(status).toBe(200);
+    const unlockedAt = new Map<string, string | null>(
+      json.achievements.map((a: { key: string; unlocked_at: string | null }) => [
+        a.key,
+        a.unlocked_at,
+      ]),
+    );
+    expect(unlockedAt.get("first_word")).toBeTruthy();
+    if (lastEnded) {
+      expect(unlockedAt.get("full_clear")).toBeTruthy();
+      // This loop never takes a hint.
+      expect(unlockedAt.get("full_clear_no_hints")).toBeTruthy();
+    }
+  }, 30_000);
 
   // --- Word curation (ROADMAP 4.1) --------------------------------------------
   //

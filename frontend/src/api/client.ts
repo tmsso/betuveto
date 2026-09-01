@@ -127,6 +127,18 @@ export interface MyStats {
   longest_word_found: string | null;
 }
 
+export interface AchievementEntry {
+  /** Stable key; maps to i18n `achievements.<key>.name` / `.desc`. */
+  key: string;
+  /** ISO timestamp when first earned, or null if still locked. */
+  unlocked_at: string | null;
+}
+
+export interface MyAchievements {
+  /** The full catalog in display order — locked entries included (unlocked_at null). */
+  achievements: AchievementEntry[];
+}
+
 class BetuAPIClient {
   private baseUrl: string;
   private gameId: string | null = null;
@@ -351,6 +363,14 @@ class BetuAPIClient {
   async getMyStats(): Promise<MyStats> {
     const response = await fetch('/api/v1/me/stats');
     if (!response.ok) throw new Error(`Failed to fetch stats (${response.status})`);
+    return response.json();
+  }
+
+  // Achievements (ROADMAP Batch 10 item 10). Identity-optional: without a cookie every
+  // entry comes back locked (unlocked_at null), so the catalog is still viewable.
+  async getMyAchievements(): Promise<MyAchievements> {
+    const response = await fetch('/api/v1/me/achievements');
+    if (!response.ok) throw new Error(`Failed to fetch achievements (${response.status})`);
     return response.json();
   }
 
