@@ -1747,10 +1747,25 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
   with a *smaller* App.jsx-touching item (or even a carefully-reviewed standalone slice)
   may become the lesser risk.
 - **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
-  constraint, not priority) — not urgent while identity is anonymous-only, but must land
-  no later than **Batch 8** (Google OAuth): that's the moment real email addresses start
-  being stored and GDPR actually applies. `DELETE /api/v1/me` wipes the player row and
-  anonymises games.
+  constraint, not priority) — **shipped 2026-09-01 (PR #66)**, ahead of Batch 8 rather
+  than at the deadline (it was the clean pick for a `/next-batch` slot).
+  - **`DELETE /api/v1/me`** (`lib/account.ts`) — identity from the same signed `bv_anon`
+    cookie every other `/me` route uses. Deliberately a thin wrapper over one
+    `DELETE FROM players`: the existing FK actions do the fan-out —
+    `word_stats` / `word_reports` / `word_suggestions` / `daily_results` /
+    `player_achievements` are `ON DELETE CASCADE`; `games.player_id` (and
+    `admin_audit_log.admin_id`) are `ON DELETE SET NULL`, so games stay as anonymous
+    history; `game_guesses` / `game_hints` hang off `games(id)` and are untouched. **No
+    migration** — every one of those clauses already existed. Response clears the cookie
+    (`Max-Age=0`), and a no-identity call is a 200 no-op that still clears it.
+  - **`/privacy`** — a static page (`frontend/src/components/PrivacyPage.jsx`), routed by
+    the same `window.location.pathname` check in `main.jsx` as `/admin` (no router lib;
+    `vercel.json`'s existing SPA catch-all rewrite already serves it). Factual copy on
+    what's stored / not stored / where / retention, plus the "Delete my data" control
+    (confirm → `DELETE /api/v1/me` → "start fresh" link). `privacy.*` i18n block, hu/en.
+    Linked from `<SettingsPanel>`'s footer.
+  - Contract tests: no-identity no-op + a full mint→give-up→`DELETE`→stats/achievements-
+    read-empty round-trip (self-cleaning, so safe against any deployment).
 
 ---
 

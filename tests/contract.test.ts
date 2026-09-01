@@ -912,6 +912,48 @@ describeApi("Betűvető API contract", () => {
     }
   }, 30_000);
 
+  // --- Account data deletion (ROADMAP "Privacy page + data deletion endpoint") ---
+  //
+  // Safe to run against any deployment including production: the round-trip test deletes
+  // only the fresh player it just minted, and the no-identity case has no side effects.
+  it("DELETE /api/v1/me with no identity is a no-op that still clears the cookie", async () => {
+    const { status, json, headers } = await call("DELETE", "/api/v1/me");
+    expect(status).toBe(200);
+    expect(json.deleted).toBe(false);
+    expect(headers.get("set-cookie")).toMatch(/bv_anon=;.*Max-Age=0/i);
+  });
+
+  it("DELETE /api/v1/me wipes the player: stats and achievements read empty afterwards", async () => {
+    // Create a player with real data: one given-up game.
+    const { game, cookie } = await startWithCookie();
+    await call("POST", `/api/game/${game.game_id}/give_up`, undefined, { Cookie: cookie });
+
+    const before = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
+    expect(before.json.games_played).toBeGreaterThanOrEqual(1);
+
+    const del = await call("DELETE", "/api/v1/me", undefined, { Cookie: cookie });
+    expect(del.status).toBe(200);
+    expect(del.json.deleted).toBe(true);
+    expect(del.headers.get("set-cookie")).toMatch(/bv_anon=;.*Max-Age=0/i);
+
+    // The same cookie now points at a player row that no longer exists — every /me route
+    // treats that the same as "no identity": an empty sheet, not an error.
+    const afterStats = await call("GET", "/api/v1/me/stats", undefined, { Cookie: cookie });
+    expect(afterStats.status).toBe(200);
+    expect(afterStats.json.games_played).toBe(0);
+
+    const afterAch = await call("GET", "/api/v1/me/achievements", undefined, { Cookie: cookie });
+    expect(afterAch.status).toBe(200);
+    expect(
+      afterAch.json.achievements.every((a: { unlocked_at: string | null }) => a.unlocked_at === null),
+    ).toBe(true);
+
+    // A second delete of the same (now-gone) player is a clean no-op.
+    const again = await call("DELETE", "/api/v1/me", undefined, { Cookie: cookie });
+    expect(again.status).toBe(200);
+    expect(again.json.deleted).toBe(false);
+  }, 20_000);
+
   // --- Word curation (ROADMAP 4.1) --------------------------------------------
   //
   // Deliberately narrow: only the read-only, no-side-effect paths (no identity, unknown

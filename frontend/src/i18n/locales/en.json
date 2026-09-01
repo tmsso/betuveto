@@ -157,6 +157,40 @@
       }
     }
   },
+  "privacy": {
+    "title": "Privacy",
+    "updated": "Last updated: September 2026",
+    "back": "← Back to the game",
+    "intro": "Betűvető can be played without signing up. This page explains what the game stores and how to erase it.",
+    "sections": {
+      "stored": {
+        "heading": "What we store",
+        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players)."
+      },
+      "notStored": {
+        "heading": "What we don't store",
+        "body": "No account, no password, no email (the game never asks for one). No advertising, and no third-party analytics or tracking. Error diagnostics are collected only if the operator has enabled them, and never include your guesses or scores."
+      },
+      "hosting": {
+        "heading": "Where it's stored",
+        "body": "The game runs on Vercel and stores data in a Neon PostgreSQL database hosted in the EU. Both act as data processors."
+      },
+      "retention": {
+        "heading": "Retention",
+        "body": "Data is kept until you delete it (see below). The database is backed up monthly; backups are deleted after 90 days."
+      }
+    },
+    "delete": {
+      "heading": "Delete my data",
+      "body": "This permanently removes your player record, your per-word stats, your daily results, your achievements, and any word reports or suggestions you made. Your past games stay in the database as anonymous history with no link back to you. You can keep playing straight away as a new anonymous player.",
+      "button": "Delete my data",
+      "deleting": "Deleting…",
+      "confirm": "Permanently delete your Betűvető data on this device? This cannot be undone.",
+      "done": "Your data has been deleted.",
+      "startFresh": "Start fresh →",
+      "error": "Something went wrong. Please try again."
+    }
+  },
   "foundWords": {
     "header": "Words found:",
     "points": "{{points}} pts",

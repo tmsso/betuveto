@@ -60,6 +60,7 @@ import {
   setSoundEnabled,
 } from "../../lib/players.js";
 import { getMyAchievements } from "../../lib/achievements.js";
+import { deleteMe } from "../../lib/account.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
@@ -367,6 +368,13 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       default:
         return undefined;
     }
+  }
+
+  // DELETE /api/v1/me — wipe the caller's player record + personal data, anonymise their
+  // games (ROADMAP "Privacy page + data deletion endpoint"). Identity from the same
+  // signed anon cookie the other /me routes use.
+  if (segments.length === 1 && a === "me") {
+    return methodHandler({ DELETE: (req) => deleteMe(playerId(req)) });
   }
 
   if (segments.length === 2 && a === "me") {

@@ -157,6 +157,40 @@
       }
     }
   },
+  "privacy": {
+    "title": "Adatvédelem",
+    "updated": "Utolsó frissítés: 2026. szeptember",
+    "back": "← Vissza a játékhoz",
+    "intro": "A Betűvető regisztráció nélkül játszható. Ez az oldal leírja, milyen adatokat tárol a játék, és hogyan törölheted őket.",
+    "sections": {
+      "stored": {
+        "heading": "Mit tárolunk",
+        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz kötve — amelyet ezen az eszközön egy süti őriz, nem a nevedhez vagy e-mail-címedhez — tárolja: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, az egyes szavak megfejtési számait (kizárólag a feladott szavak kiválasztásához, sosem jelenik meg), a megadott megjelenítendő nevedet, ha beállítottál egyet, a beállításaidat (tábla hossza, nyelv, téma, hang), valamint a kapcsolatodból egy játék indulásakor megállapított hozzávetőleges országot (csak a játék üzemeltetője látja, más játékosok soha)."
+      },
+      "notStored": {
+        "heading": "Mit nem tárolunk",
+        "body": "Nincs fiók, nincs jelszó, nincs e-mail (a játék nem is kér ilyet). Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Hibadiagnosztikát csak akkor gyűjtünk, ha az üzemeltető bekapcsolta, és az soha nem tartalmazza a tippjeidet vagy pontszámaidat."
+      },
+      "hosting": {
+        "heading": "Hol tároljuk",
+        "body": "A játék a Vercel platformon fut, az adatokat pedig egy EU-ban üzemeltetett Neon PostgreSQL adatbázis tárolja. Mindkettő adatfeldolgozóként jár el."
+      },
+      "retention": {
+        "heading": "Megőrzés",
+        "body": "Az adatokat addig őrizzük, amíg nem törlöd őket (lásd lent). Az adatbázisról havonta készül biztonsági mentés, amelyet 90 nap után törlünk."
+      }
+    },
+    "delete": {
+      "heading": "Adataim törlése",
+      "body": "Ez véglegesen eltávolítja a játékosrekordodat, a szavankénti statisztikáidat, a napi eredményeidet, a kitüntetéseidet, valamint az általad küldött szójelentéseket és -javaslatokat. A korábbi játékaid név nélküli előzményként maradnak az adatbázisban, hozzád nem köthető módon. Utána azonnal folytathatod a játékot új, névtelen játékosként.",
+      "button": "Adataim törlése",
+      "deleting": "Törlés…",
+      "confirm": "Véglegesen törlöd a Betűvető-adataidat ezen az eszközön? Ezt nem lehet visszavonni.",
+      "done": "Az adataidat töröltük.",
+      "startFresh": "Kezdés elölről →",
+      "error": "Valami hiba történt. Próbáld újra."
+    }
+  },
   "foundWords": {
     "header": "Talált szavak:",
     "points": "{{points}} pont",
