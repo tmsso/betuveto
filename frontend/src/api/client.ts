@@ -374,6 +374,17 @@ class BetuAPIClient {
     return response.json();
   }
 
+  // Account data deletion (ROADMAP "Privacy page + data deletion endpoint"). Removes the
+  // player record + personal data and detaches their games; the server also clears the
+  // identity cookie, so the next call starts a fresh anonymous player. Clears the locally
+  // held game id since it now points at an anonymised game.
+  async deleteMe(): Promise<{ deleted: boolean }> {
+    const response = await fetch('/api/v1/me', { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Failed to delete account data (${response.status})`);
+    this.gameId = null;
+    return response.json();
+  }
+
   // Word curation (ROADMAP 4.1): flag a found/missing word as wrong. Idempotent — a
   // repeat report for the same word just comes back as already_reported.
   async reportWord(word: string, reason?: string): Promise<{ reported: boolean; already_reported: boolean; deactivated: boolean }> {

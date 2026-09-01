@@ -257,6 +257,17 @@ export default function SettingsPanel({
             />
           )}
         </div>
+
+        {/* Privacy page + data deletion (ROADMAP "Privacy page + data deletion endpoint").
+            A plain link, not a panel — /privacy is its own route (main.jsx). */}
+        <div className="border-t border-game-border pt-3">
+          <a
+            href="/privacy"
+            className="text-xs text-game-muted underline hover:text-game-secondary self-start"
+          >
+            {t('privacy.title')}
+          </a>
+        </div>
       </div>
     </div>
   )

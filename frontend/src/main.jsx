@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import PrivacyPage from './components/PrivacyPage.jsx'
 // i18next init (ROADMAP 6.2) — must run before App renders so useTranslation() has a
 // ready instance on first render. AdminApp doesn't use it; importing unconditionally here
 // is still simplest and matches how the font imports below are also unconditional.
@@ -24,9 +25,9 @@ import '@fontsource/baloo-2/latin-800.css'
 import '@fontsource/baloo-2/latin-ext-800.css'
 import './index.css'
 
-// No router library (ROADMAP 5.1): the app has exactly one static top-level split —
-// "/" vs "/admin" — with no nested or dynamic routes, so a pathname check here is
-// simpler than adding react-router for what would be a single always-matching rule.
+// No router library (ROADMAP 5.1): the app has a few static top-level paths — "/",
+// "/admin", "/privacy" — with no nested or dynamic routes, so a pathname check here is
+// simpler than adding react-router for what would be a handful of always-matching rules.
 // Any tabs within the admin panel are component-local state, not sub-routes.
 // ROADMAP Batch 10 item 9 — error tracking. Inert until VITE_SENTRY_DSN is set: the
 // condition is build-time constant, so with no DSN Vite drops the branch and never ships
@@ -45,6 +46,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 }
 
 const isAdminRoute = window.location.pathname.startsWith('/admin')
+const isPrivacyRoute = window.location.pathname === '/privacy'
 
 // ROADMAP Batch 10 item 7: dark mode is player-facing only for now. The admin panels
 // (AdminApp + the 5 Admin*Panel files) still use light-only class strings, so force the
@@ -64,6 +66,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Suspense fallback={null}>
         <AdminApp />
       </Suspense>
+    ) : isPrivacyRoute ? (
+      <PrivacyPage />
     ) : (
       <App />
     )}
