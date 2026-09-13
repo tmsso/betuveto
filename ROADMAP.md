@@ -1758,6 +1758,25 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
   rule as due for review rather than a hard block: a deliberately-scoped extraction paired
   with a *smaller* App.jsx-touching item (or even a carefully-reviewed standalone slice)
   may become the lesser risk.
+  **Partial extraction shipped 2026-09-13, as exactly that carefully-reviewed standalone
+  slice** (confirmed with the project owner given the long wait above): `Board`,
+  `GuessInput`, `Timer`, and `Scoreboard` moved into `components/` as pure presentational
+  components — props in, JSX out, each still calling its own `useTranslation()` per this
+  codebase's existing extraction convention (see `StatsPanel.jsx`). **`useGame` is
+  deliberately NOT extracted** — every state variable, `useCallback`, and `useEffect`
+  stays in `App.jsx` exactly as before; only four leaf render blocks moved out. This was
+  a scoped choice, not a partial attempt at the full goal: `handleSubmit` alone closes
+  over 6+ pieces of state plus 4 setters, and this file's own history already shows two
+  real bugs from exactly this kind of dependency-array re-derivation (the `i18n`
+  wrapper-identity bug at the mount effect, `ConfirmationModal`'s `onClose`-in-deps bug)
+  — moving that logic into a new hook boundary is where a silent regression would hide,
+  and nothing in this repo's test coverage (one E2E smoke test, no hint/give-up/daily
+  coverage) would catch it. `useGame` + full state extraction is still 7.2's to carry.
+  App.jsx: ~1451 → ~1341 lines. Verified: lint/build clean, E2E smoke test green
+  (exercises Board + GuessInput + Scoreboard via the real find-a-word flow), plus a
+  headless click-through on the PR's own preview for what E2E doesn't cover (pre-game
+  placeholder count tracking `selectedLength`, timer counting down, hint toast, give-up
+  reveal, zero `game/start` calls on a language switch — the item-15 regression class).
 - **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
   constraint, not priority) — **shipped 2026-09-01 (PR #66)**, ahead of Batch 8 rather
   than at the deadline (it was the clean pick for a `/next-batch` slot).

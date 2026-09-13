@@ -6,6 +6,10 @@ import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import SettingsPanel from './components/SettingsPanel'
+import Board from './components/Board'
+import GuessInput from './components/GuessInput'
+import Timer from './components/Timer'
+import Scoreboard from './components/Scoreboard'
 import { useSound } from './components/useSound'
 import { useTheme } from './components/useTheme'
 import { definitionUrl } from './dictionary'
@@ -232,6 +236,14 @@ function App() {
       setGuessErrorMsg(null);
       setIsGuessShaking(false);
     }, 2000);
+  }, []);
+
+  // <GuessInput>'s onChange path (typing): clears any pending word-suggestion prompt on
+  // every keystroke. Deliberately distinct from the input's own clear (✖️) button, which
+  // does not — that asymmetry predates this component's extraction and is preserved as-is.
+  const handleGuessChange = useCallback((val) => {
+    setCurrentGuess(val);
+    setSuggestPrompt(null);
   }, []);
 
   // Load high scores from localStorage on mount (kept only as an offline/error fallback
@@ -1037,89 +1049,31 @@ function App() {
 
         {/* Score and New Game Button */}
         <div className="flex justify-between items-center mb-6">
-          <div className="text-left">
-            <div
-              className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600 dark:text-red-400' : 'text-game-primary'}`}
-              aria-live="polite"
-              aria-label={t('score.ariaLabel', { score: displayScore })}
-            >
-              🏆 {displayScore} <span className="hidden sm:inline">{t('score.pointsSuffix')}</span>
-            </div>
-            {/* Progress line and timer are hidden on the inert pre-game board (item 17) —
-                there is no game to report progress for and no clock running yet. */}
-            {!preGame && (
-              <div className={`text-md text-game-muted transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
-                {t('score.progress', { found: foundWords.length, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && '✨'}
-              </div>
-            )}
-          </div>
-          {!preGame && (
-            <div className="flex items-center justify-center space-x-2">
-              <div
-                className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-game-primary'}`}
-                role="timer"
-                aria-label={t('score.timerAriaLabel', { time: `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` })}
-              >
-                ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-              </div>
-            </div>
-          )}
+          <Scoreboard
+            displayScore={displayScore}
+            isScoreFlashing={isScoreFlashing}
+            preGame={preGame}
+            foundWordsCount={foundWords.length}
+            possibleWordsCount={possibleWordsCount}
+            guessCount={guessCount}
+            allPossibleWordsFound={allPossibleWordsFound}
+          />
+          {/* Hidden on the inert pre-game board (item 17) — no clock running yet. */}
+          {!preGame && <Timer timeLeft={timeLeft} />}
         </div>
 
         {/* Leaderboard toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
 
         {/* Scrambled letters */}
-        <div className="mb-8 text-center">
-          {/* Wordlist-language pill (ROADMAP Batch 10 item 16) — shown only when the board's
-              wordlist differs from the UI language, so the mismatch isn't missed now that the
-              wordlist selector lives behind the settings drawer (item 15). A two-letter pill,
-              not a flag emoji: flag glyphs fall back to bare letter pairs on Windows Chrome. */}
-          {!preGame && gameWordlist && gameWordlist !== i18n.language && (
-            <div className="mb-3 flex justify-center">
-              <span
-                className="inline-flex items-center text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-700 border border-game-border text-game-muted"
-                title={t('wordlistPill.title', { language: t(`wordlistPill.lang.${gameWordlist}`) })}
-                aria-label={t('wordlistPill.title', { language: t(`wordlistPill.lang.${gameWordlist}`) })}
-              >
-                {gameWordlist.toUpperCase()}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label={t('board.ariaLabel')}>
-            {preGame
-              ? /* Inert placeholder tiles (ROADMAP Batch 10 item 17) — the real letters
-                   aren't known until game/start; these just give the empty board a shape.
-                   Plain divs, so `board.getByRole('button')` finds nothing pre-game. */
-                Array.from({ length: selectedLength }).map((_, index) => (
-                  <div
-                    key={index}
-                    aria-hidden="true"
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border-2 border-dashed border-game-border opacity-30"
-                  />
-                ))
-              : scrambledLetters.map((letter, index) => (
-              <button
-                key={index}
-                onClick={() => handleLetterClick(letter)}
-                aria-label={t('board.letterAriaLabel', { letter })}
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold shadow-md transition-all transform active:scale-90 focus:outline-none focus:ring-2 focus:ring-opacity-50
-                ${currentAnimatingIndex === index
-                  ? 'animate-pulse ring-4 ring-yellow-400 scale-125 z-10'
-                  : usedLetters[index]
-                    ? 'bg-gray-300 dark:bg-slate-600 border-gray-400 dark:border-slate-500 text-gray-700 dark:text-slate-200'
-                    : 'bg-blue-100 dark:bg-blue-500/20 border-2 border-blue-300 dark:border-blue-400/50 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:-translate-y-1 hover:scale-110 focus:ring-blue-500'}`}
-                disabled={usedLetters[index]}
-              >
-                {letter}
-              </button>
-            ))}
-          </div>
-          {preGame && (
-            <p className="mt-4 text-sm text-game-muted" aria-live="polite">
-              {t('preGame.hint')}
-            </p>
-          )}
-        </div>
+        <Board
+          preGame={preGame}
+          gameWordlist={gameWordlist}
+          scrambledLetters={scrambledLetters}
+          selectedLength={selectedLength}
+          currentAnimatingIndex={currentAnimatingIndex}
+          usedLetters={usedLetters}
+          onLetterClick={handleLetterClick}
+        />
 
         {/* Pre-game start (ROADMAP Batch 10 item 17) — the empty board's only control. It
             reuses handleNewGameClick, so it is literally the "Új játék" action; there is no
@@ -1140,80 +1094,17 @@ function App() {
         {!preGame && (
         <>
         {/* Current guess input area */}
-        <div className="mb-6 relative">
-
-          {/* Temporary Error Overlay */}
-          {guessErrorMsg && (
-             <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
-                {/* role="alert" (ROADMAP Batch 10 accessibility pass): an implicit
-                    assertive live region, so a screen reader announces a rejected guess
-                    even though nothing else on the page changes when it appears. */}
-                <span role="alert" className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded shadow-lg animate-fade-out-up">
-                  {guessErrorMsg}
-                </span>
-             </div>
-          )}
-
-          <div className="relative">
-            <input
-              id="guess-input"
-              type="text"
-              aria-label={t('guessInput.ariaLabel')}
-              value={currentGuess}
-              onChange={(e) => {
-                const val = e.target.value.toUpperCase();
-                // Limit to 15 characters
-                if (val.length <= 15) {
-                  setCurrentGuess(val);
-                  setSuggestPrompt(null);
-                }
-              }}
-              className={
-                `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 font-extrabold text-game-primary text-center uppercase 
-                shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary 
-                ${isGuessShaking ? 'animate-shake border-game-error bg-red-50 dark:bg-red-950/40 ' : 'border-game-border'}
-                ${currentGuess.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'}`
-              }
-              placeholder={t('guessInput.placeholder')}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck="false"
-              autoFocus // Auto-focus on load
-            />
-            {currentGuess && (
-              <button
-                onClick={() => setCurrentGuess('')}
-                aria-label={t('guessInput.clearAriaLabel')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 dark:text-slate-200 text-xl"
-              >
-                ✖️
-              </button>
-            )}
-          </div>
-
-          {/* Word curation (ROADMAP 4.2): offer to submit a rejected guess as a word the
-              dictionary might be missing. Replaced by a brief thanks confirmation on submit. */}
-          {(suggestPrompt || suggestThanks) && (
-            <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 z-10 w-full text-center">
-              <span role="status" aria-live="polite" className="text-xs sm:text-sm text-game-primary/70">
-                {suggestThanks ? (
-                  t('suggestion.thanks')
-                ) : (
-                  <>
-                    {t('suggestion.prompt')}{' '}
-                    <button
-                      onClick={() => handleSuggestWord(suggestPrompt)}
-                      disabled={suggestLoading}
-                      className="underline font-bold hover:text-game-primary disabled:opacity-50"
-                    >
-                      {t('suggestion.submit')}
-                    </button>
-                  </>
-                )}
-              </span>
-            </div>
-          )}
-        </div>
+        <GuessInput
+          value={currentGuess}
+          onChange={handleGuessChange}
+          onClear={() => setCurrentGuess('')}
+          isShaking={isGuessShaking}
+          errorMessage={guessErrorMsg}
+          suggestPrompt={suggestPrompt}
+          suggestThanks={suggestThanks}
+          suggestLoading={suggestLoading}
+          onSuggestWord={handleSuggestWord}
+        />
 
         {/* Action Buttons */}
         <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
