@@ -1329,6 +1329,18 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
    substantially; or gate it behind an opt-in rather than load-always. Backend
    (`@sentry/node`) stays lazy-loaded on the first error only, so it adds nothing to a
    happy-path cold start.
+   **Follow-up shipped 2026-09-13:** swapped `@sentry/react` for `@sentry/browser` in
+   `main.jsx` — this app renders no `ErrorBoundary`/profiler and needs no react-router
+   integration, so nothing behavioural was lost. **Measured, not assumed — the win is
+   real but modest, not "substantial":** the chunk went from 482 kB / 160 kB gzip to
+   453.96 kB / 150.85 kB gzip (~6%). Most of the weight is `@sentry/core`'s own default
+   instrumentation (global error/promise-rejection handlers, breadcrumbs, fetch/XHR
+   wrapping) — the actual error-tracking mechanism, which ships regardless of which
+   wrapper package is used; the React bindings were the smaller slice all along.
+   Stripping default integrations further would mean losing automatic error capture,
+   defeating the point of having Sentry — not done. The "gate behind an opt-in" half of
+   the original follow-up is unaddressed, and is the one lever left if this chunk size
+   still needs to come down.
 10. `[x]` **Achievements** (first 10-letter word, 7-day streak, full clear without
     hints…). **Shipped 2026-09-01 (PR #65).** `migrations/0019_player_achievements.sql`
     (`player_id`, `achievement_key`, `unlocked_at`, PK on the pair, `on delete cascade` —
