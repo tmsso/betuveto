@@ -31,10 +31,13 @@ import './index.css'
 // Any tabs within the admin panel are component-local state, not sub-routes.
 // ROADMAP Batch 10 item 9 — error tracking. Inert until VITE_SENTRY_DSN is set: the
 // condition is build-time constant, so with no DSN Vite drops the branch and never ships
-// the @sentry/react chunk to players (the same bundle-cost care as the AdminApp lazy load
-// below). Dynamic import so, even when enabled, the SDK loads off the critical path.
+// the Sentry chunk to players (the same bundle-cost care as the AdminApp lazy load below).
+// @sentry/browser, not @sentry/react — this app renders no ErrorBoundary/profiler and
+// doesn't need react-router integration, so the React package's extra weight (roughly
+// doubles the chunk) buys nothing here. Dynamic import so, even when enabled, the SDK
+// loads off the critical path.
 if (import.meta.env.VITE_SENTRY_DSN) {
-  import('@sentry/react')
+  import('@sentry/browser')
     .then((Sentry) => {
       Sentry.init({
         dsn: import.meta.env.VITE_SENTRY_DSN,
