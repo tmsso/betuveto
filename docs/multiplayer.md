@@ -232,17 +232,19 @@ room mode needs; both single-player and daily then call the same two functions. 
 the extraction 7.2 was designated to carry all along — done first, as its own PR, with the
 E2E coverage extended *before* room code lands on top of it.
 
-## 7. Decisions for the owner
+## 7. Decisions — **all four decided by the project owner, 2026-09-15**
 
-- **D1 — Transport:** polling-first with optional Ably later (recommended), or Ably from
-  the start per decision 7.
-- **D2 — Bonus on a collective clear:** equal split among members still playing
-  (`floor(remaining_seconds × multiplier / member_count)`) — recommended — vs. the full
-  bonus to everyone, vs. none. A *personal* full clear keeps today's full personal bonus.
-- **D3 — Leaderboards:** room games excluded from the single-player boards (recommended);
-  room results live only in the room's reveal. Alternative: a separate "rooms" board later.
-- **D4 — Host leaves / disappears:** v1 cancels the room (recommended, simplest); the
-  alternative (host hand-off to the next member) is a follow-up if it hurts in practice.
+- **D1 — Transport: polling-first; Ably is an optional later upgrade (7.2.8).** This
+  supersedes ROADMAP architectural decision 7 for v1: no Ably account, key or SDK until
+  and unless the owner asks for the latency upgrade.
+- **D2 — Bonus on a collective clear: equal split** among members still playing,
+  `floor(remaining_seconds × completion_bonus_multiplier / member_count)`. A *personal*
+  full clear keeps today's full personal bonus (rare, earned).
+- **D3 — Leaderboards: room games are excluded** from the single-player boards
+  (`room_id is null` in `lib/scores.ts`); room results live in the room's reveal. A
+  separate "rooms" board is a possible follow-up, not v1.
+- **D4 — Host leaves / disappears: v1 cancels the room.** Host hand-off is a follow-up if
+  it hurts in practice (ROADMAP 11.22).
 
 Decided here without asking (reversible, within the existing conventions): 6-char codes from
 an unambiguous alphabet · room cap 8 · min 2 to start · no late join after start · rooms

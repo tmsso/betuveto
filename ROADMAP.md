@@ -936,17 +936,17 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   and the only new logic is a collective-clear / everyone-done hook. Guess, hints,
   rescramble, give-up, expiry, `word_stats` and achievements are reused unchanged. Full
   data model, API contract (snapshot shape), lifecycle hooks and the transport analysis are
-  in the design doc. **Four decisions still need the owner before 7.2 starts** (doc §7):
-  D1 transport (polling-first vs Ably from day one — the doc recommends polling-first,
-  which deviates from architectural decision 7), D2 bonus split on a collective clear, D3
-  room games off the single-player leaderboards, D4 host-leaves = room cancelled.
+  in the design doc. **All four open decisions were made by the owner on 2026-09-15**
+  (doc §7): **D1 polling-first** (Ably optional later — this supersedes architectural
+  decision 7 for v1), **D2 equal bonus split** on a collective clear, **D3 room games off
+  the single-player leaderboards**, **D4 host leaving cancels the room**. 7.2 is unblocked.
 
 ### 7.2 `[ ]` Implementation plan — ordered work orders, one PR each
 *Written for a Sonnet-class implementer: each item names its acceptance check. Do them in
 order; 7.2.1 is the `App.jsx` refactor this batch was designated to carry (see the
 "Frontend refactor" bullet in Batch 10) and everything after it builds on that seam. The
-contract for every item is [`docs/multiplayer.md`](./docs/multiplayer.md) — read §3–§6
-before starting any of them. Do not start 7.2.2+ until D1–D4 are answered.*
+contract for every item is [`docs/multiplayer.md`](./docs/multiplayer.md) — read §3–§7
+before starting any of them (§7 holds the owner's D1–D4 answers; they are settled).*
 
 - `[ ]` **7.2.0 Display-name preference.** `PATCH /api/v1/me/preferences {display_name}`
   (+ in the GET), validation shared with `lib/admin-players.ts`'s `renamePlayer` (extract
@@ -998,7 +998,7 @@ before starting any of them. Do not start 7.2.2+ until D1–D4 are answered.*
   E2E: a two-context Playwright test — create, join, start, one find each, reveal shows
   both names.
 - `[ ]` **7.2.7 Admin.** Rooms-per-day on the dashboard; `room_id` in the game drill-down.
-- `[ ]` **7.2.8 (only if D1 = Ably) Push layer.** Server: publish `room_updated` from the
+- `[ ]` **7.2.8 (optional — D1 chose polling-first; only on the owner's later request) Push layer.** Server: publish `room_updated` from the
   start / guess / finish hooks via Ably's REST endpoint (server key on Vercel, owner
   step); `POST /rooms/{code}/realtime-token` gated on membership; client: ably-js, message
   = "refetch the snapshot" (event-as-poke), polling kept at 15 s as fallback. No data-model
