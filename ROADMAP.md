@@ -940,6 +940,13 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   (doc §7): **D1 polling-first** (Ably optional later — this supersedes architectural
   decision 7 for v1), **D2 equal bonus split** on a collective clear, **D3 room games off
   the single-player leaderboards**, **D4 host leaving cancels the room**. 7.2 is unblocked.
+- **Second mode added 2026-09-15 (owner's request): competitive (`rooms.mode = 'versus'`),
+  chosen by the host at room creation.** Same shared board and deadline, but no
+  collective clear and no shared bonus — highest personal score wins, the clock is only
+  the boundary. Live view = names, found counts, scores plus word-agnostic **badges**
+  (🎯 full word found · ½ / ¾ / ✔ cleared · 💡 hint used · 🏳️ gave up), individual
+  guesses stay hidden until the end-of-game reveal (which shows everything, ranked).
+  Defaults D5–D8 in the design doc §7. Co-op (`'coop'`) stays the default mode.
 
 ### 7.2 `[ ]` Implementation plan — ordered work orders, one PR each
 *Written for a Sonnet-class implementer: each item names its acceptance check. Do them in
@@ -966,13 +973,14 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
   below it throws on first paint; only E2E catches it) and the `i18n` wrapper-identity
   gotcha both apply — see the memory notes / the `init()` effect's comment. *Accept:*
   E2E green with the new cases, `App.jsx` no longer owns any game-state `useState`.
-- `[ ]` **7.2.2 Migration 0020 + `lib/rooms.ts` (lobby).** Tables per the design doc §3;
-  `createRoom` / `joinRoom` / `leaveRoom` / `getRoomSnapshot` (lobby shape only, incl.
-  `online` from `last_seen_at`); dispatcher routes `POST /rooms`, `POST /rooms/{code}/join`,
-  `/leave`, `GET /rooms/{code}`; code generation from the unambiguous alphabet with a
-  retry on unique-violation. Contract tests with two cookies (`startWithCookie` shows the
-  pattern): create → join → snapshot from both sides → full / started / unknown 409/404s →
-  host leave cancels. Apply the migration to the preview DB *and* to production right
+- `[ ]` **7.2.2 Migration 0020 + `lib/rooms.ts` (lobby).** Tables per the design doc §3
+  (incl. `rooms.mode`, `'coop'` default, `'versus'` the alternative — a 422 for anything
+  else); `createRoom` / `joinRoom` / `leaveRoom` / `getRoomSnapshot` (lobby shape only,
+  incl. `mode` and `online` from `last_seen_at`); dispatcher routes `POST /rooms`, `POST
+  /rooms/{code}/join`, `/leave`, `GET /rooms/{code}`; code generation from the unambiguous
+  alphabet with a retry on unique-violation. Contract tests with two cookies
+  (`startWithCookie` shows the pattern): create (both modes) → join → snapshot from both
+  sides echoes the mode → full / started / unknown 409/404s → host leave cancels. Apply the migration to the preview DB *and* to production right
   after merge (see the migration-deploy-ordering note in memory).
 - `[ ]` **7.2.3 Start + shared deadline + lazy room expiry.** `startRoom` (host only, ≥2
   members): uniform-random target, `findableWords`, one multi-row `games` insert with
@@ -981,22 +989,36 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
   `finishRoom(…, 'expired')`. Contract tests: every member's `your_game` has the same
   letters and `ends_at`; a `duration_seconds`-shortened room (test-only override, same as
   `game/start`) expires and every member game reads `expired`.
-- `[ ]` **7.2.4 Collective clear + everyone-done + bonus + exclusions.** Hooks in `guess()`
-  and `giveUp()` per design §4; `finishRoom` race-safe via the `status = 'playing'` UPDATE
-  guard; bonus per D2; `room_id is null` in `lib/scores.ts` and the `full_clear*` skip in
-  `lib/achievements.ts`. Contract tests: two players whose finds together cover the board
-  end the room `cleared` with the bonus on both; a room game never appears on
+- `[ ]` **7.2.4 Collective clear (co-op) + everyone-done (both) + bonus + exclusions.**
+  Hooks in `guess()` and `giveUp()` per design §4 — the collective-clear check runs **only
+  when `rooms.mode = 'coop'`**; `checkAllDone` runs in both modes (give-up *and* a personal
+  full clear); `finishRoom` race-safe via the `status = 'playing'` UPDATE guard; bonus per
+  D2 (co-op only); `room_id is null` in `lib/scores.ts` and the `full_clear*` skip in
+  `lib/achievements.ts`. Contract tests: (co-op) two players whose finds together cover
+  the board end the room `cleared` with the bonus on both; (versus) the same two players'
+  finds do **not** end the room and no bonus is paid; a room game never appears on
   `/scores/top`; the existing concurrency test pattern (`Promise.all` guesses) applied to
-  two members finding the last word simultaneously — exactly one `finishRoom` wins.
-- `[ ]` **7.2.5 Frontend lobby.** `RoomPanel` in `<SettingsPanel>` (display name, create,
+  two co-op members finding the last word simultaneously — exactly one `finishRoom` wins.
+- `[ ]` **7.2.4b Badges + ranking in the snapshot.** Per-member `badges[]` (design §1:
+  `full_word`, `half_cleared`, `three_quarters_cleared`, `all_cleared`, `hint_used`,
+  `gave_up`) derived at read time from the member's game row, `game_guesses` and
+  `game_hints` — no stored state; `reveal.members[].rank` per the §1 tie-break (score ↓,
+  found_count ↓, earlier `ended_at`). Contract tests: a member who found the target shows
+  `full_word` and nobody else does; a hint shows `hint_used`; the ranking orders a
+  higher score first and breaks a tie on found_count. Small; can ride with 7.2.4.
+- `[ ]` **7.2.5 Frontend lobby.** `RoomPanel` in `<SettingsPanel>` (display name, **mode
+  toggle — "Together" / "Against each other" with a one-line explanation each**, create,
   join), `useRoom` polling hook (3 s, paused on `document.hidden`, stops on finished),
-  lobby view in place of the pre-game board, `?room=CODE` deep link, share-link copy.
-  Headless check against the PR preview with two browser contexts.
+  lobby view in place of the pre-game board (shows the mode to joiners), `?room=CODE` deep
+  link, share-link copy. i18n `room.*` block hu + en. Headless check against the PR
+  preview with two browser contexts.
 - `[ ]` **7.2.6 Frontend in-game + end.** Room start via `useGame.beginFromStartResponse(
-  snapshot.your_game)`; opponent strip; `👥 CODE` badge; end-of-game comparison view from
-  `snapshot.reveal`; rematch (`POST /rooms/{code}/rematch`, `next_room_code` pointer).
-  E2E: a two-context Playwright test — create, join, start, one find each, reveal shows
-  both names.
+  snapshot.your_game)`; opponent strip with badge icons (design §1) — plus the
+  collective-progress counter **in co-op only**; `👥 CODE` / `⚔️ CODE` board badge by
+  mode; ranked end-of-game comparison view from `snapshot.reveal` (🏆 on rank 1 in
+  versus); rematch (`POST /rooms/{code}/rematch`, `next_room_code` pointer, same mode).
+  E2E: a two-context Playwright test per mode — create, join, start, one find each,
+  reveal shows both names (and, in versus, the ranking).
 - `[ ]` **7.2.7 Admin.** Rooms-per-day on the dashboard; `room_id` in the game drill-down.
 - `[ ]` **7.2.8 (optional — D1 chose polling-first; only on the owner's later request) Push layer.** Server: publish `room_updated` from the
   start / guess / finish hooks via Ably's REST endpoint (server key on Vercel, owner
@@ -2000,7 +2022,7 @@ or an outright bug). Nothing here blocks Batch 7.*
 | 4 — Word curation | M | 2 |
 | 5 — Admin | M | 4 |
 | 6 — English / i18n | M | 1 (2 for prefs) |
-| 7 — Multiplayer | L–XL (7.1 done; 7.2.0–7.2.7 ≈ 8 PRs, 7.2.8 optional) | 0–3, D1–D4 answered |
+| 7 — Multiplayer (co-op + competitive) | L–XL (7.1 done; 7.2.0–7.2.7 ≈ 9 PRs, 7.2.8 optional) | 0–3, D1–D4 answered |
 | 8 — Google OAuth | S | 2 |
 | 9 — Android (TWA) | S–M | stable deploy |
 | 10 — Backlog | à la carte | varies |

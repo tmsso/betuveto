@@ -2,33 +2,64 @@
 
 > Status: **design, 2026-09-15** — reviewed against the codebase as it stands after PR #69.
 > Nothing here is built. ROADMAP 7.2 holds the ordered work orders; this document is the
-> "why" and the contract they implement against. Decisions marked **D1–D4** need the
-> project owner's call before 7.2 starts; everything else is decided here.
+> "why" and the contract they implement against. Decisions **D1–D4** were made by the
+> project owner the same day (§7); the competitive mode (`versus`) was added at the owner's
+> request that afternoon with defaults **D5–D8** recorded in §7.
 
 ## 1. What it is (product rules)
+
+Common to both modes:
 
 - A **room** is 2–8 players on **the same board**: identical target word, identical letter
   multiset, one **shared server deadline**. Rooms are joined by a 6-character code (or a
   `?room=CODE` link) — no login, the existing anonymous cookie identity is enough.
 - Each player finds words **privately**. Others see, live: display name, how many words
   each player has found, and their score — **never which words** until the game ends.
-- **A word found by two players counts for both.** Pure co-op/race feel, no claim-ordering,
-  no "first finder only" (that is a possible later room option, not v1).
-- The room **collectively clears the board** when the *union* of everyone's found words
-  covers every findable word. Everyone still playing then gets an equal share of the
-  time-remaining completion bonus (D2).
+- **A word found by two players counts for both.** No claim-ordering, no "first finder
+  only" (a possible later room option, not v1).
 - Personal mechanics are unchanged and personal: hints cost *you* points and reveal to
   *you* only; rescramble only reorders *your* view; give-up ends *your* game (others
   continue). A player who personally clears the whole board keeps the normal personal
-  completion bonus.
-- Game end (any of): the shared deadline passes · the room collectively clears · every
-  member has reached a terminal state (given up / personally cleared). Then the full reveal:
-  per-player word lists, remaining words, target word, and a "rematch" pointer.
-- Room games do **not** appear on the single-player leaderboards (D3): a co-op board with
-  shared finds is not comparable. They do count toward the player's own aggregate stats
+  completion bonus and their game ends right there.
+- At game end, the full reveal: per-player word lists, remaining words, target word, the
+  final ranking, and a "rematch" pointer.
+- Room games do **not** appear on the single-player leaderboards (D3): a shared board is
+  not comparable with a solo draw. They do count toward the player's own aggregate stats
   and `word_stats` (the target word was still their target).
 - A **display name is required** to create or join a room (the first player-facing use of
   `players.display_name`, ROADMAP 2.1's deferred "name yourself" input).
+
+The **mode** is chosen by the host when creating the room (`rooms.mode`, added 2026-09-15
+at the owner's request) and cannot change afterwards:
+
+| | **Co-op** (`mode = 'coop'`) | **Competitive** (`mode = 'versus'`) |
+|---|---|---|
+| Goal | Beat the clock *together*: cover every findable word as a room | Beat *each other*: highest personal score wins; the clock is just the boundary |
+| Shared end condition | The **union** of everyone's finds covers the board → room clears, everyone still playing gets an equal share of the time bonus (D2) | **None.** No collective clear, no shared bonus. Each game runs until the deadline, a personal full clear, or a give-up |
+| Room ends when | deadline · collective clear · everyone done | deadline · everyone done |
+| Live view of others | name · found count · score | name · found count · score · **badges** (below) |
+| End-of-game reveal | word lists, remaining words, target, ranking | same — nothing stays hidden after the game (see D5) |
+| Rematch | same room settings, same mode | same |
+
+**Competitive badges** — small, word-agnostic milestones computed server-side from each
+member's own game row and shown live to everyone (a spectator's "something just
+happened" signal, never a word):
+
+| Badge | Fires when | Source |
+|---|---|---|
+| 🎯 *Full word* | the member found the target word | `exists game_guesses where game_id = … and word = rooms.target_word and correct` |
+| ½ / ¾ / ✔ *Half / three-quarters / all cleared* | `found_count / possible_count` crosses 0.5 / 0.75 / 1.0 | the game row |
+| 💡 *Hint used* | the member has ≥1 `game_hints` row | fairness signal, mirrors the leaderboard's 💡 |
+| 🏳️ *Gave up* | own game `given_up` | the game row |
+
+Badges are a derived list per member in the snapshot (§4), not stored — there is nothing
+to keep in sync. They are also returned for co-op rooms (harmless, and the frontend may
+show them there too), but they are *the* live content of a competitive room.
+
+**Ranking** (both modes, the reveal): by `final_score` desc, then `found_count` desc, then
+earlier `ended_at` (a player who reached the same score sooner ranks higher); ties after
+that share a rank. In co-op the ranking is informational ("who carried"); in competitive
+it is the point.
 
 ## 2. Why this shape: rooms are ad-hoc daily puzzles
 
@@ -58,6 +89,7 @@ create table rooms (
   host_player_id    uuid references players(id) on delete set null,
   wordlist_id       bigint not null references wordlists(id),
   target_length     int  not null check (target_length between 5 and 10),
+  mode              text not null default 'coop' check (mode in ('coop','versus')),
   status            text not null default 'lobby'
                       check (status in ('lobby','playing','finished','cancelled')),
   -- board, null until start (same columns as daily_puzzles):
@@ -110,7 +142,7 @@ a first-ever visitor can create or join a room in one request. Every route below
 
 | Method & path | Who | Effect |
 |---|---|---|
-| `POST /rooms` `{display_name, wordlist?, target_length?}` | anyone | Create a `lobby` room, set the caller's `display_name`, join as host. Applies the item-14 hidden-selector forcing (`resolveDailyAxes`-style). → `{code, room}` |
+| `POST /rooms` `{display_name, mode?, wordlist?, target_length?}` | anyone | Create a `lobby` room (`mode` `coop` \| `versus`, default `coop`; 422 otherwise), set the caller's `display_name`, join as host. Applies the item-14 hidden-selector forcing (`resolveDailyAxes`-style). → `{code, room}` |
 | `POST /rooms/{code}/join` `{display_name}` | anyone | Join a `lobby` room. Idempotent for an existing member. 404 unknown · 409 `room_started` / `room_full` (8) / `room_cancelled`. → `{room}` |
 | `POST /rooms/{code}/leave` | member | Lobby only. A leaving **host cancels the room** (v1: no host hand-off). |
 | `POST /rooms/{code}/start` | host | Lobby → `playing`. Picks the target (uniform random, **not** `pickPersonalizedWord` — it's one board for everyone, same rule as the daily), computes `possible`, stamps `ends_at = now() + durationForLength(...)`, and **inserts one `games` row per member in one statement**, all with `room_id` and the shared `ends_at`. 409 `not_enough_players` below 2. |
@@ -122,13 +154,15 @@ Snapshot body (shape is the contract 7.2's frontend builds against):
 ```jsonc
 {
   "code": "K7PX2Q", "status": "playing",           // lobby | playing | finished | cancelled
+  "mode": "versus",                                 // coop | versus, fixed at creation
   "wordlist": "hu", "target_length": 7,
   "is_host": true, "member_count": 3, "max_members": 8,
   "ends_at": 1789000000.0, "possible_count": 41,   // null in lobby
   "members": [
     { "player_id": "…", "display_name": "Anna", "is_you": false, "is_host": true,
       "online": true,                               // last_seen_at within 10 s (lobby only)
-      "found_count": 5, "score": 61, "done": false } // done = own game terminal
+      "found_count": 5, "score": 61, "done": false, // done = own game terminal
+      "badges": ["full_word", "half_cleared", "hint_used"] } // §1, derived, word-agnostic
   ],
   "your_game": {                                    // playing/finished only, for the caller
     "game_id": "…", "scrambled_letters": "A K L M Á Z T", "alphabet": "…",
@@ -136,8 +170,9 @@ Snapshot body (shape is the contract 7.2's frontend builds against):
   },
   "reveal": {                                       // finished only
     "target_word": "…", "remaining_words": ["…"],
-    "members": [{ "player_id": "…", "display_name": "Anna", "words": ["…"], "final_score": 71 }],
-    "room_cleared": true, "bonus_per_member": 12
+    "members": [{ "player_id": "…", "display_name": "Anna", "words": ["…"],
+                  "final_score": 71, "rank": 1, "badges": ["…"] }],  // ranked per §1
+    "room_cleared": true, "bonus_per_member": 12     // always false / 0 in versus
   },
   "next_room_code": null
 }
@@ -148,20 +183,25 @@ rescramble|possible_words` routes with `your_game.game_id` — no room-specific 
 
 ### Lifecycle hooks (the only new logic inside existing code paths)
 
-- `guess()` — after the found_count UPDATE, if `game.room_id`: run `checkRoomClear(sql,
-  room_id)`: `select count(distinct gg.word) … where g.room_id = $1 and gg.correct` ≥
-  `rooms.possible_count` ⇒ `finishRoom(sql, room, reason='cleared')`.
-- `giveUp()` — if `game.room_id`: `checkAllDone` (every member game terminal) ⇒
-  `finishRoom(…, 'all_done')`.
+- `guess()` — after the found_count UPDATE, if `game.room_id` **and the room's `mode` is
+  `coop`**: run `checkRoomClear(sql, room_id)`: `select count(distinct gg.word) … where
+  g.room_id = $1 and gg.correct` ≥ `rooms.possible_count` ⇒ `finishRoom(sql, room,
+  reason='cleared')`. In `versus` there is no collective clear — but a guess that ends the
+  member's *own* game (personal full clear) must still run `checkAllDone` below.
+- `giveUp()` (and a personal full clear in `guess()`) — if `game.room_id`: `checkAllDone`
+  (every member game terminal) ⇒ `finishRoom(…, 'all_done')`. Same in both modes.
 - `GET /rooms/{code}` — if `status = 'playing'` and `now() > ends_at`: for each member game
   call the existing `finalizeExpiry` (already idempotent via its `status = 'active'`
   guard), then `finishRoom(…, 'expired')`. Lazy, exactly like single-player expiry.
 - `finishRoom` is race-safe the same way `finalizeExpiry` is: `update rooms set status =
   'finished', ended_at = now() where id = $1 and status = 'playing'`; only the invocation
-  whose UPDATE count is 1 ends the member games and pays the bonus. For `cleared`: every
-  member game still `active` gets `status = 'finished', ended_at = now(), final_score =
-  effectiveScore + bonus_share` (D2), then `finalizeWordStats` per game (so `word_stats`,
-  daily-style bookkeeping and achievements fire once, as today).
+  whose UPDATE count is 1 ends the member games and pays the bonus. For `cleared` (co-op
+  only): every member game still `active` gets `status = 'finished', ended_at = now(),
+  final_score = effectiveScore + bonus_share` (D2), then `finalizeWordStats` per game (so
+  `word_stats`, daily-style bookkeeping and achievements fire once, as today). For
+  `expired` / `all_done` (both modes) the member games are already terminal or get the
+  normal `finalizeExpiry` treatment; `finishRoom` then only flips the room row. The
+  reveal's ranking and badges are computed at read time from the member games.
 
 ### Existing code that must learn `room_id is null`
 
@@ -211,11 +251,18 @@ only awake while people play, polling does not change that).
   opens the panel pre-filled and prompts to join.
 - **Lobby** replaces the pre-game board area: big copyable code + share link, member list
   with online dots, host's *Start* (disabled below 2), *Leave*.
+- **Lobby (create):** a mode toggle — *Together* (co-op, default) / *Against each other*
+  (competitive) — with a one-line explanation of each; the mode shows in the lobby for
+  joiners and on the board badge (`👥 CODE` / `⚔️ CODE`).
 - **In game:** the normal board/input/timer/actions, plus a compact **opponent strip**
-  (name · found/possible · score) fed by the snapshot, and a `👥 CODE` board badge next to
-  the existing 🗓️/🌱 ones. Guess/hint/give-up call the existing API with `your_game.game_id`.
-- **End:** a comparison view (per-member revealed words, remaining words, the target) and
-  *Rematch* (host) / *Join the rematch* (others, when `next_room_code` appears).
+  (name · found/possible · score · badge icons as they appear) fed by the snapshot, and the
+  mode badge next to the existing 🗓️/🌱 ones. In co-op the strip also shows the room's
+  collective progress (`distinct words found by anyone / possible_count`) — in competitive
+  that number is deliberately absent (it would leak how much of the board others hold).
+  Guess/hint/give-up call the existing API with `your_game.game_id`.
+- **End:** a ranked comparison view (rank, per-member revealed words, remaining words, the
+  target; a 🏆 on rank 1 in competitive) and *Rematch* (host) / *Join the rematch* (others,
+  when `next_room_code` appears).
 - **Timer:** `Timer` already renders from a server `ends_at`; the room's shared deadline
   drops straight in.
 
@@ -245,6 +292,18 @@ E2E coverage extended *before* room code lands on top of it.
   separate "rooms" board is a possible follow-up, not v1.
 - **D4 — Host leaves / disappears: v1 cancels the room.** Host hand-off is a follow-up if
   it hurts in practice (ROADMAP 11.22).
+
+Competitive-mode defaults, decided here when the mode was added (2026-09-15) — reversible,
+say so if any should differ:
+
+- **D5 — End-of-game reveal in competitive shows everyone's words**, same as co-op.
+  "Guesses stay hidden" is an in-game rule; after the game the reveal is the fun part.
+- **D6 — Hints are allowed in competitive**, at the normal personal cost, and flagged live
+  with the 💡 badge so opponents can see it (the same convention as the leaderboard's 💡).
+- **D7 — A personal full clear in competitive** ends that player's game with the normal
+  personal bonus; the others play on until the deadline (their score can still overtake).
+- **D8 — Badges are shown in both modes**; the co-op collective-progress counter is shown
+  only in co-op.
 
 Decided here without asking (reversible, within the existing conventions): 6-char codes from
 an unambiguous alphabet · room cap 8 · min 2 to start · no late join after start · rooms
