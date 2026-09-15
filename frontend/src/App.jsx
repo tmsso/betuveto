@@ -988,7 +988,9 @@ function App() {
                 <span className="block sm:inline"> {t(error)}</span>
                 <div className="mt-4">
                     <button
-                        onClick={startNewGame}
+                        // Not `onClick={startNewGame}`: the click event would land in the
+                        // `length` parameter and reach the API as target_length=[object Object].
+                        onClick={() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode)}
                         className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                     >
                         {t('errorScreen.retry')}

@@ -470,7 +470,8 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
     `;
     if (count > config.guess_rate_limit_per_second) {
       await sql`delete from game_guesses where id = ${inserted[0].id}`;
-      return { status: 429, body: { detail: "Túl sok tipp túl gyorsan. Lassíts egy kicsit." } };
+      // A code, not display text (ROADMAP 6.2) — the frontend keys its copy off the 429.
+      return { status: 429, body: { detail: "rate_limited" } };
     }
   }
 

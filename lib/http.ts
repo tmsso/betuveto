@@ -14,9 +14,8 @@ type Method = "GET" | "POST" | "PATCH" | "DELETE";
 /**
  * Dispatch to one logic function per HTTP method, serialise the reply, and turn an
  * unexpected throw into a 500 without leaking the error to the client (it goes to the
- * function logs instead — a stack trace could disclose the target word). `handler` below
- * is the single-method common case; endpoints that need e.g. GET *and* PATCH on the same
- * route (api/v1/me/preferences) use this directly.
+ * function logs instead — a stack trace could disclose the target word). Routes that need
+ * e.g. GET *and* PATCH on the same path (/me/preferences) pass both.
  */
 export function methodHandler(routes: Partial<Record<Method, Logic>>) {
   return async (req: VercelRequest, res: VercelResponse): Promise<void> => {
@@ -46,11 +45,6 @@ export function methodHandler(routes: Partial<Record<Method, Logic>>) {
       res.status(500).json({ detail: "Internal error." });
     }
   };
-}
-
-/** Wrap a single logic function as a Vercel handler for one HTTP method. */
-export function handler(method: "GET" | "POST", logic: Logic) {
-  return methodHandler({ [method]: logic });
 }
 
 /**

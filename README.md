@@ -12,16 +12,20 @@ appropriate Wiktionary edition (Hungarian or English).
 - **Frontend:** React 19 + Vite 7 + Tailwind CSS 3 (PWA-enabled)
 - **API:** TypeScript Vercel serverless functions, server-authoritative, no in-process state
 - **Database:** Neon serverless Postgres
-- **Dictionaries:** ~161k Hungarian words (`data/magyar-szavak.txt`) and ~270k English
-  words (`data/english-words.txt`) — see [Word lists](#word-lists) below
+- **Dictionaries:** ~152k Hungarian words (`data/magyar-szavak.txt`, ~161k in the source
+  file before non-letter entries are rejected on import) and ~270k English words
+  (`data/english-words.txt`) — see [Word lists](#word-lists) below
+- **Identity:** anonymous-first — a signed, HTTP-only device cookie minted by the API
+  (ROADMAP 2.1). Neon Auth (Magic Link) is used only for the admin login so far.
 
-> A batch-by-batch plan for where this project is headed (accounts, multiplayer, i18n,
-> admin tools, Android) lives in [`ROADMAP.md`](./ROADMAP.md). Realtime (Ably) arrives
-> once multiplayer lands (Batch 7).
+> A batch-by-batch plan for where this project is headed (multiplayer, Google sign-in,
+> Android) lives in [`ROADMAP.md`](./ROADMAP.md). The multiplayer design is in
+> [`docs/multiplayer.md`](./docs/multiplayer.md).
 
 ## Development setup
 
-Requirements: Node 18+, the [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`,
+Requirements: Node 20.19+ (CI runs 20; Vite 7 needs at least that), the
+[Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`,
 then `vercel login` and `vercel link` once to connect this checkout to the Vercel project).
 
 ```bash
@@ -50,15 +54,17 @@ server-authoritative and holds **no in-process state**: every game lives in the 
 table and every scored guess in `game_guesses`, so any function instance can serve any
 request and a redeploy mid-game loses nothing.
 
-- `api/v1/…` — one thin handler per endpoint (10 functions, including `health` — a cheap
-  DB read for uptime checks, ROADMAP 1.4).
-- `lib/` — the logic they share: `words.ts` (board/letter rules), `game.ts` (the game),
-  `db.ts` (Postgres), `http.ts` (the Vercel adapter). The importer in `scripts/` reads its
-  rules from `lib/words.ts` too, so the API and the dictionary can never disagree about
-  what a word's letters are.
-- `vercel.json` rewrites the pre-1.2 paths (`/api/game/…`, `/api/words/…`) onto `/api/v1/…`
-  so the current frontend keeps working until the cutover in 1.3. Rewrites are free;
-  duplicating the handlers would have doubled the function count against the Hobby limit.
+- `api/v1/[...path].ts` — **one** catch-all dispatcher for the whole `/api/v1` surface
+  (Vercel Hobby caps a deployment at 12 functions; routing on path segments in one file
+  costs zero functions per new endpoint). Every route is a thin call into `lib/`.
+- `lib/` — the logic: `words.ts` (board/letter rules), `game.ts` (the game), `daily.ts`
+  (daily puzzle), `hints.ts`, `scores.ts`, `achievements.ts`, `players.ts`, `config.ts`
+  (admin-editable knobs), `admin-*.ts` (admin panel), `db.ts` (Postgres), `http.ts` (the
+  Vercel adapter), `auth.ts` (anonymous cookie), `neon-auth.ts` (admin session
+  verification). The importer in `scripts/` reads its rules from `lib/words.ts` too, so
+  the API and the dictionary can never disagree about what a word's letters are.
+- `vercel.json` rewrites `/api/v1/:path*` onto the dispatcher and keeps the pre-1.2 aliases
+  (`/api/game/…`, `/api/words/…`) working.
 
 > The Vercel project's **Root Directory must be `./`** (the repo root), not `frontend`.
 > Vercel reads `vercel.json` from the Root Directory, and the functions in `api/` and the
@@ -81,7 +87,8 @@ API_BASE_URL=… VERCEL_AUTOMATION_BYPASS_SECRET=… npm test
 ## Database (Neon)
 
 The target architecture (ROADMAP Batch 1) puts persistence on **Neon** serverless Postgres
-(Neon also provides the auth in Batch 2). Schema lives as SQL migrations in
+(Neon's managed auth is used for the admin Magic-Link login; player identity is the
+anonymous cookie). Schema lives as SQL migrations in
 [`migrations/`](./migrations); the dictionary is loaded into the `words` table (each row
 stores a `signature` — its letters sorted — so possible-words is one indexed query rather
 than a full scan).
@@ -89,7 +96,8 @@ than a full scan).
 > **Status:** the schema, importer and API were first built on Supabase (#9, #10) and
 > re-pointed to Neon in ROADMAP Batch 1.5 — plain-SQL migrations in `migrations/`, a
 > `db:migrate` runner, and a single `DATABASE_URL` (no Supabase CLI or `SUPABASE_*` vars).
-> Live and verified against a Neon project: 155,107 words imported, `db:verify` green.
+> Live and verified against a Neon project (`db:verify` green; ~152k active Hungarian
+> words after the 2026-07-30 non-letter purge, ~270k English).
 
 ```bash
 npm install                       # repo-root tooling (importer, migration runner)
@@ -116,10 +124,15 @@ npm run db:verify
 
 ```bash
 npm test                                      # API unit tests (no database needed)
+npm run typecheck
 cd frontend && npm run lint && npm run build  # frontend checks
+cd frontend && npx playwright test            # E2E smoke test (serves this build, proxies /api to production)
 ```
 
-CI runs all of the above on every pull request (`.github/workflows/ci.yml`).
+CI runs all of the above on every pull request (`.github/workflows/ci.yml`): an API job
+(typecheck + unit tests), a frontend job (lint + build) and the E2E smoke test. The full
+HTTP contract suite (`tests/contract.test.ts`) is not in CI — run it by hand against a
+preview deployment before merging API changes (see the API section above).
 
 ## Deployment
 

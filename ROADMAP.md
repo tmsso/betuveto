@@ -921,7 +921,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
 
 *The biggest batch. Do not start until Batches 0–3 are done and stable.*
 
-### 7.1 `[ ]` Design (as specified)
+### 7.1 `[x]` Design (as specified) — **written 2026-09-15, see [`docs/multiplayer.md`](./docs/multiplayer.md)**
 - 2+ players work **simultaneously on the same board**. Each player finds words
   privately; others see **how many** words each player found and their score — **not
   which words** (until game end, when everything is revealed).
@@ -930,26 +930,81 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   (pure co-op/race feel, simpler; "first-finder-only" is more cut-throat and needs
   claim-ordering — make it a room option later, not now). Completion bonus splits when
   the room *collectively* finds all words.
+- **Design outcome (2026-09-15):** a room is modelled as an *ad-hoc daily puzzle* — a
+  `rooms` row holds the shared board + deadline (the `daily_puzzles` shape), every member
+  plays an ordinary `games` row with a new `games.room_id` (the `daily_puzzle_id` shape),
+  and the only new logic is a collective-clear / everyone-done hook. Guess, hints,
+  rescramble, give-up, expiry, `word_stats` and achievements are reused unchanged. Full
+  data model, API contract (snapshot shape), lifecycle hooks and the transport analysis are
+  in the design doc. **Four decisions still need the owner before 7.2 starts** (doc §7):
+  D1 transport (polling-first vs Ably from day one — the doc recommends polling-first,
+  which deviates from architectural decision 7), D2 bonus split on a collective clear, D3
+  room games off the single-player leaderboards, D4 host-leaves = room cancelled.
 
-### 7.2 `[ ]` Implementation plan
-- Tables: `rooms(id, code 6-char join code, host_player_id, game_id, status, created_at)`,
-  `room_players(room_id, player_id, joined_at, score, found_count)`.
-- REST: create room → get join code; join by code; start (host only).
-- **Ably** channel `room:{code}` (token-authed so only room members can subscribe):
-  clients subscribe with `ably-js`; **presence** tracks who's in the lobby; the guess API
-  route publishes (server-side, with the Ably server key) `game_started` (scrambled letters
-  + ends_at), `progress_update {player, found_count, score}` on every correct guess, and
-  `game_over {full reveal: per-player word lists, remaining words}`. Guesses still go over
-  REST (Ably is push-only here) — the guess handler just also publishes.
-- Frontend: lobby screen (create/join with code), in-game opponent progress sidebar,
-  end-of-game comparison view.
-- **Gotchas to write into the task:** reconnection (client re-subscribes to the channel
-  and GETs a room-snapshot endpoint to resync); room TTL/cleanup; cap room size (e.g. 8);
-  keep broadcasts coarse — Ably's free tier is 6M messages/month / 200 concurrent; use Ably
-  token auth so only room members can subscribe.
-- **Suggested cheap precursor (consider shipping as 7.0):** a **daily puzzle** — same
-  word for everyone each day, with a daily leaderboard. ~10% of the effort, delivers much
-  of the social value, and creates a retention loop. Reuses everything from Batch 2.
+### 7.2 `[ ]` Implementation plan — ordered work orders, one PR each
+*Written for a Sonnet-class implementer: each item names its acceptance check. Do them in
+order; 7.2.1 is the `App.jsx` refactor this batch was designated to carry (see the
+"Frontend refactor" bullet in Batch 10) and everything after it builds on that seam. The
+contract for every item is [`docs/multiplayer.md`](./docs/multiplayer.md) — read §3–§6
+before starting any of them. Do not start 7.2.2+ until D1–D4 are answered.*
+
+- `[ ]` **7.2.0 Display-name preference.** `PATCH /api/v1/me/preferences {display_name}`
+  (+ in the GET), validation shared with `lib/admin-players.ts`'s `renamePlayer` (extract
+  the trim/length rule into one function rather than duplicating it); a text field in
+  `<SettingsPanel>`. Contract test: round-trip + rejection of an over-long / blank name.
+  *Accept:* a set name shows on the existing leaderboards (`lib/scores.ts`) instead of
+  "Névtelen játékos".
+- `[ ]` **7.2.1 `useGame` extraction (no behaviour change) + E2E coverage first.** Move the
+  game state machine out of `App.jsx` into `frontend/src/components/useGame.js` exposing
+  at minimum `beginFromStartResponse(payload)` (today's setter block in `startNewGame`),
+  `enterPreGame()`, `endGame(reason)` (the shared terminal transition the timer / give-up /
+  full-clear paths all perform), and the guess/hint/give-up/rescramble handlers. **Before**
+  moving anything, extend `frontend/e2e/game.spec.ts` with: hint (toast + score deduction),
+  give-up (reveal + "Új játék" visible), and a mid-game language switch (board unchanged,
+  zero `game/start` calls) — the classes of regression this repo's history shows a hook
+  extraction can cause. The TDZ gotcha (a `useEffect` whose deps name a `const` declared
+  below it throws on first paint; only E2E catches it) and the `i18n` wrapper-identity
+  gotcha both apply — see the memory notes / the `init()` effect's comment. *Accept:*
+  E2E green with the new cases, `App.jsx` no longer owns any game-state `useState`.
+- `[ ]` **7.2.2 Migration 0020 + `lib/rooms.ts` (lobby).** Tables per the design doc §3;
+  `createRoom` / `joinRoom` / `leaveRoom` / `getRoomSnapshot` (lobby shape only, incl.
+  `online` from `last_seen_at`); dispatcher routes `POST /rooms`, `POST /rooms/{code}/join`,
+  `/leave`, `GET /rooms/{code}`; code generation from the unambiguous alphabet with a
+  retry on unique-violation. Contract tests with two cookies (`startWithCookie` shows the
+  pattern): create → join → snapshot from both sides → full / started / unknown 409/404s →
+  host leave cancels. Apply the migration to the preview DB *and* to production right
+  after merge (see the migration-deploy-ordering note in memory).
+- `[ ]` **7.2.3 Start + shared deadline + lazy room expiry.** `startRoom` (host only, ≥2
+  members): uniform-random target, `findableWords`, one multi-row `games` insert with
+  `room_id` and the shared `ends_at`; snapshot gains `your_game` while playing; snapshot
+  finalizes an over-deadline room via the existing `finalizeExpiry` per member game then
+  `finishRoom(…, 'expired')`. Contract tests: every member's `your_game` has the same
+  letters and `ends_at`; a `duration_seconds`-shortened room (test-only override, same as
+  `game/start`) expires and every member game reads `expired`.
+- `[ ]` **7.2.4 Collective clear + everyone-done + bonus + exclusions.** Hooks in `guess()`
+  and `giveUp()` per design §4; `finishRoom` race-safe via the `status = 'playing'` UPDATE
+  guard; bonus per D2; `room_id is null` in `lib/scores.ts` and the `full_clear*` skip in
+  `lib/achievements.ts`. Contract tests: two players whose finds together cover the board
+  end the room `cleared` with the bonus on both; a room game never appears on
+  `/scores/top`; the existing concurrency test pattern (`Promise.all` guesses) applied to
+  two members finding the last word simultaneously — exactly one `finishRoom` wins.
+- `[ ]` **7.2.5 Frontend lobby.** `RoomPanel` in `<SettingsPanel>` (display name, create,
+  join), `useRoom` polling hook (3 s, paused on `document.hidden`, stops on finished),
+  lobby view in place of the pre-game board, `?room=CODE` deep link, share-link copy.
+  Headless check against the PR preview with two browser contexts.
+- `[ ]` **7.2.6 Frontend in-game + end.** Room start via `useGame.beginFromStartResponse(
+  snapshot.your_game)`; opponent strip; `👥 CODE` badge; end-of-game comparison view from
+  `snapshot.reveal`; rematch (`POST /rooms/{code}/rematch`, `next_room_code` pointer).
+  E2E: a two-context Playwright test — create, join, start, one find each, reveal shows
+  both names.
+- `[ ]` **7.2.7 Admin.** Rooms-per-day on the dashboard; `room_id` in the game drill-down.
+- `[ ]` **7.2.8 (only if D1 = Ably) Push layer.** Server: publish `room_updated` from the
+  start / guess / finish hooks via Ably's REST endpoint (server key on Vercel, owner
+  step); `POST /rooms/{code}/realtime-token` gated on membership; client: ably-js, message
+  = "refetch the snapshot" (event-as-poke), polling kept at 15 s as fallback. No data-model
+  change.
+- Historical note: the "cheap precursor" this section once suggested — a daily puzzle — has
+  since shipped as Batch 10 item 1 (PR #62) and is the pattern the room design copies.
 
 ---
 
@@ -1777,6 +1832,11 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
   headless click-through on the PR's own preview for what E2E doesn't cover (pre-game
   placeholder count tracking `selectedLength`, timer counting down, hint toast, give-up
   reveal, zero `game/start` calls on a language switch — the item-15 regression class).
+  **Merged 2026-09-15 as PR #69** after that click-through was actually run against the
+  preview (5/6 script checks; the 6th was a regex in the ad-hoc script expecting "point"
+  where the copy says "pts", not a product issue) and re-verified on production post-merge.
+  **`useGame` + the remaining state extraction is now 7.2.1's first work order** — see
+  Batch 7.2 for why room mode needs that seam before any room code lands.
 - **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
   constraint, not priority) — **shipped 2026-09-01 (PR #66)**, ahead of Batch 8 rather
   than at the deadline (it was the clean pick for a `/next-batch` slot).
@@ -1797,6 +1857,120 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
     Linked from `<SettingsPanel>`'s footer.
   - Contract tests: no-identity no-op + a full mint→give-up→`DELETE`→stats/achievements-
     read-empty round-trip (self-cleaning, so safe against any deployment).
+
+---
+
+## Batch 11 — Review backlog (whole-codebase design/review pass, 2026-09-15)
+
+*Findings from a full read of `lib/`, `api/`, `migrations/`, `frontend/src/`, the tests, CI
+and the docs. Sized for a Sonnet-class implementer; each is independent unless noted.
+Items marked `[x]` were fixed in the same PR as this section (trivial, behaviour-preserving
+or an outright bug). Nothing here blocks Batch 7.*
+
+**Fixed in the review PR**
+- `[x]` **11.1 Error-screen retry could never recover.** `App.jsx`'s error screen passed
+  the click event into `startNewGame(length, …)`, so the retry hit
+  `game/start?target_length=[object Object]` → 422 → the same error screen. Now calls
+  `startNewGame(selectedLength, selectedWordlist, selectedEasyMode)`.
+- `[x]` **11.2 The guess rate-limit 429 still returned hardcoded Hungarian prose** ("Túl sok
+  tipp…") despite 6.2's result-code convention; now `detail: "rate_limited"`. The frontend
+  already keyed its copy off the status code, so no client change.
+- `[x]` **11.3 Dead export** `handler()` in `lib/http.ts` (nothing imported it since the
+  dispatcher consolidation) removed.
+- `[x]` **11.4 Docs drift** in `README.md` (`api/` described as "one handler per endpoint,
+  10 functions" — it has been one dispatcher since Batch 4.2; "Neon also provides the auth
+  in Batch 2" — identity is the signed cookie; Node 18+ — Vite 7 needs ≥ 20.19; word counts
+  predating the 2026-07-30 purge; no mention of the E2E job) and `.env.example`
+  (`POSTGRES_URL` "injected by the Neon integration" — this project has no marketplace
+  integration, `DATABASE_URL` is set by hand; see ROADMAP 5.2's correction).
+
+**Correctness / consistency (small, do any time)**
+- `[ ]` **11.5 Admin-editable knobs are still hardcoded in the client.** `HINT_COST = 10`
+  and `MIN_GUESS_LENGTH = 3` in `App.jsx` mirror `config` *defaults*; an admin change to
+  `hint_cost` / `min_word_length` (Batch 5.2 item 2) leaves the hint button label and the
+  client-side "too short" pre-check wrong. Fix: echo `hint_cost` and `min_word_length` in
+  `game/start` (and `daily/start`) responses next to `ui`, store them in game state (7.2.1's
+  `useGame` is the natural home), and drop the two constants. While there, branch
+  `handleSubmit` on `response.result` (`too_short` / `cannot_form` / `not_in_dictionary`)
+  instead of the `valid`/`can_form` booleans — today a server `too_short` reads as "not in
+  the dictionary".
+- `[ ]` **11.6 Give-up uses `window.confirm`.** Every other destructive action goes through
+  `<ConfirmationModal>` (Batch 10 item 4 gave it dialog semantics); give-up should too.
+  One-line change once `pendingConfirm` is reachable from `handleGiveUp`.
+- `[ ]` **11.7 "Névtelen játékos" is server-side and Hungarian-only** (`lib/scores.ts`,
+  `lib/daily.ts`): an English UI shows a Hungarian placeholder on the leaderboards. Return
+  `display_name: null` and let the client render `t('highScores.anonymous')` (add the key,
+  hu + en). Contract tests that assert the string need the same update.
+- `[ ]` **11.8 Audit log never records *who*.** `admin_audit_log.admin_id` stays null even
+  for a Magic-Link session, which *does* carry a player id (`lib/admin.ts`
+  `hasValidAdminSession` resolves the linked row). Have `isAdminAuthorized` return the
+  admin's player id (or null for the shared token) and thread it into `logAdminAction`.
+- `[ ]` **11.9 `getState` echoes `guess_count: found_count`.** Mislabelled and unused by the
+  frontend (it never calls `GET /game/{id}`); remove the field, or make it a real count of
+  `game_guesses`. Pure cleanup.
+- `[ ]` **11.10 Rate-limit query shape.** `guess()`'s anti-cheat count joins every game the
+  player ever played and then filters `created_at >= now() - 1s`; correct, but it is a
+  per-player scan that grows with history. A partial index `game_guesses (created_at)
+  where correct` keeps it O(recent). Check with `EXPLAIN ANALYZE` on production first
+  (the 2026-07-30 `pickPersonalizedWord` note shows the routine).
+- `[ ]` **11.11 `games.status = 'abandoned'` is a dead enum value** — nothing writes it (the
+  sweeper 0.2 mentioned was never needed once expiry became lazy). Either drop it from
+  the check constraint in the next schema migration that touches `games`, or leave it with
+  a comment; don't build a sweeper.
+
+**Tech stack / ops (checked 2026-09-15)**
+- `[ ]` **11.12 Node 20 reached end-of-life on 2026-04-30; CI still pins it** (`ci.yml`,
+  three jobs) and the repo has no `engines` field, so Vercel's function runtime is
+  whatever the dashboard default is (unverified this session — check Settings → Node.js
+  version). Move CI to Node 22 (LTS to 2027-04), add `"engines": {"node": "22.x"}` to the
+  root `package.json`, regenerate both lockfiles with the matching npm (see the
+  npm-10-vs-11 lockfile gotcha in memory / PR #68). **Confirm-first:** this edits the CI
+  pipeline and the runtime; do it as its own PR, nothing else in it.
+- `[ ]` **11.13 `HF_TOKEN` is still a repository secret** from the Hugging Face sync retired
+  in Batch 1.3 (`gh secret list`). Delete it — owner action, nothing in the repo reads it.
+- `[ ]` **11.14 Sentry DSNs (Batch 10 item 9) — unverified whether they were ever set** on
+  Vercel (the CLI wasn't available in the review session). If not, either set them (free
+  tier) or accept "structured logs only" and say so in `.env.example`.
+- `[ ]` **11.15 `@neondatabase/auth` is still a beta line** (`^0.5.0-beta`). Keep the
+  `ADMIN_TOKEN` fallback until the SDK is GA; re-run `npm audit` on every bump (this repo
+  already held a release once for a CVE in exactly this package).
+- `[ ]` **11.16 Stack is otherwise current and fit:** React 19 / Vite 7 / Tailwind 3
+  (Tailwind 4 exists; migrating buys nothing here — don't), postgres.js 3 with
+  `prepare:false` against Neon's pooler, vitest 3, Playwright 1.62, Sentry 10. Backups:
+  the monthly `pg_dump` workflow has run green on 2026-08-01 and 2026-09-01. Not a task —
+  recorded so the next review doesn't re-derive it.
+- `[ ]` **11.17 `.gitignore` tidy-up:** it lists `.gitignore` and `.git/` (no-ops), and
+  ignores `lib/` (a Python-era rule) then re-includes it — a new `lib64/`-style
+  directory would silently vanish. Replace the Python block with the two rules this repo
+  actually needs (`venv/`, `word-game-env/`, `__pycache__/`). Also the `backend/`, `dist/`,
+  `venv/`, `word-game-env/` directories in the working tree are untracked leftovers, not
+  repo content — safe to delete locally, nothing to commit.
+
+**Test coverage gaps (to close alongside the features that touch them)**
+- `[ ]` **11.18** No frontend unit tests at all; the contract suite (77 tests) is the real
+  safety net and the E2E has one scenario. 7.2.1 extends the E2E first (hint, give-up,
+  language switch); a two-browser-context test arrives with 7.2.6. Don't add a frontend
+  unit-test framework just to have one — the pure helpers in `api/client.ts` (`canFormWord`,
+  `calculateScore`) duplicate `lib/words.ts`, which is already unit-tested.
+- `[ ]` **11.19** `client.ts` interfaces vs. real responses are still unchecked by `tsc`
+  (the only caller is `.jsx`) — the PR #37 lesson stands. Any item above that changes a
+  response shape must update `client.ts` by hand.
+
+**Ideas (unsized, not scheduled — the owner picks)**
+- **11.20 Shareable daily result** — a Wordle-style "🗓️ 2026-09-15 · 7/41 words · 🔥 5"
+  text/emoji card behind a Share button on the daily panel (Web Share API with clipboard
+  fallback). Word-agnostic by construction, so it respects the no-word-history rule, and
+  it is the retention loop the daily was built for.
+- **11.21 Corpus-frequency difficulty signal** (already noted in `lib/word-stats.ts`): the
+  live-play `MIN_ATTEMPTS_FOR_DIFFICULTY` gate is structurally unreachable at this traffic,
+  so easy mode and "hardest words" are inert. A word-frequency list (hu: e.g. the
+  Hungarian Webcorpus frequency data; en: the `word-list` source has none — use a public
+  unigram frequency list) imported into a `words.frequency_rank` column would make both
+  features real at zero traffic. Licence check first, like `data/README.md` does.
+- **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
+  `docs/multiplayer.md` most likely to be asked for after the first real session.
+- **11.23 "Did you know" highlight** from `longest_word_found` (kept in `/me/stats` for
+  exactly this) — one line on the stats panel, rotating, never a list.
 
 ---
 
@@ -1826,10 +2000,11 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
 | 4 — Word curation | M | 2 |
 | 5 — Admin | M | 4 |
 | 6 — English / i18n | M | 1 (2 for prefs) |
-| 7 — Multiplayer | L–XL | 0–3 |
+| 7 — Multiplayer | L–XL (7.1 done; 7.2.0–7.2.7 ≈ 8 PRs, 7.2.8 optional) | 0–3, D1–D4 answered |
 | 8 — Google OAuth | S | 2 |
 | 9 — Android (TWA) | S–M | stable deploy |
 | 10 — Backlog | à la carte | varies |
+| 11 — Review backlog (2026-09-15) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or
 updates tests in `backend/tests/`; every PR updates the checkbox here. Batches 0 and 1
