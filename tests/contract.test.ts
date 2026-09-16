@@ -1948,8 +1948,13 @@ describeApi("Betűvető API contract", () => {
       cookie ? { Cookie: cookie } : undefined,
     );
     const cookieValue = cookie ?? headers.get("set-cookie")?.split(";", 1)[0];
-    if (!cookieValue) throw new Error("No identity cookie minted or supplied.");
-    return { status, json, cookie: cookieValue };
+    // joinRoom only attaches Set-Cookie on a 200 (same convention as game/start) — a
+    // rejected join (room_full/room_started/room_cancelled) is an expected outcome for
+    // some callers of this helper and shouldn't need a cookie to assert on.
+    if (status === 200 && !cookieValue) {
+      throw new Error("No identity cookie minted despite a 200 response.");
+    }
+    return { status, json, cookie: cookieValue ?? "" };
   }
 
   it("creates a room in each mode, joins, and both sides' snapshots agree", async () => {
@@ -1980,7 +1985,7 @@ describeApi("Betűvető API contract", () => {
       expect(hostSnapshot.json.members.find((m: any) => m.is_you).is_host).toBe(true);
       expect(guestSnapshot.json.members.find((m: any) => m.is_you).is_host).toBe(false);
     }
-  });
+  }, 20000); // up to ~10 sequential round trips (both modes) — longer than the default.
 
   it("rejects an unrecognised mode and a blank or over-long display_name", async () => {
     const badMode = await call("POST", "/api/v1/rooms", { display_name: "Anna", mode: "ffa" });
@@ -2012,7 +2017,7 @@ describeApi("Betűvető API contract", () => {
     const ninth = await joinRoomWithCookie(host.result.code, "One too many");
     expect(ninth.status).toBe(409);
     expect(ninth.json.detail).toBe("room_full");
-  });
+  }, 20000); // 9 sequential round trips (create + 8 joins) — longer than the default.
 
   it("host leaving cancels the room; a non-host leaving just removes them", async () => {
     const host = await createRoomWithCookie("Host");
