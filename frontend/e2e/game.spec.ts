@@ -46,9 +46,10 @@ async function loadDictionary(): Promise<string[]> {
   return words
 }
 
-test('start a game, guess a word, and see the score update', async ({ page }) => {
-  const dictionary = await loadDictionary()
-
+// Shared by every test below: mint an identity (CI's pinned player when available) and
+// press "Új játék", the pre-game board's only control (ROADMAP Batch 10 item 17). Returns
+// the started board's own letters, read off the rendered <button>s.
+async function startGame(page: import('@playwright/test').Page): Promise<string> {
   if (CI_PLAYER_COOKIE) {
     const baseURL = test.info().project.use.baseURL
     if (!baseURL) throw new Error('playwright.config.ts must set use.baseURL for cookie scoping.')
@@ -58,11 +59,8 @@ test('start a game, guess a word, and see the score update', async ({ page }) =>
   }
 
   await page.goto('/')
-
-  // ROADMAP Batch 10 item 17: the app opens on an inert pre-game board — click the start
-  // button ("Új játék", the only control on that board) to begin a game. Pre-game the
-  // board holds plain <div> placeholder tiles, so the real letter <button>s appear only
-  // once the game has started.
+  // Pre-game the board holds plain <div> placeholder tiles, so the real letter <button>s
+  // appear only once the game has started.
   await page.getByRole('button', { name: 'Új játék', exact: true }).click()
 
   const board = page.getByRole('group', { name: 'Kirakható betűk' })
@@ -70,7 +68,17 @@ test('start a game, guess a word, and see the score update', async ({ page }) =>
   await expect(board.getByRole('button').first()).toBeVisible()
   const letters = (await board.getByRole('button').allTextContents()).join('')
   expect(letters.length).toBeGreaterThan(0)
+  return letters
+}
 
+// Guesses through a short candidate list (see the file-level comment on why more than one
+// is tried) until one scores, polling the score's aria-label since a rejected guess never
+// moves it. Returns the accepted word, or null if every candidate was rejected.
+async function findAcceptedWord(
+  page: import('@playwright/test').Page,
+  dictionary: string[],
+  letters: string,
+): Promise<string | null> {
   const candidates = dictionary
     .filter((word) => letterCount(word) <= letters.length && canFormWord(word, letters))
     .slice(0, MAX_CANDIDATES)
@@ -80,32 +88,112 @@ test('start a game, guess a word, and see the score update', async ({ page }) =>
   const guessInput = page.getByLabel('Tipp beírása')
   const scoreBefore = (await score.getAttribute('aria-label')) || ''
 
-  let accepted: string | null = null
   for (const candidate of candidates) {
     await guessInput.fill(candidate)
     await page.getByLabel('Tipp beküldése').click()
 
-    // Poll briefly for the score to move; a rejected guess (e.g. this candidate has since
-    // been removed from the live `words` table — see the file-comment above) never does,
-    // so this must have a bounded wait rather than an assertion that throws.
     let moved = false
     for (let i = 0; i < 10 && !moved; i++) {
       await page.waitForTimeout(200)
       moved = (await score.getAttribute('aria-label')) !== scoreBefore
     }
-    if (moved) {
-      accepted = candidate
-      break
-    }
+    if (moved) return candidate
     await guessInput.fill('')
   }
-  expect(
-    accepted,
-    `none of the wordlist-file candidates were accepted by the live dictionary: ${candidates.join(', ')}`,
-  ).not.toBeNull()
+  return null
+}
+
+test('start a game, guess a word, and see the score update', async ({ page }) => {
+  const dictionary = await loadDictionary()
+  const letters = await startGame(page)
+
+  const accepted = await findAcceptedWord(page, dictionary, letters)
+  expect(accepted, `none of the wordlist-file candidates were accepted by the live dictionary`).not.toBeNull()
 
   // A correct guess adds the word to "Talált szavak".
   await expect(page.getByRole('heading', { name: 'Talált szavak:' })).toBeVisible()
   // Rendered as "WORD (N pont)" in one text node, so this is a substring match.
   await expect(page.getByText(accepted!, { exact: false }).first()).toBeVisible()
+})
+
+// ROADMAP 7.2.1 — extended before the useGame extraction, as a regression net for the
+// three classes of bug a hook extraction can cause in this codebase (a duplicated setter
+// block drifting from its original, a dropped side effect, a dependency-array mistake
+// reintroducing the item-15 language-switch bug). All three must stay green through and
+// after the extraction with no changes to this file.
+test('reveals a hint and deducts its cost from the displayed score', async ({ page }) => {
+  const dictionary = await loadDictionary()
+  const letters = await startGame(page)
+  // Score a word first: displayScore floors at 0 (lib/game.ts's effectiveScore does the
+  // same server-side), so a hint's deduction is only observable once there's something to
+  // deduct from.
+  const accepted = await findAcceptedWord(page, dictionary, letters)
+  expect(accepted, `none of the wordlist-file candidates were accepted by the live dictionary`).not.toBeNull()
+
+  const score = page.getByLabel(/^Pontszám:/)
+  const scoreBefore = (await score.getAttribute('aria-label')) || ''
+
+  await page.getByRole('button', { name: /Segítség/ }).click()
+
+  // handleUseHint's success path sets hintMessage, rendered as its own role="status" live
+  // region (distinct from the guess-error role="alert" overlay).
+  await expect(page.getByRole('status').filter({ hasText: 'betűs szó eleje' })).toBeVisible()
+  await expect(score).not.toHaveAttribute('aria-label', scoreBefore)
+})
+
+test('gives up, reveals the solution, and leaves the board ready for another game', async ({ page }) => {
+  await startGame(page)
+
+  // handleGiveUp gates on window.confirm() before calling the API.
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: /Feladom/ }).click()
+
+  // showTemporaryError renders the reveal as a role="alert" overlay (errors.revealed).
+  await expect(page.getByRole('alert').filter({ hasText: 'A teljes szó:' })).toBeVisible()
+
+  // The give-up/hint row is gated on `!isTimeUp` — its disappearance confirms the game
+  // actually transitioned to ended, not just that the reveal toast happened to render.
+  await expect(page.getByRole('button', { name: /Feladom/ })).toHaveCount(0)
+
+  // "Új játék" stays usable (it isn't gated on game state) — starting fresh after a
+  // give-up must still work, not just look clickable.
+  const startButton = page.getByRole('button', { name: 'Új játék', exact: true })
+  await expect(startButton).toBeEnabled()
+  await startButton.click()
+  const board = page.getByRole('group', { name: 'Kirakható betűk' })
+  await expect(board.getByRole('button').first()).toBeVisible()
+})
+
+test('switching UI language mid-game leaves the board and the game untouched', async ({ page }) => {
+  const letters = await startGame(page)
+
+  const startCalls: string[] = []
+  page.on('request', (req) => {
+    if (req.url().includes('/api/game/start') || req.url().includes('/daily/start')) {
+      startCalls.push(req.url())
+    }
+  })
+
+  await page.getByRole('button', { name: 'Beállítások', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.waitFor({ state: 'visible' })
+  await dialog.getByLabel('Felület nyelvének kiválasztása').selectOption('en')
+
+  // The UI actually switched (not a no-op) — the settings dialog itself re-renders in
+  // English once i18n.changeLanguage resolves.
+  await expect(page.getByRole('button', { name: 'Close settings' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close settings' }).click()
+
+  // The in-progress game must be completely unaffected: same board, and — this is the
+  // regression this test exists for (ROADMAP Batch 10 item 15) — no new game/start call.
+  // Not `getByRole('group', { name: 'Kirakható betűk' })` here: that accessible name is
+  // itself a translated string, and has just changed along with everything else — the
+  // board is the only role="group" element on the page, so no name filter is needed.
+  const boardAfter = page.getByRole('group')
+  const lettersAfter = (await boardAfter.getByRole('button').allTextContents()).join('')
+  expect(lettersAfter).toBe(letters)
+  expect(startCalls).toHaveLength(0)
+
+  // English copy now renders for the rest of the page too, e.g. the start/new-game button.
+  await expect(page.getByRole('button', { name: 'New game', exact: true })).toBeVisible()
 })
