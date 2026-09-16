@@ -90,3 +90,16 @@ jobs:
       - name: E2E smoke test
         working-directory: frontend
         run: npx playwright test
+
+      # Diagnostic (added 2026-09-16, betuveto-ci-e2e-github-actions-flake memory): every
+      # failure so far has been a bare "waiting for <button>" timeout with no visibility
+      # into what the page actually showed. Playwright already writes error-context.md
+      # (an ARIA snapshot) per failed test into test-results/ — this just lets it leave
+      # the runner instead of vanishing when the job ends.
+      - name: Upload Playwright results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: frontend/test-results/
+          retention-days: 7
