@@ -1904,4 +1904,139 @@ describeApi("Betűvető API contract", () => {
     const state = await call("GET", `/api/game/${game.game_id}`);
     expect(state.json.found_count).toBe(succeeded.length);
   });
+
+  // --- Multiplayer rooms — lobby (ROADMAP 7.2.2) -----------------------------
+  // Only the lobby lifecycle exists yet (create/join/leave/snapshot) — starting a room
+  // is 7.2.3, so 'playing' is unreachable here and the room_started 409 branch, while
+  // implemented defensively in lib/rooms.ts, has no contract test until that ships.
+  interface RoomResult {
+    code: string;
+    room: {
+      status: string;
+      mode: string;
+      wordlist: string;
+      target_length: number;
+      is_host: boolean;
+      member_count: number;
+      max_members: number;
+      members: { player_id: string; display_name: string | null; is_you: boolean; is_host: boolean; online: boolean }[];
+    };
+  }
+
+  async function createRoomWithCookie(
+    displayName: string,
+    mode?: "coop" | "versus",
+  ): Promise<{ result: RoomResult; cookie: string }> {
+    const body: Record<string, unknown> = { display_name: displayName };
+    if (mode) body.mode = mode;
+    const { status, json, headers } = await call("POST", "/api/v1/rooms", body);
+    expect(status).toBe(200);
+    const cookieValue = headers.get("set-cookie")?.split(";", 1)[0];
+    if (!cookieValue) throw new Error("No identity cookie minted.");
+    return { result: json as RoomResult, cookie: cookieValue };
+  }
+
+  async function joinRoomWithCookie(
+    code: string,
+    displayName: string,
+    cookie?: string,
+  ): Promise<{ status: number; json: any; cookie: string }> {
+    const { status, json, headers } = await call(
+      "POST",
+      `/api/v1/rooms/${code}/join`,
+      { display_name: displayName },
+      cookie ? { Cookie: cookie } : undefined,
+    );
+    const cookieValue = cookie ?? headers.get("set-cookie")?.split(";", 1)[0];
+    // joinRoom only attaches Set-Cookie on a 200 (same convention as game/start) — a
+    // rejected join (room_full/room_started/room_cancelled) is an expected outcome for
+    // some callers of this helper and shouldn't need a cookie to assert on.
+    if (status === 200 && !cookieValue) {
+      throw new Error("No identity cookie minted despite a 200 response.");
+    }
+    return { status, json, cookie: cookieValue ?? "" };
+  }
+
+  it("creates a room in each mode, joins, and both sides' snapshots agree", async () => {
+    for (const mode of ["coop", "versus"] as const) {
+      const host = await createRoomWithCookie(`Host ${mode}`, mode === "versus" ? mode : undefined);
+      expect(host.result.room.mode).toBe(mode);
+      expect(host.result.room.status).toBe("lobby");
+      expect(host.result.room.is_host).toBe(true);
+      expect(host.result.room.member_count).toBe(1);
+
+      const guest = await joinRoomWithCookie(host.result.code, "Guest");
+      expect(guest.status).toBe(200);
+      expect(guest.json.room.mode).toBe(mode);
+      expect(guest.json.room.member_count).toBe(2);
+      expect(guest.json.room.is_host).toBe(false);
+
+      // Idempotent re-join for an existing member (roadmap's own acceptance text).
+      const rejoin = await joinRoomWithCookie(host.result.code, "Guest", guest.cookie);
+      expect(rejoin.status).toBe(200);
+      expect(rejoin.json.room.member_count).toBe(2);
+
+      // Both sides' snapshots (GET) echo the same mode and member set, each with the
+      // correct is_you/is_host from their own vantage point.
+      const hostSnapshot = await call("GET", `/api/v1/rooms/${host.result.code}`, undefined, { Cookie: host.cookie });
+      const guestSnapshot = await call("GET", `/api/v1/rooms/${host.result.code}`, undefined, { Cookie: guest.cookie });
+      expect(hostSnapshot.json.mode).toBe(mode);
+      expect(guestSnapshot.json.mode).toBe(mode);
+      expect(hostSnapshot.json.members.find((m: any) => m.is_you).is_host).toBe(true);
+      expect(guestSnapshot.json.members.find((m: any) => m.is_you).is_host).toBe(false);
+    }
+  }, 20000); // up to ~10 sequential round trips (both modes) — longer than the default.
+
+  it("rejects an unrecognised mode and a blank or over-long display_name", async () => {
+    const badMode = await call("POST", "/api/v1/rooms", { display_name: "Anna", mode: "ffa" });
+    expect(badMode.status).toBe(422);
+
+    const blankName = await call("POST", "/api/v1/rooms", { display_name: "   " });
+    expect(blankName.status).toBe(422);
+
+    const longName = await call("POST", "/api/v1/rooms", { display_name: "x".repeat(21) });
+    expect(longName.status).toBe(422);
+  });
+
+  it("404s an unknown room code on join and on the snapshot", async () => {
+    const badJoin = await call("POST", "/api/v1/rooms/ZZZZZZ/join", { display_name: "Anna" });
+    expect(badJoin.status).toBe(404);
+
+    const { cookie } = await createRoomWithCookie("Host");
+    const badSnapshot = await call("GET", "/api/v1/rooms/ZZZZZZ", undefined, { Cookie: cookie });
+    expect(badSnapshot.status).toBe(404);
+  });
+
+  it("409s room_full once 8 members have joined", async () => {
+    const host = await createRoomWithCookie("Host");
+    for (let i = 0; i < 7; i++) {
+      const joined = await joinRoomWithCookie(host.result.code, `Guest ${i}`);
+      expect(joined.status).toBe(200);
+    }
+    // 7 joins + the host = 8, the cap.
+    const ninth = await joinRoomWithCookie(host.result.code, "One too many");
+    expect(ninth.status).toBe(409);
+    expect(ninth.json.detail).toBe("room_full");
+  }, 20000); // 9 sequential round trips (create + 8 joins) — longer than the default.
+
+  it("host leaving cancels the room; a non-host leaving just removes them", async () => {
+    const host = await createRoomWithCookie("Host");
+    const guest = await joinRoomWithCookie(host.result.code, "Guest");
+
+    // Non-host leaves: the room stays in the lobby, member count drops.
+    const guestLeave = await call("POST", `/api/v1/rooms/${host.result.code}/leave`, undefined, { Cookie: guest.cookie });
+    expect(guestLeave.status).toBe(200);
+    const afterGuestLeave = await call("GET", `/api/v1/rooms/${host.result.code}`, undefined, { Cookie: host.cookie });
+    expect(afterGuestLeave.json.status).toBe("lobby");
+    expect(afterGuestLeave.json.member_count).toBe(1);
+
+    // Host leaves: the room cancels (D4 — v1 has no host hand-off).
+    const hostLeave = await call("POST", `/api/v1/rooms/${host.result.code}/leave`, undefined, { Cookie: host.cookie });
+    expect(hostLeave.status).toBe(200);
+
+    // A cancelled room can no longer be joined.
+    const joinCancelled = await joinRoomWithCookie(host.result.code, "Too late");
+    expect(joinCancelled.status).toBe(409);
+    expect(joinCancelled.json.detail).toBe("room_cancelled");
+  });
 });
