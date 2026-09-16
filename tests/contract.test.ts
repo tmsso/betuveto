@@ -696,6 +696,29 @@ describeApi("Betűvető API contract", () => {
     expect(bad.status).toBe(422);
   });
 
+  // --- Display-name preference (ROADMAP 7.2.0) -------------------------------
+  it("round-trips a player's display_name through PATCH/GET, and rejects an over-long or blank name", async () => {
+    const minted = await call("POST", "/api/game/start?target_length=7");
+    const cookieValue = minted.headers.get("set-cookie")!.split(";", 1)[0];
+    const auth = { Cookie: cookieValue };
+
+    const before = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(before.json.display_name).toBeNull();
+
+    const patched = await call("PATCH", "/api/v1/me/preferences", { display_name: "  Kis Béla  " }, auth);
+    expect(patched.status).toBe(200);
+    expect(patched.json.display_name).toBe("Kis Béla");
+
+    const after = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(after.json.display_name).toBe("Kis Béla");
+
+    const tooLong = await call("PATCH", "/api/v1/me/preferences", { display_name: "x".repeat(21) }, auth);
+    expect(tooLong.status).toBe(422);
+
+    const blank = await call("PATCH", "/api/v1/me/preferences", { display_name: "   " }, auth);
+    expect(blank.status).toBe(422);
+  });
+
   it("treats writing a preference with no identity as unauthorized, reading as null", async () => {
     const get = await call("GET", "/api/v1/me/preferences");
     expect(get.status).toBe(200);

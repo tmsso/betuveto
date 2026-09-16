@@ -12,6 +12,7 @@ import Timer from './components/Timer'
 import Scoreboard from './components/Scoreboard'
 import { useSound } from './components/useSound'
 import { useTheme } from './components/useTheme'
+import { useDisplayName } from './components/useDisplayName'
 import { definitionUrl } from './dictionary'
 
 const canvasStyles = {
@@ -69,6 +70,9 @@ function App() {
   // <ThemeToggle>, which now lives in the settings drawer) so useTheme's one-time
   // server-preference fetch still runs on app load, not only when the drawer is opened.
   const { theme, setTheme } = useTheme()
+  // ROADMAP 7.2.0 — player-set display name, shown on the leaderboards instead of
+  // "Névtelen játékos". Loaded here (not lazily on drawer-open) to match useTheme/useSound.
+  const { displayName, setDisplayName } = useDisplayName()
 
   // Accessibility (ROADMAP Batch 10): <html lang> drives screen-reader pronunciation and
   // was hardcoded "hu" in index.html since before the language selector (ROADMAP 6.2)
@@ -1302,6 +1306,8 @@ function App() {
         onThemeChange={setTheme}
         soundEnabled={soundEnabled}
         onSoundToggle={setSoundEnabled}
+        displayName={displayName}
+        onDisplayNameChange={setDisplayName}
         wordlists={WORDLISTS}
         selectedWordlist={selectedWordlist}
         onWordlistChange={handleWordlistChange}

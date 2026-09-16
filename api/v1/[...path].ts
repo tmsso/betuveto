@@ -50,10 +50,12 @@ import {
 import { useHint } from "../../lib/hints.js";
 import { bodyField, bodyWord, intQuery, methodHandler, stringQuery } from "../../lib/http.js";
 import {
+  getDisplayName,
   getPreferredLanguage,
   getPreferredLength,
   getPreferredTheme,
   getSoundEnabled,
+  setDisplayName,
   setPreferredLanguage,
   setPreferredLength,
   setPreferredTheme,
@@ -241,17 +243,19 @@ function listLeaderboardEntriesRoute(req: VercelRequest) {
   );
 }
 
-// /me/preferences covers four independent preferences (ROADMAP 2.3's preferred_length,
-// 6.2's preferred_language, Batch 10 item 7's preferred_theme, item 8's sound_enabled)
-// on one route — merged here rather than in lib/players.ts so each preference's own
-// get/set stays independently testable and doesn't need to know about the others.
+// /me/preferences covers five independent preferences (ROADMAP 2.3's preferred_length,
+// 6.2's preferred_language, Batch 10 item 7's preferred_theme, item 8's sound_enabled,
+// 7.2.0's display_name) on one route — merged here rather than in lib/players.ts so each
+// preference's own get/set stays independently testable and doesn't need to know about
+// the others.
 async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
   const id = playerId(req);
-  const [length, language, theme, sound] = await Promise.all([
+  const [length, language, theme, sound, displayName] = await Promise.all([
     getPreferredLength(id),
     getPreferredLanguage(id),
     getPreferredTheme(id),
     getSoundEnabled(id),
+    getDisplayName(id),
   ]);
   return {
     status: 200,
@@ -260,6 +264,7 @@ async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
       ...(language.body as object),
       ...(theme.body as object),
       ...(sound.body as object),
+      ...(displayName.body as object),
     },
   };
 }
@@ -285,6 +290,11 @@ async function preferencesPatchRoute(req: VercelRequest): Promise<Reply> {
   }
   if (bodyField(req, "sound_enabled") !== undefined) {
     const reply = await setSoundEnabled(id, bodyField(req, "sound_enabled"));
+    if (reply.status !== 200) return reply;
+    Object.assign(body, reply.body);
+  }
+  if (bodyField(req, "display_name") !== undefined) {
+    const reply = await setDisplayName(id, bodyField(req, "display_name"));
     if (reply.status !== 200) return reply;
     Object.assign(body, reply.body);
   }

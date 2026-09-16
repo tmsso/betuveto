@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ThemeToggle from './ThemeToggle'
 import SoundToggle from './SoundToggle'
@@ -27,6 +27,8 @@ export default function SettingsPanel({
   onThemeChange,
   soundEnabled,
   onSoundToggle,
+  displayName,
+  onDisplayNameChange,
   wordlists,
   selectedWordlist,
   onWordlistChange,
@@ -61,6 +63,36 @@ export default function SettingsPanel({
   useEffect(() => {
     onCloseRef.current = onClose
   })
+
+  // ROADMAP 7.2.0 — local draft so we PATCH on blur, not per keystroke. A blank blur
+  // reverts silently (matches "never set a name" rather than showing an error) — the
+  // backend rejects a blank display_name for other callers of this same endpoint, but
+  // there's nothing to save here if the player just didn't type anything. Mirrors the
+  // DISPLAY_NAME_MAX_LENGTH cap in lib/players.ts.
+  const DISPLAY_NAME_MAX_LENGTH = 20
+  const [nameDraft, setNameDraft] = useState(displayName ?? '')
+  const [nameError, setNameError] = useState(null)
+  // Derived-during-render sync (React's own "adjusting state when a prop changes"
+  // pattern, not a useEffect+setState — refs aren't render-safe either) so a
+  // `displayName` prop change, the one-time server-preference load resolving after this
+  // panel already mounted, updates the draft without an extra render pass.
+  const [prevDisplayName, setPrevDisplayName] = useState(displayName)
+  if (displayName !== prevDisplayName) {
+    setPrevDisplayName(displayName)
+    setNameDraft(displayName ?? '')
+  }
+  const commitDisplayName = () => {
+    const trimmed = nameDraft.trim()
+    if (trimmed === (displayName ?? '') || trimmed.length === 0) {
+      setNameDraft(displayName ?? '')
+      return
+    }
+    setNameError(null)
+    onDisplayNameChange(trimmed).catch(() => {
+      setNameError(t('settings.displayNameError'))
+      setNameDraft(displayName ?? '')
+    })
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -121,6 +153,24 @@ export default function SettingsPanel({
         {/* Display */}
         <div className="flex flex-col gap-3">
           <h3 className="text-xs font-bold uppercase tracking-wide text-game-muted">{t('settings.displaySection')}</h3>
+          <div className={fieldRow}>
+            <label htmlFor="settings-display-name" className="text-game-muted font-semibold">
+              {t('settings.displayNameLabel')}
+            </label>
+            <input
+              id="settings-display-name"
+              type="text"
+              value={nameDraft}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitDisplayName}
+              placeholder={t('settings.displayNamePlaceholder')}
+              className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary w-32"
+            />
+          </div>
+          {nameError && (
+            <p className="text-xs text-red-600 dark:text-red-400 -mt-2">{nameError}</p>
+          )}
           <div className={fieldRow}>
             <label htmlFor="settings-language" className="text-game-muted font-semibold">
               {t('settings.languageLabel')}
