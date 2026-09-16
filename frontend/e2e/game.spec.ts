@@ -174,6 +174,21 @@ test('switching UI language mid-game leaves the board and the game untouched', a
     }
   })
 
+  // Bug found in production CI, 2026-09-16 (betuveto-ci-e2e-github-actions-flake memory):
+  // handleLanguageChange's setPreferredLanguage call is real, so this test durably wrote
+  // preferred_language='en' to whichever identity is active — and CI reuses one pinned
+  // identity across every run forever (ROADMAP Batch 10 item 11), so one green run here
+  // silently contaminated every CI run after it, on every PR, until this was traced. A
+  // try/finally restore isn't enough — it wouldn't run if an assertion above it throws.
+  // Stubbing the PATCH instead means this test can never persist a language preference,
+  // pass or fail, without needing the real API to cooperate.
+  await page.route('**/api/v1/me/preferences', (route) => {
+    if (route.request().method() === 'PATCH') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    }
+    return route.continue()
+  })
+
   await page.getByRole('button', { name: 'Beállítások', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await dialog.waitFor({ state: 'visible' })
