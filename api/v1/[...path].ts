@@ -63,6 +63,7 @@ import {
 } from "../../lib/players.js";
 import { getMyAchievements } from "../../lib/achievements.js";
 import { deleteMe } from "../../lib/account.js";
+import { createRoom, getRoomSnapshot, joinRoom, leaveRoom } from "../../lib/rooms.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
@@ -301,6 +302,30 @@ async function preferencesPatchRoute(req: VercelRequest): Promise<Reply> {
   return { status: 200, body };
 }
 
+// ROADMAP 7.2.2 — room lobby. Create and join mint an identity the same way game/start
+// does (a first-ever visitor can start a room in one request); leave and the snapshot
+// require an existing one, since both assume the caller is already a member.
+function createRoomRoute(req: VercelRequest) {
+  const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+  const wordlistField = bodyField(req, "wordlist");
+  const targetLengthField = bodyField(req, "target_length");
+  return createRoom(
+    bodyField(req, "display_name"),
+    bodyField(req, "mode"),
+    typeof wordlistField === "string" ? wordlistField : undefined,
+    // Mirrors intQuery's convention (lib/http.ts) despite this being a body field, not a
+    // query param: absent falls back to the default, present-but-wrong-type becomes NaN
+    // so createRoom's own range check 422s it rather than silently ignoring a bad value.
+    targetLengthField === undefined
+      ? DEFAULT_TARGET_LENGTH
+      : typeof targetLengthField === "number"
+        ? targetLengthField
+        : NaN,
+    resolvedPlayerId,
+    setCookieHeader,
+  );
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -407,6 +432,33 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
   if (segments.length === 2 && a === "scores" && b === "top") {
     return methodHandler({ GET: scoresTopRoute });
+  }
+
+  if (segments.length === 1 && a === "rooms") {
+    return methodHandler({ POST: createRoomRoute });
+  }
+
+  if (a === "rooms" && b !== undefined) {
+    const code = b;
+    if (segments.length === 2) {
+      return methodHandler({ GET: (req) => getRoomSnapshot(code, playerId(req)) });
+    }
+    if (segments.length === 3) {
+      switch (c) {
+        case "join":
+          return methodHandler({
+            POST: (req) => {
+              const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+              return joinRoom(code, bodyField(req, "display_name"), resolvedPlayerId, setCookieHeader);
+            },
+          });
+        case "leave":
+          return methodHandler({ POST: (req) => leaveRoom(code, playerId(req)) });
+        default:
+          return undefined;
+      }
+    }
+    return undefined;
   }
 
   if (a === "admin") {
