@@ -955,33 +955,31 @@ order; 7.2.1 is the `App.jsx` refactor this batch was designated to carry (see t
 contract for every item is [`docs/multiplayer.md`](./docs/multiplayer.md) — read §3–§7
 before starting any of them (§7 holds the owner's D1–D4 answers; they are settled).*
 
-- `[ ]` **7.2.0 Display-name preference.** `PATCH /api/v1/me/preferences {display_name}`
-  (+ in the GET), validation shared with `lib/admin-players.ts`'s `renamePlayer` (extract
-  the trim/length rule into one function rather than duplicating it); a text field in
-  `<SettingsPanel>`. Contract test: round-trip + rejection of an over-long / blank name.
-  *Accept:* a set name shows on the existing leaderboards (`lib/scores.ts`) instead of
-  "Névtelen játékos".
-- `[ ]` **7.2.1 `useGame` extraction (no behaviour change) + E2E coverage first.** Move the
-  game state machine out of `App.jsx` into `frontend/src/components/useGame.js` exposing
-  at minimum `beginFromStartResponse(payload)` (today's setter block in `startNewGame`),
-  `enterPreGame()`, `endGame(reason)` (the shared terminal transition the timer / give-up /
-  full-clear paths all perform), and the guess/hint/give-up/rescramble handlers. **Before**
-  moving anything, extend `frontend/e2e/game.spec.ts` with: hint (toast + score deduction),
-  give-up (reveal + "Új játék" visible), and a mid-game language switch (board unchanged,
-  zero `game/start` calls) — the classes of regression this repo's history shows a hook
-  extraction can cause. The TDZ gotcha (a `useEffect` whose deps name a `const` declared
-  below it throws on first paint; only E2E catches it) and the `i18n` wrapper-identity
-  gotcha both apply — see the memory notes / the `init()` effect's comment. *Accept:*
-  E2E green with the new cases, `App.jsx` no longer owns any game-state `useState`.
-- `[ ]` **7.2.2 Migration 0020 + `lib/rooms.ts` (lobby).** Tables per the design doc §3
-  (incl. `rooms.mode`, `'coop'` default, `'versus'` the alternative — a 422 for anything
-  else); `createRoom` / `joinRoom` / `leaveRoom` / `getRoomSnapshot` (lobby shape only,
-  incl. `mode` and `online` from `last_seen_at`); dispatcher routes `POST /rooms`, `POST
-  /rooms/{code}/join`, `/leave`, `GET /rooms/{code}`; code generation from the unambiguous
-  alphabet with a retry on unique-violation. Contract tests with two cookies
-  (`startWithCookie` shows the pattern): create (both modes) → join → snapshot from both
-  sides echoes the mode → full / started / unknown 409/404s → host leave cancels. Apply the migration to the preview DB *and* to production right
-  after merge (see the migration-deploy-ordering note in memory).
+- `[x]` **7.2.0 Display-name preference.** Shipped PR #72 (`60112ce`), 2026-09-16. `PATCH/GET
+  /api/v1/me/preferences {display_name}`, validation shared with `lib/admin-players.ts`'s
+  `renamePlayer` via a new `lib/players.ts` `normalizeDisplayName`. A set name shows on the
+  leaderboards instead of "Névtelen játékos" (no leaderboard code change needed — it already
+  read `display_name`). Verified live.
+- `[x]` **7.2.1 `useGame` extraction (no behaviour change) + E2E coverage first.** Shipped
+  PR #73 (`9f7f71e`), 2026-09-16. `frontend/src/components/useGame.js` now owns the game
+  state machine; `App.jsx` no longer owns any game-state `useState`. `e2e/game.spec.ts`
+  extended first, as specified — two of the three new tests caught real test-authoring bugs
+  against the *pre*-refactor code before the extraction even started. Verified live.
+- `[x]` **7.2.2 Migration 0020 + `lib/rooms.ts` (lobby).** Shipped PR #74 (`f314cf4`),
+  2026-09-16. Lobby lifecycle only (`createRoom`/`joinRoom`/`leaveRoom`/`getRoomSnapshot`);
+  `playing`/`finished` are coded defensively for 7.2.3+ but not reachable yet. Migration
+  applied to prod immediately on merge. Contract suite 82/82. Verified live: a real
+  create(versus)→join→snapshot-from-both-sides→host-leave-cancels round trip against
+  production.
+  - **Same-session finding, since fixed (PR #75):** the CI E2E job broke for 6 straight runs
+    after 7.2.1 merged — not infra flakiness, a real bug. 7.2.1's own new "language switch"
+    E2E test durably wrote `preferred_language='en'` to the one pinned player identity CI
+    reuses across every run forever (Batch 10 item 11), so the first green run of that test
+    silently broke every run after it for every PR. Any future E2E test that touches a real
+    persisted player preference must not do this — see
+    `betuveto-ci-e2e-github-actions-flake` in memory for the full trail and the fix pattern
+    (stub the persisting network call, don't rely on a restore-at-the-end that a thrown
+    assertion could skip).
 - `[ ]` **7.2.3 Start + shared deadline + lazy room expiry.** `startRoom` (host only, ≥2
   members): uniform-random target, `findableWords`, one multi-row `games` insert with
   `room_id` and the shared `ends_at`; snapshot gains `your_game` while playing; snapshot
@@ -1859,6 +1857,9 @@ dependency chain (most items are independent); it's a priority queue, revisit fr
   where the copy says "pts", not a product issue) and re-verified on production post-merge.
   **`useGame` + the remaining state extraction is now 7.2.1's first work order** — see
   Batch 7.2 for why room mode needs that seam before any room code lands.
+  **DONE — shipped as 7.2.1, PR #73, 2026-09-16.** `App.jsx` no longer owns any game-state
+  `useState`; `frontend/src/components/useGame.js` is the seam 7.2.6's room start builds
+  on. The "Frontend refactor" bullet is fully closed — no carrier still owed.
 - **Privacy page + data deletion endpoint** (not separately numbered — sequenced by a hard
   constraint, not priority) — **shipped 2026-09-01 (PR #66)**, ahead of Batch 8 rather
   than at the deadline (it was the clean pick for a `/next-batch` slot).
@@ -1969,10 +1970,11 @@ or an outright bug). Nothing here blocks Batch 7.*
   repo content — safe to delete locally, nothing to commit.
 
 **Test coverage gaps (to close alongside the features that touch them)**
-- `[ ]` **11.18** No frontend unit tests at all; the contract suite (77 tests) is the real
-  safety net and the E2E has one scenario. 7.2.1 extends the E2E first (hint, give-up,
-  language switch); a two-browser-context test arrives with 7.2.6. Don't add a frontend
-  unit-test framework just to have one — the pure helpers in `api/client.ts` (`canFormWord`,
+- `[ ]` **11.18** No frontend unit tests at all; the contract suite (82 tests) is the real
+  safety net. **7.2.1's E2E extension is done** (`e2e/game.spec.ts` now covers hint,
+  give-up, and a mid-game language switch, up from one scenario — see 7.2.1); a
+  two-browser-context test still arrives with 7.2.6. Don't add a frontend unit-test
+  framework just to have one — the pure helpers in `api/client.ts` (`canFormWord`,
   `calculateScore`) duplicate `lib/words.ts`, which is already unit-tested.
 - `[ ]` **11.19** `client.ts` interfaces vs. real responses are still unchecked by `tsc`
   (the only caller is `.jsx`) — the PR #37 lesson stands. Any item above that changes a
