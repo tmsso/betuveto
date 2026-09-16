@@ -245,6 +245,27 @@ class BetuAPIClient {
     if (!response.ok) throw new Error('Failed to save sound preference');
   }
 
+  // Display-name preference (ROADMAP 7.2.0) — same /me/preferences route. Shown on the
+  // existing leaderboards (lib/scores.ts) in place of "Névtelen játékos" once set.
+  async getDisplayName(): Promise<string | null> {
+    const response = await fetch('/api/v1/me/preferences');
+    if (!response.ok) throw new Error('Failed to fetch preferences');
+    const data = await response.json();
+    return data.display_name ?? null;
+  }
+
+  async setDisplayName(name: string): Promise<void> {
+    const response = await fetch('/api/v1/me/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: name }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail || 'Failed to save display name');
+    }
+  }
+
   // Game management
   async startGame(targetLength: number = 7, wordlist?: string, difficulty?: 'easy' | 'normal'): Promise<StartGameResult> {
     const params = new URLSearchParams({ target_length: String(targetLength) });

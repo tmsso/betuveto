@@ -8,12 +8,9 @@
 import { logAdminAction } from "./admin.js";
 import { db, wordlistId } from "./db.js";
 import type { Reply } from "./game.js";
+import { normalizeDisplayName } from "./players.js";
 
 const SEARCH_LIMIT = 50;
-// ROADMAP 2.1 named 20 chars for the player-facing "name yourself" input, but that input
-// was deferred and never built — there's no existing enforced limit to match, so this is
-// just a sane standalone cap for the admin rename tool.
-const DISPLAY_NAME_MAX_LENGTH = 20;
 
 interface PlayerRow {
   id: string;
@@ -57,13 +54,11 @@ export async function searchPlayers(query: string): Promise<Reply> {
 }
 
 export async function renamePlayer(playerId: string, rawName: unknown): Promise<Reply> {
-  if (typeof rawName !== "string") {
-    return { status: 422, body: { detail: "display_name must be a string." } };
-  }
-  const trimmed = rawName.trim();
-  if (trimmed.length > DISPLAY_NAME_MAX_LENGTH) {
-    return { status: 422, body: { detail: `display_name must be at most ${DISPLAY_NAME_MAX_LENGTH} characters.` } };
-  }
+  // Unlike the player-facing setDisplayName (ROADMAP 7.2.0), an admin submitting a blank
+  // name is a deliberate "clear it" action, not a validation error.
+  const result = normalizeDisplayName(rawName);
+  if ("error" in result) return { status: 422, body: { detail: result.error } };
+  const trimmed = result.trimmed;
 
   const sql = db();
   const [player] = await sql<{ id: string }[]>`
