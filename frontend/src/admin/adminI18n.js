@@ -99,6 +99,7 @@ const STRINGS = {
     'config.report_auto_inactivate_threshold': 'Automatikus szókivonás ennyi megbízható jelentésnél (0 = soha)',
     'config.report_min_completed_games': 'Megbízható jelentő: legalább ennyi befejezett játék, amelyben talált szót',
     'config.reports_per_player_per_day': 'Szójelentések napi korlátja játékosonként (0 = nincs korlát)',
+    'config.identity_mints_per_ip_per_hour': 'Új névtelen játékosok óránként egy IP-címről (0 = nincs korlát)',
     'config.notNumber': '{{label}}: a megadott érték nem szám.',
 
     'ui.sectionTitle': 'Játékos-felület elemei',
@@ -249,6 +250,7 @@ const STRINGS = {
     'config.report_auto_inactivate_threshold': 'Auto-remove a word after this many trusted reports (0 = never)',
     'config.report_min_completed_games': 'Trusted reporter: at least this many finished games with a found word',
     'config.reports_per_player_per_day': 'Word reports per player per day (0 = no cap)',
+    'config.identity_mints_per_ip_per_hour': 'New anonymous players per hour from one IP address (0 = no cap)',
     'config.notNumber': '{{label}}: the value is not a number.',
 
     'ui.sectionTitle': 'Player-facing controls',

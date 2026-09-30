@@ -33,6 +33,7 @@ import {
 import { deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
 import { isAdminAuthorized } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
+import { allowIdentityMint } from "../../lib/identity-throttle.js";
 import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
 import type { Reply } from "../../lib/game.js";
 import {
@@ -109,18 +110,25 @@ function requestCountry(req: VercelRequest): string | undefined {
   return value && /^[A-Za-z]{2}$/.test(value) ? value.toUpperCase() : undefined;
 }
 
+type ResolvedIdentity = { playerId: string; setCookieHeader: string | undefined };
+
+/** Answer for a mint refused by the per-address throttle (ROADMAP 12.6). */
+const MINT_THROTTLED: Reply = { status: 429, body: { detail: "rate_limited" } };
+
 /** The signed anon identity from the request cookie, minting a fresh one (and the
- *  Set-Cookie to echo it back) when there isn't one yet. Shared by the two game-start
- *  routes so their identity handling can't drift apart. */
-function resolveOrMintIdentity(req: VercelRequest): {
-  playerId: string;
-  setCookieHeader: string | undefined;
-} {
+ *  Set-Cookie to echo it back) when there isn't one yet. Shared by every route that may
+ *  create a player (game/start, daily/start, room create/join) so their identity handling
+ *  can't drift apart. Returns null when a *fresh* mint is refused by the per-address
+ *  throttle (ROADMAP 12.6) — the caller answers MINT_THROTTLED. Existing players are
+ *  never throttled. */
+async function resolveOrMintIdentity(req: VercelRequest): Promise<ResolvedIdentity | null> {
   const secret = process.env.ANON_SESSION_SECRET;
   if (!secret) throw new Error("ANON_SESSION_SECRET is not set.");
 
   const existing = verifyIdentity(secret, req.headers.cookie);
   if (existing) return { playerId: existing, setCookieHeader: undefined };
+
+  if (!(await allowIdentityMint(req))) return null;
 
   const minted = mintIdentity(secret);
   return {
@@ -131,8 +139,10 @@ function resolveOrMintIdentity(req: VercelRequest): {
   };
 }
 
-function startGameRoute(req: VercelRequest) {
-  const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+async function startGameRoute(req: VercelRequest): Promise<Reply> {
+  const identity = await resolveOrMintIdentity(req);
+  if (!identity) return MINT_THROTTLED;
+  const { playerId: resolvedPlayerId, setCookieHeader } = identity;
 
   return startGame(
     intQuery(req, "target_length", DEFAULT_TARGET_LENGTH),
@@ -162,8 +172,10 @@ function dailyViewRoute(req: VercelRequest) {
   );
 }
 
-function startDailyRoute(req: VercelRequest) {
-  const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+async function startDailyRoute(req: VercelRequest): Promise<Reply> {
+  const identity = await resolveOrMintIdentity(req);
+  if (!identity) return MINT_THROTTLED;
+  const { playerId: resolvedPlayerId, setCookieHeader } = identity;
   return startDailyGame(
     resolvedPlayerId,
     setCookieHeader,
@@ -305,8 +317,10 @@ async function preferencesPatchRoute(req: VercelRequest): Promise<Reply> {
 // ROADMAP 7.2.2 — room lobby. Create and join mint an identity the same way game/start
 // does (a first-ever visitor can start a room in one request); leave and the snapshot
 // require an existing one, since both assume the caller is already a member.
-function createRoomRoute(req: VercelRequest) {
-  const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+async function createRoomRoute(req: VercelRequest): Promise<Reply> {
+  const identity = await resolveOrMintIdentity(req);
+  if (!identity) return MINT_THROTTLED;
+  const { playerId: resolvedPlayerId, setCookieHeader } = identity;
   const wordlistField = bodyField(req, "wordlist");
   const targetLengthField = bodyField(req, "target_length");
   return createRoom(
@@ -447,8 +461,10 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       switch (c) {
         case "join":
           return methodHandler({
-            POST: (req) => {
-              const { playerId: resolvedPlayerId, setCookieHeader } = resolveOrMintIdentity(req);
+            POST: async (req) => {
+              const identity = await resolveOrMintIdentity(req);
+              if (!identity) return MINT_THROTTLED;
+              const { playerId: resolvedPlayerId, setCookieHeader } = identity;
               return joinRoom(code, bodyField(req, "display_name"), resolvedPlayerId, setCookieHeader);
             },
           });

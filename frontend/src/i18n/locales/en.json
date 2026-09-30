@@ -187,7 +187,7 @@
     "sections": {
       "stored": {
         "heading": "What we store",
-        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players)."
+        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players). To limit automated abuse, when a new player ID is created the game keeps a keyed hash of your IP address (never the address itself) for 24 hours."
       },
       "notStored": {
         "heading": "What we don't store",

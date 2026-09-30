@@ -187,7 +187,7 @@
     "sections": {
       "stored": {
         "heading": "Mit tárolunk",
-        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz kötve — amelyet ezen az eszközön egy süti őriz, nem a nevedhez vagy e-mail-címedhez — tárolja: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, az egyes szavak megfejtési számait (kizárólag a feladott szavak kiválasztásához, sosem jelenik meg), a megadott megjelenítendő nevedet, ha beállítottál egyet, a beállításaidat (tábla hossza, nyelv, téma, hang), valamint a kapcsolatodból egy játék indulásakor megállapított hozzávetőleges országot (csak a játék üzemeltetője látja, más játékosok soha)."
+        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz kötve — amelyet ezen az eszközön egy süti őriz, nem a nevedhez vagy e-mail-címedhez — tárolja: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, az egyes szavak megfejtési számait (kizárólag a feladott szavak kiválasztásához, sosem jelenik meg), a megadott megjelenítendő nevedet, ha beállítottál egyet, a beállításaidat (tábla hossza, nyelv, téma, hang), valamint a kapcsolatodból egy játék indulásakor megállapított hozzávetőleges országot (csak a játék üzemeltetője látja, más játékosok soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címed kulcsolt ujjlenyomatát (soha nem magát a címet) 24 órán át tároljuk."
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
