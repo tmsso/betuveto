@@ -276,5 +276,58 @@
     "link": "Send feedback",
     "subject": "Betűvető feedback",
     "bodyIntro": "What happened, and what did you expect?"
+  },
+  "room": {
+    "panelTitle": "Play with friends",
+    "alreadyInRoom": "You're in a room — see the board.",
+    "nameLabel": "Your name",
+    "namePlaceholder": "shown to others",
+    "nameRequired": "Enter a name — the others will see it.",
+    "modeLabel": "Mode",
+    "mode": {
+      "coop": {
+        "name": "Together",
+        "explain": "Beat the clock as a team: clear the board together and share the time bonus."
+      },
+      "versus": {
+        "name": "Against each other",
+        "explain": "Same board for everyone — highest score wins."
+      }
+    },
+    "create": "Create room",
+    "codeLabel": "Room code",
+    "codePlaceholder": "CODE",
+    "codeAria": "Room code {{code}}",
+    "join": "Join",
+    "share": "Share invite link",
+    "copied": "Link copied!",
+    "shareText": "Join my Betűvető room: {{code}}",
+    "lengthInfo": "{{length}}-letter board",
+    "membersLabel": "Players in the room",
+    "online": "online",
+    "offline": "away",
+    "host": "host",
+    "you": "you",
+    "memberCount": "{{count}} / {{max}} players",
+    "start": "Start the game",
+    "waitingForPlayers": "Waiting for at least 2 players…",
+    "waitingForHost": "Waiting for the host to start…",
+    "leave": "Leave room",
+    "closeRoom": "Close room",
+    "invited": "You're invited to room {{code}}",
+    "notNow": "Not now",
+    "cancelled": "This room was closed.",
+    "backToSolo": "Back to solo play",
+    "errors": {
+      "room_full": "That room is full.",
+      "room_started": "That game has already started.",
+      "room_cancelled": "That room was closed.",
+      "not_enough_players": "You need at least 2 players.",
+      "not_host": "Only the host can do that.",
+      "not_found": "No room with that code.",
+      "rate_limited": "Too many new players from your network right now — try again later.",
+      "invalid_name": "That name isn't allowed (max. 20 characters).",
+      "generic": "Something went wrong — please try again."
+    }
   }
 }
