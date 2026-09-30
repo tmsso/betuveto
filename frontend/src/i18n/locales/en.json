@@ -328,6 +328,28 @@
       "rate_limited": "Too many new players from your network right now — try again later.",
       "invalid_name": "That name isn't allowed (max. 20 characters).",
       "generic": "Something went wrong — please try again."
+    },
+    "gaveUpWaiting": "You gave up — the answers are revealed when the others finish.",
+    "teamProgress": "Team: {{found}} / {{total}} words",
+    "points": "{{points}} pts",
+    "wordsCount": "{{count}} words",
+    "resultsTitle": "Room results",
+    "clearedTogether": "You cleared the board together! Time bonus: +{{bonus}} each.",
+    "notCleared": "{{count}} words left unfound.",
+    "targetWas": "The full word was",
+    "noWords": "No words found.",
+    "nobodyFound": "Words nobody found ({{count}})",
+    "rematch": "Rematch",
+    "joinRematch": "Join the rematch",
+    "waitingForRematch": "Waiting for the host to start a rematch…",
+    "boardBadge": "Room {{code}}",
+    "badges": {
+      "full_word": "Found the full word",
+      "half_cleared": "Found half the words",
+      "three_quarters_cleared": "Found three quarters of the words",
+      "all_cleared": "Found every word",
+      "hint_used": "Used a hint",
+      "gave_up": "Gave up"
     }
   }
 }

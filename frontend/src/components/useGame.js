@@ -30,7 +30,7 @@ const durationForLength = (length) => 120 + 15 * (length - MIN_TARGET_LENGTH)
  * they read this hook's `isTimeUp`/`allPossibleWords` to know when to refetch, but aren't
  * part of the game itself.
  */
-export function useGame({ t, play, fireConfetti, fireExplosion }) {
+export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }) {
   const [currentGuess, setCurrentGuess] = useState('')
   const [foundWords, setFoundWords] = useState([])
   const [scrambledLetters, setScrambledLetters] = useState([])
@@ -71,6 +71,10 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
   const [gameEasyMode, setGameEasyMode] = useState(false)
   // Daily puzzle (ROADMAP Batch 10 item 1) — the *current* game is today's shared puzzle.
   const [isDailyGame, setIsDailyGame] = useState(false)
+  // Multiplayer (ROADMAP 7.2.6) — the current game is this player's game in a room. Its
+  // answers are revealed through the room snapshot once the whole room is over (D9), so
+  // the per-game reveal fetch below is skipped for it.
+  const [isRoomGame, setIsRoomGame] = useState(false)
   // Accepted on-screen-keyboard letters for the active game's wordlist (ROADMAP 6.2),
   // echoed back by game/start. Seeded with hu's own alphabet so the very first render
   // (before any response has arrived) still matches the default wordlist.
@@ -136,8 +140,9 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
   // response applies to local state. Deliberately separate from any endpoint-choosing
   // wrapper (see this file's top comment) so a caller that already has a start-shaped
   // payload from somewhere else can apply it directly.
-  const beginFromStartResponse = useCallback((response, { daily = false } = {}) => {
+  const beginFromStartResponse = useCallback((response, { daily = false, room = false } = {}) => {
     setIsDailyGame(daily)
+    setIsRoomGame(room)
     setPreGame(false) // ROADMAP Batch 10 item 17 — a game is now live; leave the inert board.
     setScrambledLetters(response.scrambled_letters.split(' '))
     setTargetLength(response.target_length ?? DEFAULT_TARGET_LENGTH)
@@ -201,6 +206,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     setHintPenalty(0)
     setHintMessage(null)
     setIsDailyGame(false)
+    setIsRoomGame(false)
     setGameEasyMode(false) // clears the 🌱 board indicator until the next game echoes one
     setSuggestPrompt(null)
     setSuggestThanks(false)
@@ -210,7 +216,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
   // serves it once it agrees the game is over; right at the deadline (rounding or minor
   // clock skew) it may still return 403, so retry a few times before giving up.
   useEffect(() => {
-    if (!isTimeUp) return
+    if (!isTimeUp || isRoomGame) return
     let cancelled = false
     const MAX_ATTEMPTS = 6
     const fetchReveal = async () => {
@@ -230,7 +236,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     }
     fetchReveal()
     return () => { cancelled = true }
-  }, [isTimeUp])
+  }, [isTimeUp, isRoomGame])
 
   // Main countdown timer. The server owns the deadline (`endsAt`, epoch seconds); the
   // client just renders the remaining time, so a slept/backgrounded tab resyncs instead of
@@ -364,6 +370,9 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
       const response = await betuAPI.makeGuess(guess)
 
       setGuessCount((prevCount) => prevCount + 1)
+      // ROADMAP 7.2.6: this find ended the room (a co-op collective clear, or the last
+      // member done) — refresh the snapshot now rather than on the next 3 s poll.
+      if (response.room_finished) onRoomFinished?.()
 
       // The game ended for a reason other than scoring the final word (e.g. the
       // server-enforced timer expired). A successful all-words-found guess also reports
@@ -455,7 +464,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength, onRoomFinished])
 
   const handleLetterClick = useCallback((letter) => {
     setCurrentGuess((prevGuess) => prevGuess + letter)
@@ -481,6 +490,14 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     if (isTimeUp) return
     try {
       const result = await betuAPI.giveUp()
+      // D9 (ROADMAP 7.2.4): in a room that's still playing, give-up ends only your own
+      // game and reveals nothing — the answers arrive with the room's reveal.
+      if (result.room_pending) {
+        endGame('given_up')
+        showTemporaryError(t('room.gaveUpWaiting'))
+        onRoomFinished?.()
+        return
+      }
       endGame('given_up', { possibleWords: result.possible_words })
       // ROADMAP 6.2: giveUp() no longer sends a display string — target_word is already
       // in the body, which is all "the full word was X" needs.
@@ -489,7 +506,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
       console.error('Error giving up:', err)
       showTemporaryError(t('errors.giveUpFailed'))
     }
-  }, [isTimeUp, showTemporaryError, t, endGame])
+  }, [isTimeUp, showTemporaryError, t, endGame, onRoomFinished])
 
   // Global keydown handler: letter keys append to the guess (unless a real input already
   // has focus), Backspace/Enter act on it regardless of focus.
@@ -534,12 +551,14 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     timeLeft, isGuessShaking, guessErrorMsg, justFoundWord, isAnimatingLetters,
     currentAnimatingIndex, isScoreFlashing, preGame, targetLength, uiConfig, gameWordlist,
     scoreAtExpiry,
-    gameEasyMode, isDailyGame, gameAlphabet, hintPenalty, hintLoading, hintMessage,
+    gameEasyMode, isDailyGame, isRoomGame, gameAlphabet, hintPenalty, hintLoading, hintMessage,
     hintCost: rules.hintCost, minWordLength: rules.minWordLength,
     reportedWords, suggestPrompt, suggestLoading, suggestThanks, possibleWordsCount,
     allPossibleWords, showRemainingWords, allPossibleWordsFound, totalScore, displayScore,
     usedLetters,
     setCurrentGuess, setShowRemainingWords,
+    // ROADMAP 7.2.6: a room's reveal (every word on the board) comes from its snapshot.
+    applyRevealWords: setAllPossibleWords,
     // actions
     beginFromStartResponse, enterPreGame, endGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,

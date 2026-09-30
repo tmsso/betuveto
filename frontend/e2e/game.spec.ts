@@ -23,28 +23,10 @@
  * instead of minting a fresh one, and the dashboard excludes it. Absent locally (a plain
  * `npx playwright test` run falls back to the old fresh-mint behaviour unchanged).
  */
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
-import { canFormWord, letterCount, normalizeWord } from '../../lib/words.js'
+import { findAcceptedWord, loadDictionary } from './helpers'
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const MAX_CANDIDATES = 5
 const CI_PLAYER_COOKIE = process.env.E2E_CI_PLAYER_COOKIE
-
-async function loadDictionary(): Promise<string[]> {
-  const raw = await readFile(path.join(REPO_ROOT, 'data', 'magyar-szavak.txt'), 'utf-8')
-  const seen = new Set<string>()
-  const words: string[] = []
-  for (const line of raw.split(/\r?\n/)) {
-    const word = normalizeWord(line)
-    if (!word || seen.has(word)) continue
-    seen.add(word)
-    words.push(word)
-  }
-  return words
-}
 
 // Shared by every test below: mint an identity (CI's pinned player when available) and
 // press "Új játék", the pre-game board's only control (ROADMAP Batch 10 item 17). Returns
@@ -69,38 +51,6 @@ async function startGame(page: import('@playwright/test').Page): Promise<string>
   const letters = (await board.getByRole('button').allTextContents()).join('')
   expect(letters.length).toBeGreaterThan(0)
   return letters
-}
-
-// Guesses through a short candidate list (see the file-level comment on why more than one
-// is tried) until one scores, polling the score's aria-label since a rejected guess never
-// moves it. Returns the accepted word, or null if every candidate was rejected.
-async function findAcceptedWord(
-  page: import('@playwright/test').Page,
-  dictionary: string[],
-  letters: string,
-): Promise<string | null> {
-  const candidates = dictionary
-    .filter((word) => letterCount(word) <= letters.length && canFormWord(word, letters))
-    .slice(0, MAX_CANDIDATES)
-  expect(candidates, `no findable word for board "${letters}" in the local dictionary`).not.toHaveLength(0)
-
-  const score = page.getByLabel(/^Pontszám:/)
-  const guessInput = page.getByLabel('Tipp beírása')
-  const scoreBefore = (await score.getAttribute('aria-label')) || ''
-
-  for (const candidate of candidates) {
-    await guessInput.fill(candidate)
-    await page.getByLabel('Tipp beküldése').click()
-
-    let moved = false
-    for (let i = 0; i < 10 && !moved; i++) {
-      await page.waitForTimeout(200)
-      moved = (await score.getAttribute('aria-label')) !== scoreBefore
-    }
-    if (moved) return candidate
-    await guessInput.fill('')
-  }
-  return null
 }
 
 test('start a game, guess a word, and see the score update', async ({ page }) => {

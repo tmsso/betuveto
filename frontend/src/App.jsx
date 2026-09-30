@@ -9,6 +9,8 @@ import SettingsPanel from './components/SettingsPanel'
 import HelpPanel from './components/HelpPanel'
 import RoomLobby from './components/RoomLobby'
 import RoomInvite from './components/RoomInvite'
+import RoomStrip from './components/RoomStrip'
+import RoomResults from './components/RoomResults'
 import { useRoom } from './components/useRoom'
 import Board from './components/Board'
 import GuessInput from './components/GuessInput'
@@ -119,7 +121,10 @@ function App() {
   // curation, ...). See useGame.js's own top comment for exactly what stayed here instead
   // and why (the startNewGame wrapper below, "next game" selectors, the confirmation-modal
   // gate, and the leaderboard/stats/achievements/daily panels).
-  const game = useGame({ t, play, fireConfetti, fireExplosion })
+  // Multiplayer rooms (ROADMAP 7.2.5): the room this tab follows + its polled snapshot.
+  // Declared before useGame so a room-ending guess can refresh it at once.
+  const rooms = useRoom()
+  const game = useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished: rooms.refresh })
   const {
     currentGuess, foundWords, scrambledLetters, guessCount, isTimeUp, timeLeft,
     isGuessShaking, guessErrorMsg, justFoundWord, currentAnimatingIndex, isScoreFlashing,
@@ -131,7 +136,7 @@ function App() {
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
     handleUseHint, handleReportWord, handleSuggestWord,
-    hintCost, minWordLength,
+    hintCost, minWordLength, isRoomGame, endGame, applyRevealWords,
   } = game
 
   // Game-start orchestration (which endpoint to hit, syncing the "next game" selectors to
@@ -143,8 +148,6 @@ function App() {
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false) // ROADMAP 12.5 how-to-play
-  // Multiplayer rooms (ROADMAP 7.2.5): the room this tab follows + its polled snapshot.
-  const rooms = useRoom()
   const [inviteCode, setInviteCode] = useState(readInviteCode)
   // A single confirmation gate. `null` when nothing is pending; otherwise `{ message, run }`
   // and `run()` fires once the player confirms. Both the "Új játék" button and a
@@ -404,6 +407,54 @@ function App() {
     })
   }, [requestRestart, enterPreGame, rooms])
 
+  // ROADMAP 7.2.6 — a room round arrives by polling (the host pressed Start; this client
+  // called nothing), so the snapshot's `your_game` is applied here, once per game id —
+  // beginFromStartResponse resets the whole board, so it must not re-run on every poll.
+  const roomGameRef = useRef(null)
+  const roomRevealRef = useRef(null)
+  const room = rooms.room
+  useEffect(() => {
+    const yours = room?.your_game
+    if (room?.status !== 'playing' || !yours?.game_active || roomGameRef.current === yours.game_id) return
+    roomGameRef.current = yours.game_id
+    betuAPI.setActiveGame(yours.game_id)
+    beginFromStartResponse(yours, { room: true })
+    setIsSettingsOpen(false)
+  }, [room, beginFromStartResponse])
+
+  // …and when the room is over: end this player's game if the room ended it for them (a
+  // co-op collective clear, with their bonus share), and show every word from the
+  // room's reveal — the per-game reveal endpoint withholds it while a room plays (D9).
+  useEffect(() => {
+    if (room?.status !== 'finished' || !room.reveal || !isRoomGame) return
+    if (roomRevealRef.current === room.code) return
+    roomRevealRef.current = room.code
+    if (!isTimeUp) endGame('room_ended', { bonus: room.reveal.room_cleared ? room.reveal.bonus_per_member : 0 })
+    const everyWord = new Set(room.reveal.remaining_words)
+    for (const m of room.reveal.members) for (const w of m.words) everyWord.add(w)
+    applyRevealWords([...everyWord])
+  }, [room, isRoomGame, isTimeUp, endGame, applyRevealWords])
+
+  const leaveRoomToSolo = useCallback(() => {
+    roomGameRef.current = null
+    roomRevealRef.current = null
+    rooms.leave()
+    enterPreGame()
+  }, [rooms, enterPreGame])
+
+  const handleRematch = useCallback(async () => {
+    const snapshot = await rooms.rematch()
+    if (snapshot) enterPreGame()
+  }, [rooms, enterPreGame])
+
+  const handleJoinRematch = useCallback(async (nextCode) => {
+    const me = room?.members.find((m) => m.is_you)
+    const snapshot = await rooms.join(nextCode, me?.display_name ?? displayName ?? '')
+    if (snapshot) enterPreGame()
+  }, [rooms, room, displayName, enterPreGame])
+
+  const inRoomRound = Boolean(room && isRoomGame && ['playing', 'finished'].includes(room.status))
+
   const dismissInvite = useCallback(() => {
     setInviteCode(null)
     clearInviteParam()
@@ -641,6 +692,14 @@ function App() {
             </div>
         )}
 
+        {/* Room indicator (ROADMAP 7.2.6) — mode + code, where the daily badge would sit
+            (a room game is never a daily). */}
+        {inRoomRound && (
+            <div className="absolute top-0 right-0 p-2 bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-purple-200 dark:border-purple-900" title={t('room.boardBadge', { code: room.code })}>
+                {room.mode === 'versus' ? '⚔️' : '👥'} {room.code}
+            </div>
+        )}
+
         {/* Daily-puzzle indicator (ROADMAP Batch 10 item 1) — the current game is today's
             shared board; the result is graded once, at its terminal transition. */}
         {isDailyGame && (
@@ -706,6 +765,18 @@ function App() {
 
         {!(inviteCode && !rooms.code) && !(rooms.room && ['lobby', 'cancelled'].includes(rooms.room.status)) && (
         <>
+        {inRoomRound && room.status === 'finished' && (
+          <RoomResults
+            room={room}
+            busy={rooms.busy}
+            error={rooms.error}
+            onRematch={handleRematch}
+            onJoinRematch={handleJoinRematch}
+            onBackToSolo={leaveRoomToSolo}
+          />
+        )}
+        {inRoomRound && room.status === 'playing' && <RoomStrip room={room} />}
+
         {/* Scrambled letters */}
         <Board
           preGame={preGame}
@@ -753,6 +824,9 @@ function App() {
         {/* Action Buttons */}
         <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* In a room round "new game" would silently walk out of the room — the room's
+                own results offer Rematch / Back to solo instead (ROADMAP 7.2.6). */}
+            {!inRoomRound && (
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
@@ -761,6 +835,7 @@ function App() {
               <span>🎲</span>
               <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
             </button>
+            )}
             <button
               onClick={handleScramble}
               className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
