@@ -1,6 +1,7 @@
 {
   "app": { "title": "Betűvető" },
   "loading": { "screen": "Loading...", "startingGame": "Starting game..." },
+  "crash": {"title": "Something went wrong", "body": "The game hit an unexpected error. Reloading usually fixes it — your scores and settings are saved.", "reload": "Reload"},
   "errorScreen": { "title": "Error!", "retry": "Restart" },
   "easyModeBadge": "Easy mode",
   "easyModeToggle": {
