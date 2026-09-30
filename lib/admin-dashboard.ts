@@ -27,6 +27,16 @@ interface DailyRow {
   date: string;
   games: number;
   dau: number;
+  /** ROADMAP 7.2.7 — multiplayer rounds started that day (host not a CI identity). */
+  rooms: number;
+}
+
+interface RoomsSummaryRow {
+  started: number;
+  coop: number;
+  versus: number;
+  cleared: number;
+  avg_members: number;
 }
 
 interface FailedWordRow {
@@ -97,7 +107,10 @@ export async function getDashboardStats(): Promise<Reply> {
   const daily = await sql<DailyRow[]>`
     select (d at time zone 'Europe/Budapest')::date::text as date,
            count(g.id)::int as games,
-           count(distinct g.player_id)::int as dau
+           count(distinct g.player_id)::int as dau,
+           (select count(*)::int from rooms r
+             where r.started_at >= d and r.started_at < d + interval '1 day'
+               and not exists (select 1 from players p where p.id = r.host_player_id and p.is_ci)) as rooms
       from generate_series(
              date_trunc('day', now() at time zone 'Europe/Budapest') at time zone 'Europe/Budapest'
                - make_interval(days => ${DAILY_WINDOW_DAYS - 1}),
@@ -178,6 +191,19 @@ export async function getDashboardStats(): Promise<Reply> {
       from per_player
   `;
 
+  // ROADMAP 7.2.7 — rooms over the same trailing window as the daily series: rounds
+  // started, split by mode, how many co-op rooms cleared the board, and average room size.
+  const [roomsSummary] = await sql<RoomsSummaryRow[]>`
+    select count(*)::int as started,
+           count(*) filter (where r.mode = 'coop')::int as coop,
+           count(*) filter (where r.mode = 'versus')::int as versus,
+           count(*) filter (where r.end_reason = 'cleared')::int as cleared,
+           coalesce(avg((select count(*) from room_players rp where rp.room_id = r.id)), 0)::float as avg_members
+      from rooms r
+     where r.started_at >= now() - make_interval(days => ${DAILY_WINDOW_DAYS})
+       and not exists (select 1 from players p where p.id = r.host_player_id and p.is_ci)
+  `;
+
   const [gamesByMonth, gamesByQuarter, gamesByHour] = await Promise.all([
     bucketedByCalendar(sql, "month"),
     bucketedByCalendar(sql, "quarter"),
@@ -191,6 +217,7 @@ export async function getDashboardStats(): Promise<Reply> {
       most_failed_words: mostFailedWords,
       hardest_words: hardestWords,
       queue_size: { reports, suggestions },
+      rooms: roomsSummary,
       player_stats: playerStats,
       games_by_month: gamesByMonth,
       games_by_quarter: gamesByQuarter,

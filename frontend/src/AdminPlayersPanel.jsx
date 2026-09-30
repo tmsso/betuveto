@@ -309,6 +309,13 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
                                   {' · '}
                                   <span className="font-semibold">{t('players.gameCountry')}</span>{' '}
                                   {gameDetail.game.country || t('players.countryUnknown')}
+                                  {gameDetail.game.room_code && (
+                                    <>
+                                      {' · '}
+                                      <span className="font-semibold">{t('players.room')}</span>{' '}
+                                      {gameDetail.game.room_mode === 'versus' ? '⚔️' : '👥'} {gameDetail.game.room_code}
+                                    </>
+                                  )}
                                 </p>
                                 <p className="font-semibold mb-1">{t('players.guessTimeline')}</p>
                                 {gameDetail.guesses.length === 0 ? (
