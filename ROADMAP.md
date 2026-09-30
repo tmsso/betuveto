@@ -948,7 +948,7 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
   guesses stay hidden until the end-of-game reveal (which shows everything, ranked).
   Defaults D5–D8 in the design doc §7. Co-op (`'coop'`) stays the default mode.
 
-### 7.2 `[ ]` Implementation plan — ordered work orders, one PR each
+### 7.2 `[x]` Implementation plan — ordered work orders, one PR each
 *Written for a Sonnet-class implementer: each item names its acceptance check. Do them in
 order; 7.2.1 is the `App.jsx` refactor this batch was designated to carry (see the
 "Frontend refactor" bullet in Batch 10) and everything after it builds on that seam. The
@@ -980,14 +980,14 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
     `betuveto-ci-e2e-github-actions-flake` in memory for the full trail and the fix pattern
     (stub the persisting network call, don't rely on a restore-at-the-end that a thrown
     assertion could skip).
-- `[ ]` **7.2.3 Start + shared deadline + lazy room expiry.** `startRoom` (host only, ≥2
+- `[x]` **7.2.3 Start + shared deadline + lazy room expiry.** *(PR #82, 2026-09-30 — see the 7.2 delivery note below)* `startRoom` (host only, ≥2
   members): uniform-random target, `findableWords`, one multi-row `games` insert with
   `room_id` and the shared `ends_at`; snapshot gains `your_game` while playing; snapshot
   finalizes an over-deadline room via the existing `finalizeExpiry` per member game then
   `finishRoom(…, 'expired')`. Contract tests: every member's `your_game` has the same
   letters and `ends_at`; a `duration_seconds`-shortened room (test-only override, same as
   `game/start`) expires and every member game reads `expired`.
-- `[ ]` **7.2.4 Collective clear (co-op) + everyone-done (both) + bonus + exclusions.**
+- `[x]` *(PR #83)* **7.2.4 Collective clear (co-op) + everyone-done (both) + bonus + exclusions.**
   Hooks in `guess()` and `giveUp()` per design §4 — the collective-clear check runs **only
   when `rooms.mode = 'coop'`**; `checkAllDone` runs in both modes (give-up *and* a personal
   full clear); `finishRoom` race-safe via the `status = 'playing'` UPDATE guard; bonus per
@@ -997,27 +997,48 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
   finds do **not** end the room and no bonus is paid; a room game never appears on
   `/scores/top`; the existing concurrency test pattern (`Promise.all` guesses) applied to
   two co-op members finding the last word simultaneously — exactly one `finishRoom` wins.
-- `[ ]` **7.2.4b Badges + ranking in the snapshot.** Per-member `badges[]` (design §1:
+- `[x]` *(PR #83, with 7.2.4)* **7.2.4b Badges + ranking in the snapshot.** Per-member `badges[]` (design §1:
   `full_word`, `half_cleared`, `three_quarters_cleared`, `all_cleared`, `hint_used`,
   `gave_up`) derived at read time from the member's game row, `game_guesses` and
   `game_hints` — no stored state; `reveal.members[].rank` per the §1 tie-break (score ↓,
   found_count ↓, earlier `ended_at`). Contract tests: a member who found the target shows
   `full_word` and nobody else does; a hint shows `hint_used`; the ranking orders a
   higher score first and breaks a tie on found_count. Small; can ride with 7.2.4.
-- `[ ]` **7.2.5 Frontend lobby.** `RoomPanel` in `<SettingsPanel>` (display name, **mode
+- `[x]` *(PR #84)* **7.2.5 Frontend lobby.** `RoomPanel` in `<SettingsPanel>` (display name, **mode
   toggle — "Together" / "Against each other" with a one-line explanation each**, create,
   join), `useRoom` polling hook (3 s, paused on `document.hidden`, stops on finished),
   lobby view in place of the pre-game board (shows the mode to joiners), `?room=CODE` deep
   link, share-link copy. i18n `room.*` block hu + en. Headless check against the PR
   preview with two browser contexts.
-- `[ ]` **7.2.6 Frontend in-game + end.** Room start via `useGame.beginFromStartResponse(
+- `[x]` *(PR #85)* **7.2.6 Frontend in-game + end.** Room start via `useGame.beginFromStartResponse(
   snapshot.your_game)`; opponent strip with badge icons (design §1) — plus the
   collective-progress counter **in co-op only**; `👥 CODE` / `⚔️ CODE` board badge by
   mode; ranked end-of-game comparison view from `snapshot.reveal` (🏆 on rank 1 in
   versus); rematch (`POST /rooms/{code}/rematch`, `next_room_code` pointer, same mode).
   E2E: a two-context Playwright test per mode — create, join, start, one find each,
   reveal shows both names (and, in versus, the ranking).
-- `[ ]` **7.2.7 Admin.** Rooms-per-day on the dashboard; `room_id` in the game drill-down.
+- `[x]` *(PR #86)* **7.2.7 Admin.** Rooms-per-day on the dashboard; `room_id` in the game drill-down.
+- **7.2 delivery note (2026-09-30, PRs #82–#86, one stacked session):**
+  - **Refactor riding along (7.2.3):** the shared game primitives (`loadGame`,
+    `findableWords`, `finalizeExpiry`, `finalizeWordStats`, …) moved to `lib/game-core.ts`
+    so `lib/game.ts` can call the room hooks in the new `lib/room-lifecycle.ts` without an
+    import cycle. `game.ts` re-exports the public names.
+  - **Migration 0022** (`rooms.end_reason`, `rooms.bonus_per_member`): the reveal needs
+    both, and neither is derivable afterwards.
+  - **D2 as built:** the divisor is the members *still playing* when the room clears, not
+    every member. Someone who gave up or cleared personally doesn't take a share.
+  - **D9 (new, owner 2026-09-30):** no answers before the room ends — see Batch 12.
+  - **Beyond the design doc:** `your_game` is a full start-shaped payload (`alphabet`,
+    `rules`, `ui`, …), with letters from the member's own row so a rescramble survives
+    polling. `room_found_count` is co-op only. Only the highest clearance badge is listed.
+    `guess()` returns `room_finished`. The rematch endpoint shipped with 7.2.4. Leaving a
+    playing room is a 409 (give up instead).
+  - **Known limitation:** reloading mid-round rebuilds the board but not your local list
+    of found words (a single-player reload has the same gap); the server still counts them.
+  - **E2E:** `frontend/e2e/rooms.spec.ts` (two browser contexts per mode) is opt-in via
+    `ROOM_E2E_URL`. It refuses to run against production, since it writes players and
+    rooms. CI's E2E still targets the production API, which has no room routes until this
+    ships.
 - `[ ]` **7.2.8 (optional — D1 chose polling-first; only on the owner's later request) Push layer.** Server: publish `room_updated` from the
   start / guess / finish hooks via Ably's REST endpoint (server key on Vercel, owner
   step); `POST /rooms/{code}/realtime-token` gated on membership; client: ably-js, message
@@ -1908,7 +1929,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   integration, `DATABASE_URL` is set by hand; see ROADMAP 5.2's correction).
 
 **Correctness / consistency (small, do any time)**
-- `[ ]` **11.5 Admin-editable knobs are still hardcoded in the client.** `HINT_COST = 10`
+- `[x]` *(12.5, PR #80)* **11.5 Admin-editable knobs are still hardcoded in the client.** `HINT_COST = 10`
   and `MIN_GUESS_LENGTH = 3` in `App.jsx` mirror `config` *defaults*; an admin change to
   `hint_cost` / `min_word_length` (Batch 5.2 item 2) leaves the hint button label and the
   client-side "too short" pre-check wrong. Fix: echo `hint_cost` and `min_word_length` in
@@ -1917,10 +1938,10 @@ or an outright bug). Nothing here blocks Batch 7.*
   `handleSubmit` on `response.result` (`too_short` / `cannot_form` / `not_in_dictionary`)
   instead of the `valid`/`can_form` booleans — today a server `too_short` reads as "not in
   the dictionary".
-- `[ ]` **11.6 Give-up uses `window.confirm`.** Every other destructive action goes through
+- `[x]` *(12.5, PR #80)* **11.6 Give-up uses `window.confirm`.** Every other destructive action goes through
   `<ConfirmationModal>` (Batch 10 item 4 gave it dialog semantics); give-up should too.
   One-line change once `pendingConfirm` is reachable from `handleGiveUp`.
-- `[ ]` **11.7 "Névtelen játékos" is server-side and Hungarian-only** (`lib/scores.ts`,
+- `[x]` *(12.5, PR #80)* **11.7 "Névtelen játékos" is server-side and Hungarian-only** (`lib/scores.ts`,
   `lib/daily.ts`): an English UI shows a Hungarian placeholder on the leaderboards. Return
   `display_name: null` and let the client render `t('highScores.anonymous')` (add the key,
   hu + en). Contract tests that assert the string need the same update.
@@ -1928,7 +1949,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   for a Magic-Link session, which *does* carry a player id (`lib/admin.ts`
   `hasValidAdminSession` resolves the linked row). Have `isAdminAuthorized` return the
   admin's player id (or null for the shared token) and thread it into `logAdminAction`.
-- `[ ]` **11.9 `getState` echoes `guess_count: found_count`.** Mislabelled and unused by the
+- `[x]` *(12.5, PR #80 — field removed)* **11.9 `getState` echoes `guess_count: found_count`.** Mislabelled and unused by the
   frontend (it never calls `GET /game/{id}`); remove the field, or make it a real count of
   `game_guesses`. Pure cleanup.
 - `[ ]` **11.10 Rate-limit query shape.** `guess()`'s anti-cheat count joins every game the
@@ -1942,7 +1963,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   a comment; don't build a sweeper.
 
 **Tech stack / ops (checked 2026-09-15)**
-- `[ ]` **11.12 Node 20 reached end-of-life on 2026-04-30; CI still pins it** (`ci.yml`,
+- `[x]` *(12.4, PR #79 — pinned **24.x**, see 12.4)* **11.12 Node 20 reached end-of-life on 2026-04-30; CI still pins it** (`ci.yml`,
   three jobs) and the repo has no `engines` field, so Vercel's function runtime is
   whatever the dashboard default is (unverified this session — check Settings → Node.js
   version). Move CI to Node 22 (LTS to 2027-04), add `"engines": {"node": "22.x"}` to the
@@ -1951,7 +1972,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   pipeline and the runtime; do it as its own PR, nothing else in it.
 - `[ ]` **11.13 `HF_TOKEN` is still a repository secret** from the Hugging Face sync retired
   in Batch 1.3 (`gh secret list`). Delete it — owner action, nothing in the repo reads it.
-- `[ ]` **11.14 Sentry DSNs (Batch 10 item 9) — unverified whether they were ever set** on
+- `[x]` *(stale — Batch 10 item 9 records both DSNs set on 2026-08-29)* **11.14 Sentry DSNs (Batch 10 item 9) — unverified whether they were ever set** on
   Vercel (the CLI wasn't available in the review session). If not, either set them (free
   tier) or accept "structured logs only" and say so in `.env.example`.
 - `[ ]` **11.15 `@neondatabase/auth` is still a beta line** (`^0.5.0-beta`). Keep the
@@ -2013,14 +2034,33 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   `.github/backup-public-key.asc` (public-key encryption: the runner needs no secret; the
   private key is held by the owner only). Restore steps in README. Privacy-page retention
   copy updated. **Owner step:** delete the pre-2026-09-30 plaintext artifacts.
-- `[ ]` **12.2 Word-report abuse limits.** Identity is a free anonymous cookie, so "2
+- `[x]` *(PR #77)* **12.2 Word-report abuse limits.** Identity is a free anonymous cookie, so "2
   distinct players" can be one person with two browsers. Reports count toward
   auto-inactivation only from established players; per-player daily report cap;
-  threshold admin-editable.
-- `[ ]` **12.3 Security headers, error boundary, link-preview meta.**
-- `[ ]` **12.4 Node 22 (= 11.12).**
-- `[ ]` **12.5 Tester polish:** 11.5, 11.6, 11.7, a how-to-play panel, a feedback link.
-- `[ ]` **12.6 Identity-mint throttle** (per-IP cap on fresh `bv_anon` identities).
+  threshold admin-editable. **As built:** a trusted reporter = ≥3 finished games with ≥1
+  found word; threshold 2 → 3; 20 reports/player/rolling 24 h (429). All three knobs are
+  admin config (0 disables each), and no migration was needed.
+- `[x]` *(PR #78)* **12.3 Security headers, error boundary, link-preview meta.** nosniff,
+  Referrer-Policy, frame-ancestors/X-Frame-Options and Permissions-Policy in `vercel.json`.
+  No script-src CSP yet: the inline theme script, Sentry and the admin auth SDK would need
+  allow-listing first. The top-level `ErrorBoundary` reports to Sentry. OG/Twitter tags
+  point at the production domain.
+- `[x]` *(PR #79)* **12.4 Node runtime (= 11.12).** Planned as Node 22. The PR's first
+  Vercel build logged "Node.js version changed from 24.x to 22.x": production was already
+  running Node 24 (the dashboard default), so 22 would have been a downgrade. Now pinned to
+  **24.x** (`engines`, Active LTS to 2028-04), and CI runs 24 too.
+- `[x]` *(PR #80)* **12.5 Tester polish:** 11.5, 11.6, 11.7 (+11.9), a how-to-play dialog
+  (header button, never auto-opened), and a feedback mailto link driven by
+  `VITE_FEEDBACK_EMAIL` at build time. **Owner step:** set that variable on Vercel
+  Production and redeploy; the link stays hidden until then.
+- `[x]` *(PR #81, migration 0021)* **12.6 Identity-mint throttle.** At most
+  `identity_mints_per_ip_per_hour` (default 30, admin config) fresh identities per client
+  address per hour. Only an HMAC of the IP is stored, purged after 24 h (disclosed on the
+  privacy page). Fails open without the table. The contract suite mints many identities from
+  one IP, so disable the cap on the target DB before a full run (README).
+- **Merge order / owner steps:** the PRs are stacked #76 ← #77 ← … ← #86 ← this docs PR.
+  Merge them in order with `--delete-branch`, so each next PR retargets to `main`. Right
+  after #81 and #82 are in, run `npm run db:migrate` against production (0021, 0022).
 - **D9 (owner, 2026-09-30) — no early reveal in rooms.** A room member's `give_up` and
   `game/{id}/possible_words` withhold the word list until the *room* is finished (both
   modes); the reveal arrives through the room snapshot. Otherwise a member could give up,
