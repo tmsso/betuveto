@@ -12,6 +12,14 @@
  *
  *   ROOM_E2E_URL=https://<preview>.vercel.app VERCEL_AUTOMATION_BYPASS_SECRET=... \
  *     npx playwright test e2e/rooms.spec.ts
+ *
+ * Or this branch's local build against another preview's API (vite.config.js):
+ *   E2E_API_TARGET=https://<preview>.vercel.app VERCEL_AUTOMATION_BYPASS_SECRET=... \
+ *     ROOM_E2E_URL=http://localhost:4173 npx playwright test e2e/rooms.spec.ts
+ *
+ * Before pointing this at any preview, confirm that preview's DATABASE_URL is a branch
+ * database, not production: a preview whose Neon branch wasn't created falls back to the
+ * project-wide Preview value.
  */
 import { type Browser, type Page, expect, test } from '@playwright/test'
 import { findAcceptedWord, loadDictionary } from './helpers'
@@ -20,6 +28,21 @@ const URL = process.env.ROOM_E2E_URL
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
 
 test.skip(!URL, 'ROOM_E2E_URL not set — room E2E runs against a deployed preview only.')
+
+// Hard guard: this spec creates players and rooms, so it must never reach production —
+// neither directly nor through the local preview server, whose /api proxy falls back to
+// production when E2E_API_TARGET is unset (vite.config.js). Learned the hard way: an empty
+// E2E_API_TARGET once sent a run's rooms to production.
+const PRODUCTION = 'betuveto.vercel.app'
+if (URL) {
+  const viaLocalProxy = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(URL)
+  const apiTarget = viaLocalProxy ? process.env.E2E_API_TARGET : URL
+  if (!apiTarget || apiTarget.includes(PRODUCTION)) {
+    throw new Error(
+      `rooms.spec.ts refuses to run against production (API target: ${apiTarget || 'unset → production'}).`,
+    )
+  }
+}
 
 async function newPlayer(browser: Browser): Promise<Page> {
   const context = await browser.newContext({
@@ -81,7 +104,7 @@ for (const mode of ['coop', 'versus'] as const) {
     expect(await findAcceptedWord(host, dictionary, hostLetters)).not.toBeNull()
     expect(await findAcceptedWord(guest, dictionary, guestLetters)).not.toBeNull()
     const guestRow = host.getByTestId('room-strip').getByRole('listitem').filter({ hasText: 'Béla' })
-    await expect(guestRow).toContainText(/\b1\//, { timeout: 10_000 })
+    await expect(guestRow).toContainText(/(^|\D)1\/\d/, { timeout: 10_000 })
     if (mode === 'coop') await expect(host.getByTestId('room-strip')).toContainText('Csapat:')
     else await expect(host.getByTestId('room-strip')).not.toContainText('Csapat:')
 
