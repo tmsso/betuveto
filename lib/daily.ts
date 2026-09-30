@@ -32,9 +32,6 @@ import {
   scrambleWord,
 } from "./words.js";
 
-// A null/blank display_name is common (Batch 2.1 made it optional) — mirror lib/scores.ts
-// so a daily leaderboard row is never blank.
-const ANONYMOUS_DISPLAY_NAME = "Névtelen játékos";
 
 /** Seconds since the epoch, matching the shape the rest of the API returns timestamps in. */
 function epochSeconds(at: Date): number {
@@ -123,7 +120,8 @@ async function getOrCreateTodaysPuzzle(
 }
 
 interface DailyLeaderEntry {
-  display_name: string;
+  /** null = never set a name; the client renders its localised "anonymous player". */
+  display_name: string | null;
   final_score: number;
   completed: boolean;
 }
@@ -144,7 +142,7 @@ async function dailyLeaderboard(sql: Sql, puzzleId: number): Promise<DailyLeader
      limit 10
   `;
   return rows.map((row) => ({
-    display_name: row.display_name?.trim() || ANONYMOUS_DISPLAY_NAME,
+    display_name: row.display_name?.trim() || null,
     final_score: row.final_score,
     completed: row.completed,
   }));
@@ -287,6 +285,10 @@ export async function startDailyGame(
         show_wordlist_selector: ui.show_wordlist_selector,
         show_easy_mode: ui.show_easy_mode,
       },
+      // ROADMAP 12.5 (= 11.5): the admin-editable rules the client has to mirror, so the
+      // hint label and the client-side "too short" pre-check follow an admin edit instead
+      // of hardcoded copies of the defaults.
+      rules: { hint_cost: config.hint_cost, min_word_length: config.min_word_length },
       player_id: playerId,
       daily: {
         puzzle_date: puzzle.puzzle_date,

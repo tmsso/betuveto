@@ -1,8 +1,20 @@
 {
-  "app": { "title": "Betűvető" },
-  "loading": { "screen": "Loading...", "startingGame": "Starting game..." },
-  "crash": {"title": "Something went wrong", "body": "The game hit an unexpected error. Reloading usually fixes it — your scores and settings are saved.", "reload": "Reload"},
-  "errorScreen": { "title": "Error!", "retry": "Restart" },
+  "app": {
+    "title": "Betűvető"
+  },
+  "loading": {
+    "screen": "Loading...",
+    "startingGame": "Starting game..."
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "The game hit an unexpected error. Reloading usually fixes it — your scores and settings are saved.",
+    "reload": "Reload"
+  },
+  "errorScreen": {
+    "title": "Error!",
+    "retry": "Restart"
+  },
   "easyModeBadge": "Easy mode",
   "easyModeToggle": {
     "label": "Easy mode",
@@ -72,6 +84,7 @@
     "loading": "Loading...",
     "empty": "No scores recorded yet for this length.",
     "yourBest": "Your best score:",
+    "anonymous": "Anonymous player",
     "offlineWithLocal": "No connection to the server — your local scores:",
     "offlineNone": "No connection to the server."
   },
@@ -81,7 +94,10 @@
   },
   "wordlistPill": {
     "title": "Board language: {{language}}",
-    "lang": { "hu": "Hungarian", "en": "English" }
+    "lang": {
+      "hu": "Hungarian",
+      "en": "English"
+    }
   },
   "guessInput": {
     "ariaLabel": "Enter your guess",
@@ -107,6 +123,8 @@
   "giveUpHint": {
     "giveUp": "🏳️ Give up (reveal solution)",
     "confirmGiveUp": "Are you sure you want to give up? The solution will be revealed.",
+    "confirmGiveUpTitle": "Give up?",
+    "confirmGiveUpButton": "Give up",
     "hint": "💡 Hint (-{{cost}} pts)",
     "hintTitle": "Reveal a word's first letter (-{{cost}} pts)"
   },
@@ -241,5 +259,22 @@
     "reportLimit": "You have reported a lot of words today — thanks! Try again tomorrow.",
     "suggestRateLimited": "Too many suggestions today, try tomorrow.",
     "suggestFailed": "Something went wrong sending the suggestion."
+  },
+  "help": {
+    "open": "How to play",
+    "title": "How to play",
+    "close": "Close",
+    "goal": "🎯 Build as many words as you can from the scrambled letters before the time runs out. One word uses every letter — finding it is worth the most.",
+    "words": "✍️ Words must be at least {{count}} letters long and can use each letter tile once. Tap the letters or type, then press Enter or ✅.",
+    "scoring": "⭐ A word scores its length squared, so long words are worth far more (a 7-letter word is 49 points). Find every word on the board and the time you have left is added as a bonus.",
+    "buttons": "🔀 reshuffles the letters · 💡 reveals the first letter of a word you haven't found yet (costs {{cost}} points) · 🏳️ gives up and shows every word.",
+    "curation": "⚑ next to a word reports it as wrong. If a real word is rejected, you can suggest adding it to the dictionary.",
+    "more": "⚙️ Settings: board length, dictionary language, the daily puzzle (the same board for everyone, with a streak), leaderboards and your stats.",
+    "feedbackIntro": "Something broken, confusing or missing?"
+  },
+  "feedback": {
+    "link": "Send feedback",
+    "subject": "Betűvető feedback",
+    "bodyIntro": "What happened, and what did you expect?"
   }
 }

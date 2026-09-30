@@ -84,7 +84,6 @@ export interface GameState {
   found_count: number;
   possible_count: number;
   total_score: number;
-  guess_count: number;
   target_length: number;
   ends_at: number;
 }

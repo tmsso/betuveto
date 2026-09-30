@@ -24,9 +24,6 @@ function isPeriod(value: string): value is Period {
   return (PERIODS as readonly string[]).includes(value);
 }
 
-// A null/blank display_name is common (Batch 2.1 made it optional) — never show a blank
-// leaderboard row.
-const ANONYMOUS_DISPLAY_NAME = "Névtelen játékos";
 
 interface ScoreRow {
   display_name: string | null;
@@ -94,7 +91,9 @@ export async function getTopScores(
   `;
 
   const top = rows.map((row) => ({
-    display_name: row.display_name?.trim() || ANONYMOUS_DISPLAY_NAME,
+    // null for a player who never set a name (ROADMAP 12.5 / 11.7): the client renders its
+    // own localised "anonymous player", instead of a Hungarian string in every language.
+    display_name: row.display_name?.trim() || null,
     final_score: row.final_score,
     ended_at: epochSeconds(row.ended_at),
     // 💡 marker (ROADMAP 3.1): hinted games still count, but are flagged rather than

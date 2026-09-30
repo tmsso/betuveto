@@ -21,7 +21,7 @@ export default function HighScoresPanel({ serverScores, serverScoresLoading, hig
         <ol className="text-sm space-y-1 max-w-xs mx-auto">
           {serverScores.top.map((entry, i) => (
             <li key={i} className="flex justify-between gap-4">
-              <span className="truncate">{i + 1}. {entry.display_name}</span>
+              <span className="truncate">{i + 1}. {entry.display_name ?? t('highScores.anonymous')}</span>
               <span className="font-bold">{entry.final_score}</span>
             </li>
           ))}
