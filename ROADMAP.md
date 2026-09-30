@@ -1998,6 +1998,36 @@ or an outright bug). Nothing here blocks Batch 7.*
 
 ---
 
+## Batch 12 — Launch readiness (wider test audience, planned 2026-09-30)
+
+*Goal: make the app safe and understandable for a test with tens to low hundreds of
+invited players (shared link, not a public post), then ship multiplayer (7.2.3–7.2.7) as
+one unit on top. Owner decisions 2026-09-30: rooms are in scope for the test; stay on
+`betuveto.vercel.app` (the anon cookie is domain-bound, so a later domain move would
+strand testers' progress — decide before any public launch); rule **D9** below; Node 22
+and backup encryption approved as their own PRs; feedback by pre-filled email.*
+
+- `[x]` **12.1 Encrypted weekly backup.** The repo is public and a public repo's workflow
+  artifacts are downloadable by any signed-in GitHub user — the monthly `pg_dump` artifact
+  was uploaded unencrypted. Now weekly, encrypted with `gpg` to
+  `.github/backup-public-key.asc` (public-key encryption: the runner needs no secret; the
+  private key is held by the owner only). Restore steps in README. Privacy-page retention
+  copy updated. **Owner step:** delete the pre-2026-09-30 plaintext artifacts.
+- `[ ]` **12.2 Word-report abuse limits.** Identity is a free anonymous cookie, so "2
+  distinct players" can be one person with two browsers. Reports count toward
+  auto-inactivation only from established players; per-player daily report cap;
+  threshold admin-editable.
+- `[ ]` **12.3 Security headers, error boundary, link-preview meta.**
+- `[ ]` **12.4 Node 22 (= 11.12).**
+- `[ ]` **12.5 Tester polish:** 11.5, 11.6, 11.7, a how-to-play panel, a feedback link.
+- `[ ]` **12.6 Identity-mint throttle** (per-IP cap on fresh `bv_anon` identities).
+- **D9 (owner, 2026-09-30) — no early reveal in rooms.** A room member's `give_up` and
+  `game/{id}/possible_words` withhold the word list until the *room* is finished (both
+  modes); the reveal arrives through the room snapshot. Otherwise a member could give up,
+  read every answer and feed it to a teammate or a second identity. Implemented in 7.2.4.
+
+---
+
 ## Challenged / rejected ideas (and why)
 
 | Original idea | Verdict | Reasoning |
@@ -2029,6 +2059,7 @@ or an outright bug). Nothing here blocks Batch 7.*
 | 9 — Android (TWA) | S–M | stable deploy |
 | 10 — Backlog | à la carte | varies |
 | 11 — Review backlog (2026-09-15) | S each | — |
+| 12 — Launch readiness (2026-09-30) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or
 updates tests in `backend/tests/`; every PR updates the checkbox here. Batches 0 and 1

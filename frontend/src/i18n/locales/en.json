@@ -180,7 +180,7 @@
       },
       "retention": {
         "heading": "Retention",
-        "body": "Data is kept until you delete it (see below). The database is backed up monthly; backups are deleted after 90 days."
+        "body": "Data is kept until you delete it (see below). The database is backed up weekly; backups are encrypted and deleted after 90 days."
       }
     },
     "delete": {
