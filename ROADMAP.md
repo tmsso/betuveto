@@ -2058,9 +2058,14 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   address per hour. Only an HMAC of the IP is stored, purged after 24 h (disclosed on the
   privacy page). Fails open without the table. The contract suite mints many identities from
   one IP, so disable the cap on the target DB before a full run (README).
-- **Merge order / owner steps:** the PRs are stacked #76 ← #77 ← … ← #86 ← this docs PR.
-  Merge them in order with `--delete-branch`, so each next PR retargets to `main`. Right
-  after #81 and #82 are in, run `npm run db:migrate` against production (0021, 0022).
+- **Merge order / owner steps:** the PRs are stacked #76 ← #77 ← … ← #86 ← #87 (docs).
+  **Use merge commits, not squash.** A local dry run showed squash-merging the chain
+  conflicts from #80 onward, because later PRs edit lines earlier ones introduced. Merge
+  commits applied cleanly all the way, with a final tree identical to the top branch (so
+  did "#76 squashed first, the rest merge commits"). **Production migrations first**: 0021
+  is a new table and 0022 two nullable columns, so the current code ignores both. Running
+  `db:migrate` from the top branch *before* merging removes any window where the room
+  routes select columns that don't exist yet.
 - **D9 (owner, 2026-09-30) — no early reveal in rooms.** A room member's `give_up` and
   `game/{id}/possible_words` withhold the word list until the *room* is finished (both
   modes); the reveal arrives through the room snapshot. Otherwise a member could give up,
