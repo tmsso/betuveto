@@ -85,6 +85,9 @@ export async function getTopScores(
        and g.target_length = ${targetLength}
        and g.status = 'finished'
        and g.disqualified_at is null
+       -- D3 (ROADMAP 7.2.4): a shared room board isn't comparable with a solo draw, and a
+       -- co-op collective clear marks every member 'finished' — room games stay off here.
+       and g.room_id is null
        ${clause}
      order by g.final_score desc
      limit ${TOP_SCORES_LIMIT}
@@ -110,6 +113,7 @@ export async function getTopScores(
          and g.target_length = ${targetLength}
          and g.status = 'finished'
          and g.disqualified_at is null
+         and g.room_id is null
          and g.player_id = ${playerId}
          ${clause}
        order by g.final_score desc

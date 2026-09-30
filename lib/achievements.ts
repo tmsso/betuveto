@@ -83,7 +83,10 @@ export async function evaluateAchievements(
   if (facts.foundWords.some((w) => letterCount(w) >= LONG_WORD_LETTERS)) {
     earned.add("ten_letter_word");
   }
-  const fullClear = facts.status === "finished";
+  // A room game's 'finished' can come from a co-op *collective* clear (ROADMAP 7.2.4),
+  // which says nothing about this player's own play — the badge means a personal clear, so
+  // room games never earn it (docs/multiplayer.md §4).
+  const fullClear = facts.status === "finished" && !game.room_id;
   if (fullClear) earned.add("full_clear");
   if (fullClear && facts.hintCount === 0) earned.add("full_clear_no_hints");
 

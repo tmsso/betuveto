@@ -2224,4 +2224,134 @@ describeApi("Betűvető API contract", () => {
     const state = await call("GET", `/api/game/${guestGame}`);
     expect(state.json.status).toBe("expired");
   }, 60_000);
+
+  // --- Multiplayer rooms — ending, bonus, badges, reveal (ROADMAP 7.2.4 / 7.2.4b / D9) ---
+  /** A started two-player room whose whole board the local dictionary can reproduce,
+   *  small enough to clear in a few requests. */
+  async function startedSmallRoom(mode: "coop" | "versus") {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const lobby = await twoPlayerLobby(5, mode);
+      await call("POST", `/api/v1/rooms/${lobby.code}/start`, {}, { Cookie: lobby.hostCookie });
+      const hostGame = (await snapshot(lobby.code, lobby.hostCookie)).json.your_game;
+      const guestGame = (await snapshot(lobby.code, lobby.guestCookie)).json.your_game;
+      const words = findable(hostGame);
+      if (hostGame.possible_count >= 2 && hostGame.possible_count <= 8 && words.length === hostGame.possible_count) {
+        return { ...lobby, hostGame, guestGame, words };
+      }
+    }
+    throw new Error("No small, locally reproducible room board after 20 tries.");
+  }
+
+  const guessAs = (gameId: string, word: string, cookie: string) =>
+    call("POST", `/api/game/${gameId}/guess`, { word }, { Cookie: cookie });
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 400)); // stay under the guess rate limit
+
+  it("co-op: finds that together cover the board clear the room once, with an equal bonus", async () => {
+    const room = await startedSmallRoom("coop");
+    const [lastA, lastB, ...rest] = room.words;
+    // Alternate the earlier words between the two members…
+    for (const [i, word] of rest.entries()) {
+      const res =
+        i % 2 === 0
+          ? await guessAs(room.hostGame.game_id, word, room.hostCookie)
+          : await guessAs(room.guestGame.game_id, word, room.guestCookie);
+      expect(res.json.result).toBe("correct");
+      await pause();
+    }
+    // …then the last two at the same instant: both may see the union complete, but only
+    // one finishRoom may win (the concurrency pattern from ROADMAP 2.2).
+    await Promise.all([
+      guessAs(room.hostGame.game_id, lastA, room.hostCookie),
+      guessAs(room.guestGame.game_id, lastB, room.guestCookie),
+    ]);
+
+    const view = (await snapshot(room.code, room.hostCookie)).json;
+    expect(view.status).toBe("finished");
+    expect(view.room_found_count).toBe(view.possible_count);
+    expect(view.reveal.room_cleared).toBe(true);
+    expect(view.reveal.remaining_words).toEqual([]);
+    const bonus = view.reveal.bonus_per_member;
+    expect(bonus).toBeGreaterThan(0);
+    for (const member of view.reveal.members) {
+      const points = member.words.reduce((sum: number, word: string) => sum + letterCount(word) ** 2, 0);
+      // Exactly one bonus share each — a double finishRoom would have paid it twice.
+      expect(member.final_score).toBe(points + bonus);
+    }
+
+    // D3: room games never reach the single-player leaderboards.
+    const best = await call("GET", "/api/v1/scores/top?length=5", undefined, { Cookie: room.hostCookie });
+    expect(best.json.your_best).toBeNull();
+  }, 180_000);
+
+  it("versus: covering the board together does not end the room; badges, give-up and ranking", async () => {
+    const room = await startedSmallRoom("versus");
+    for (const [i, word] of room.words.entries()) {
+      const res =
+        i % 2 === 0
+          ? await guessAs(room.hostGame.game_id, word, room.hostCookie)
+          : await guessAs(room.guestGame.game_id, word, room.guestCookie);
+      expect(res.json.result).toBe("correct");
+      await pause();
+    }
+    const playing = (await snapshot(room.code, room.guestCookie)).json;
+    expect(playing.status).toBe("playing");
+    expect(playing.room_found_count).toBeUndefined(); // co-op only
+    expect(playing.reveal).toBeUndefined();
+
+    // D9: a member who gives up while the other still plays learns nothing.
+    const gaveUp = await call("POST", `/api/game/${room.guestGame.game_id}/give_up`, undefined, { Cookie: room.guestCookie });
+    expect(gaveUp.json.room_pending).toBe(true);
+    expect(gaveUp.json.target_word).toBeNull();
+    expect(gaveUp.json.possible_words).toBeNull();
+    const peek = await call("GET", `/api/game/${room.guestGame.game_id}/possible_words`);
+    expect(peek.status).toBe(403);
+    expect(peek.json.detail).toBe("room_in_progress");
+    const guestRow = (await snapshot(room.code, room.hostCookie)).json.members.find((m: any) => !m.is_host);
+    expect(guestRow.badges).toContain("gave_up");
+    expect(guestRow.done).toBe(true);
+
+    // The last one out ends the room — and, the room being over, gets the reveal.
+    const hostGaveUp = await call("POST", `/api/game/${room.hostGame.game_id}/give_up`, undefined, { Cookie: room.hostCookie });
+    expect(hostGaveUp.json.target_word).toBeTruthy();
+
+    const view = (await snapshot(room.code, room.hostCookie)).json;
+    expect(view.status).toBe("finished");
+    expect(view.reveal.end_reason).toBe("all_done");
+    expect(view.reveal.room_cleared).toBe(false);
+    expect(view.reveal.bonus_per_member).toBe(0);
+    const [first, second] = view.reveal.members;
+    expect(first.rank).toBe(1);
+    expect(first.final_score).toBeGreaterThanOrEqual(second.final_score);
+    if (first.final_score > second.final_score) expect(second.rank).toBe(2);
+    // 🎯 goes to whoever found the target, and only to them.
+    for (const member of view.reveal.members) {
+      expect(member.badges.includes("full_word")).toBe(member.words.includes(view.reveal.target_word));
+    }
+  }, 180_000);
+
+  it("shows hint_used live, and rematch is host-only and idempotent", async () => {
+    const { code, hostCookie, guestCookie } = await twoPlayerLobby();
+    await call("POST", `/api/v1/rooms/${code}/start`, { duration_seconds: 5 }, { Cookie: hostCookie });
+    const guestGame = (await snapshot(code, guestCookie)).json.your_game;
+    const hint = await call("POST", `/api/game/${guestGame.game_id}/hint`, undefined, { Cookie: guestCookie });
+    expect(hint.status).toBe(200);
+    const guestRow = (await snapshot(code, hostCookie)).json.members.find((m: any) => !m.is_host);
+    expect(guestRow.badges).toContain("hint_used");
+
+    const early = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: hostCookie });
+    expect(early.status).toBe(409);
+
+    await new Promise((resolve) => setTimeout(resolve, 6500));
+    expect((await snapshot(code, guestCookie)).json.status).toBe("finished");
+    const notHost = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: guestCookie });
+    expect(notHost.status).toBe(403);
+    const first = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: hostCookie });
+    expect(first.status).toBe(200);
+    const second = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: hostCookie });
+    expect(second.json.code).toBe(first.json.code);
+    expect((await snapshot(code, guestCookie)).json.next_room_code).toBe(first.json.code);
+    const rejoin = await joinRoomWithCookie(first.json.code, "Guest", guestCookie);
+    expect(rejoin.status).toBe(200);
+    expect(rejoin.json.room.member_count).toBe(2);
+  }, 60_000);
 });
