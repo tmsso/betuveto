@@ -96,6 +96,9 @@ const STRINGS = {
     'config.min_word_length': 'Legrövidebb elfogadott szó (betű)',
     'config.timer_base_seconds': 'Alap időkeret (másodperc)',
     'config.timer_seconds_per_extra_length': 'Extra idő betűnként a minimum fölött (másodperc)',
+    'config.report_auto_inactivate_threshold': 'Automatikus szókivonás ennyi megbízható jelentésnél (0 = soha)',
+    'config.report_min_completed_games': 'Megbízható jelentő: legalább ennyi befejezett játék, amelyben talált szót',
+    'config.reports_per_player_per_day': 'Szójelentések napi korlátja játékosonként (0 = nincs korlát)',
     'config.notNumber': '{{label}}: a megadott érték nem szám.',
 
     'ui.sectionTitle': 'Játékos-felület elemei',
@@ -243,6 +246,9 @@ const STRINGS = {
     'config.min_word_length': 'Shortest accepted word (letters)',
     'config.timer_base_seconds': 'Base time limit (seconds)',
     'config.timer_seconds_per_extra_length': 'Extra time per letter above the minimum (seconds)',
+    'config.report_auto_inactivate_threshold': 'Auto-remove a word after this many trusted reports (0 = never)',
+    'config.report_min_completed_games': 'Trusted reporter: at least this many finished games with a found word',
+    'config.reports_per_player_per_day': 'Word reports per player per day (0 = no cap)',
     'config.notNumber': '{{label}}: the value is not a number.',
 
     'ui.sectionTitle': 'Player-facing controls',

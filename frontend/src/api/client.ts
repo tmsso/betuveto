@@ -414,7 +414,13 @@ class BetuAPIClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(reason ? { word, reason } : { word }),
     });
-    if (!response.ok) throw new Error(`Failed to report word (${response.status})`);
+    if (!response.ok) {
+      // status rides along so the caller can tell the daily cap (429, ROADMAP 12.2) apart
+      // from a genuine failure.
+      throw Object.assign(new Error(`Failed to report word (${response.status})`), {
+        status: response.status,
+      });
+    }
     return response.json();
   }
 

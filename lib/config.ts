@@ -23,9 +23,16 @@ export interface GameConfig {
   min_word_length: number;
   timer_base_seconds: number;
   timer_seconds_per_extra_length: number;
+  // ROADMAP 12.2 — word-report abuse limits (see lib/word-reports.ts). 0 disables:
+  // threshold 0 = never auto-inactivate, per-day 0 = no cap, min games 0 = everyone counts.
+  report_auto_inactivate_threshold: number;
+  report_min_completed_games: number;
+  reports_per_player_per_day: number;
 }
 
-/** Also the seed values in migrations/0005_config.sql — keep the two in sync if either changes. */
+/** Also the seed values in migrations/0005_config.sql — keep the two in sync if either
+ *  changes. The three report_* keys (ROADMAP 12.2) have no seed row: an absent row reads
+ *  as the default below, so they need no migration. */
 export const CONFIG_DEFAULTS: GameConfig = {
   hint_cost: 10,
   completion_bonus_multiplier: 1,
@@ -33,6 +40,9 @@ export const CONFIG_DEFAULTS: GameConfig = {
   min_word_length: 3,
   timer_base_seconds: 120,
   timer_seconds_per_extra_length: 15,
+  report_auto_inactivate_threshold: 3,
+  report_min_completed_games: 3,
+  reports_per_player_per_day: 20,
 };
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS) as (keyof GameConfig)[];

@@ -304,7 +304,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
       setReportedWords((prev) => new Set(prev).add(word))
     } catch (err) {
       console.error('Error reporting word:', err)
-      showTemporaryError(t('errors.reportFailed'))
+      showTemporaryError(t(err?.status === 429 ? 'errors.reportLimit' : 'errors.reportFailed'))
     }
   }, [reportedWords, showTemporaryError, t])
 

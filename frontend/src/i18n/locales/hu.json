@@ -237,6 +237,7 @@
     "gameNotActive": "A játék nem aktív.",
     "noHintableWords": "Nincs több felfedhető szó.",
     "reportFailed": "Hiba történt a szó jelentésekor.",
+    "reportLimit": "Ma már sok szót jelentettél — köszönjük! Holnap folytathatod.",
     "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
     "suggestFailed": "Hiba történt a javaslat küldésekor."
   }
