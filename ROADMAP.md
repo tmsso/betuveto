@@ -1945,7 +1945,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   `lib/daily.ts`): an English UI shows a Hungarian placeholder on the leaderboards. Return
   `display_name: null` and let the client render `t('highScores.anonymous')` (add the key,
   hu + en). Contract tests that assert the string need the same update.
-- `[ ]` **11.8 Audit log never records *who*.** `admin_audit_log.admin_id` stays null even
+- `[x]` *(PR #89. As built: `authorizeAdmin()` returns `{ adminId }` or null; a bare id-or-null would have locked token admins out. The Magic Link path is unit-tested only.)* **11.8 Audit log never records *who*.** `admin_audit_log.admin_id` stays null even
   for a Magic-Link session, which *does* carry a player id (`lib/admin.ts`
   `hasValidAdminSession` resolves the linked row). Have `isAdminAuthorized` return the
   admin's player id (or null for the shared token) and thread it into `logAdminAction`.
@@ -1957,7 +1957,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   per-player scan that grows with history. A partial index `game_guesses (created_at)
   where correct` keeps it O(recent). Check with `EXPLAIN ANALYZE` on production first
   (the 2026-07-30 `pickPersonalizedWord` note shows the routine).
-- `[ ]` **11.11 `games.status = 'abandoned'` is a dead enum value** — nothing writes it (the
+- `[x]` *(PR #88: left in place, with a comment in `lib/admin-dashboard.ts`)* **11.11 `games.status = 'abandoned'` is a dead enum value** — nothing writes it (the
   sweeper 0.2 mentioned was never needed once expiry became lazy). Either drop it from
   the check constraint in the next schema migration that touches `games`, or leave it with
   a comment; don't build a sweeper.
@@ -1970,7 +1970,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   root `package.json`, regenerate both lockfiles with the matching npm (see the
   npm-10-vs-11 lockfile gotcha in memory / PR #68). **Confirm-first:** this edits the CI
   pipeline and the runtime; do it as its own PR, nothing else in it.
-- `[ ]` **11.13 `HF_TOKEN` is still a repository secret** from the Hugging Face sync retired
+- `[x]` *(deleted 2026-10-01, owner-approved)* **11.13 `HF_TOKEN` is still a repository secret** from the Hugging Face sync retired
   in Batch 1.3 (`gh secret list`). Delete it — owner action, nothing in the repo reads it.
 - `[x]` *(stale — Batch 10 item 9 records both DSNs set on 2026-08-29)* **11.14 Sentry DSNs (Batch 10 item 9) — unverified whether they were ever set** on
   Vercel (the CLI wasn't available in the review session). If not, either set them (free
@@ -1983,7 +1983,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   `prepare:false` against Neon's pooler, vitest 3, Playwright 1.62, Sentry 10. Backups:
   the monthly `pg_dump` workflow has run green on 2026-08-01 and 2026-09-01. Not a task —
   recorded so the next review doesn't re-derive it.
-- `[ ]` **11.17 `.gitignore` tidy-up:** it lists `.gitignore` and `.git/` (no-ops), and
+- `[x]` *(PR #88. Side effect: the untracked `frontend/.gitignore` is now committed.)* **11.17 `.gitignore` tidy-up:** it lists `.gitignore` and `.git/` (no-ops), and
   ignores `lib/` (a Python-era rule) then re-includes it — a new `lib64/`-style
   directory would silently vanish. Replace the Python block with the two rules this repo
   actually needs (`venv/`, `word-game-env/`, `__pycache__/`). Also the `backend/`, `dist/`,
@@ -2002,7 +2002,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   response shape must update `client.ts` by hand.
 
 **Ideas (unsized, not scheduled — the owner picks)**
-- **11.20 Shareable daily result** — a Wordle-style "🗓️ 2026-09-15 · 7/41 words · 🔥 5"
+- `[x]` *(PR #90. As built: date · length · found/total · score · 🎯 if the target was found · streak · link. The API gained `your_result.found_count`.)* **11.20 Shareable daily result** — a Wordle-style "🗓️ 2026-09-15 · 7/41 words · 🔥 5"
   text/emoji card behind a Share button on the daily panel (Web Share API with clipboard
   fallback). Word-agnostic by construction, so it respects the no-word-history rule, and
   it is the retention loop the daily was built for.
@@ -2014,7 +2014,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   features real at zero traffic. Licence check first, like `data/README.md` does.
 - **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
   `docs/multiplayer.md` most likely to be asked for after the first real session.
-- **11.23 "Did you know" highlight** from `longest_word_found` (kept in `/me/stats` for
+- *(Owner 2026-10-01: skip for now, too close to the no-per-word-history rule.)* **11.23 "Did you know" highlight** from `longest_word_found` (kept in `/me/stats` for
   exactly this) — one line on the stats panel, rotating, never a list.
 
 ---
@@ -2059,7 +2059,8 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   address per hour. Only an HMAC of the IP is stored, purged after 24 h (disclosed on the
   privacy page). Fails open without the table. The contract suite mints many identities from
   one IP, so disable the cap on the target DB before a full run (README).
-- **Merge order / owner steps:** the PRs are stacked #76 ← #77 ← … ← #86 ← #87 (docs).
+- **Merge order / owner steps:** the PRs are stacked #76 ← #77 ← … ← #86 ← #87 (docs) ← #88 ← #89 ← #90 ← #91 (Wave C, 2026-10-01: 11.17, 11.8, 11.20, docs). Wave C adds no migrations.
+  **Previews for #84 onward run on the production DB** (their per-branch Neon DBs were never created). Wave C was verified in-process against a preview-branch DB instead. Fix the project-wide Preview `DATABASE_URL` before anyone tests on a preview.
   **Use merge commits, not squash.** A local dry run showed squash-merging the chain
   conflicts from #80 onward, because later PRs edit lines earlier ones introduced. Merge
   commits applied cleanly all the way, with a final tree identical to the top branch (so
