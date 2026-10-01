@@ -144,16 +144,18 @@ test('reveals a hint and deducts its cost from the displayed score', async ({ pa
 test('gives up, reveals the solution, and leaves the board ready for another game', async ({ page }) => {
   await startGame(page)
 
-  // handleGiveUp gates on window.confirm() before calling the API.
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: /Feladom/ }).click()
+  // Give-up asks through the in-app <ConfirmationModal> (ROADMAP 12.5), not window.confirm.
+  await page.getByRole('button', { name: /Feladom \(megoldás/ }).click()
+  const confirmDialog = page.getByRole('dialog')
+  await expect(confirmDialog.getByRole('heading', { name: 'Feladod?' })).toBeVisible()
+  await confirmDialog.getByRole('button', { name: 'Feladom', exact: true }).click()
 
   // showTemporaryError renders the reveal as a role="alert" overlay (errors.revealed).
   await expect(page.getByRole('alert').filter({ hasText: 'A teljes szó:' })).toBeVisible()
 
   // The give-up/hint row is gated on `!isTimeUp` — its disappearance confirms the game
   // actually transitioned to ended, not just that the reveal toast happened to render.
-  await expect(page.getByRole('button', { name: /Feladom/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Feladom \(megoldás/ })).toHaveCount(0)
 
   // "Új játék" stays usable (it isn't gated on game state) — starting fresh after a
   // give-up must still work, not just look clickable.
@@ -211,4 +213,15 @@ test('switching UI language mid-game leaves the board and the game untouched', a
 
   // English copy now renders for the rest of the page too, e.g. the start/new-game button.
   await expect(page.getByRole('button', { name: 'New game', exact: true })).toBeVisible()
+})
+
+test('opens the how-to-play panel with the game\'s own rules, and closes it with Escape', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Játékszabály/ }).click()
+  const help = page.getByRole('dialog', { name: 'Hogyan játssz?' })
+  await expect(help).toBeVisible()
+  // The minimum length is interpolated from the rules, never a blank placeholder.
+  await expect(help.getByText(/legalább \d+ betűsek/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(help).toHaveCount(0)
 })

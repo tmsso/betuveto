@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { betuAPI } from '../api/client'
 
-const MIN_GUESS_LENGTH = 3
+// Fallbacks until the first start response arrives (and for an older deployment without
+// `rules`); after that the server's admin-editable values (ROADMAP 12.5 / 11.5) win.
+const DEFAULT_RULES = { hintCost: 10, minWordLength: 3 }
 const MIN_TARGET_LENGTH = 5
 const DEFAULT_TARGET_LENGTH = 7
 const DEFAULT_WORDLIST = 'hu'
@@ -74,8 +76,10 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
   // (before any response has arrived) still matches the default wordlist.
   const [gameAlphabet, setGameAlphabet] = useState('ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÖŐÚÜŰ')
 
-  // Hints (ROADMAP 3.1). Mirrors lib/hints.ts's HINT_COST the same way durationForLength
-  // mirrors lib/words.ts.
+  // Admin-editable rules echoed by game/start (ROADMAP 12.5 / 11.5): hint cost for the
+  // button label, minimum word length for the client-side "too short" pre-check.
+  const [rules, setRules] = useState(DEFAULT_RULES)
+  // Hints (ROADMAP 3.1).
   const [hintPenalty, setHintPenalty] = useState(0)
   const [hintLoading, setHintLoading] = useState(false)
   const [hintMessage, setHintMessage] = useState(null)
@@ -142,6 +146,10 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     if (response.alphabet) setGameAlphabet(response.alphabet)
     const ui = response.ui ?? null
     setUiConfig(ui)
+    setRules({
+      hintCost: response.rules?.hint_cost ?? DEFAULT_RULES.hintCost,
+      minWordLength: response.rules?.min_word_length ?? DEFAULT_RULES.minWordLength,
+    })
     setFoundWords([])
     setCurrentGuess('')
     setGuessCount(0)
@@ -329,8 +337,8 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
   const handleSubmit = useCallback(async () => {
     const guess = currentGuess.trim().toUpperCase()
     setSuggestPrompt(null)
-    if (guess.length < MIN_GUESS_LENGTH) {
-      if (guess.length > 0) showTemporaryError(t('errors.tooShort', { count: MIN_GUESS_LENGTH }))
+    if (guess.length < rules.minWordLength) {
+      if (guess.length > 0) showTemporaryError(t('errors.tooShort', { count: rules.minWordLength }))
       return
     }
 
@@ -400,9 +408,17 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
           play('reject')
           setCurrentGuess('')
         }
-      } else if (!response.valid) {
-        // Not a known word (valid:false). Distinct from a real word that can't be built
-        // from the board (valid:true, can_form:false) handled below.
+      } else if (response.result === 'too_short') {
+        // ROADMAP 12.5 (= 11.5): the server is the authority on the minimum — it can still
+        // say too_short after the pre-check above passed (an admin raised min_word_length
+        // mid-game, or a pasted decomposed accent counted differently). This used to fall
+        // into the "not in the dictionary" branch below and show the wrong message.
+        showTemporaryError(t('errors.tooShort', { count: response.min_length ?? rules.minWordLength }))
+        play('reject')
+        setCurrentGuess('')
+      } else if (response.result === 'not_in_dictionary' || (!response.result && !response.valid)) {
+        // Not a known word. Distinct from a real word that can't be built from the board
+        // (cannot_form) handled below.
         showTemporaryError(t('errors.notInDictionary', { word: guess }))
         play('reject')
         setSuggestPrompt(guess) // ROADMAP 4.2: maybe it's a real word the dictionary is missing
@@ -439,7 +455,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
         document.getElementById('guess-input')?.blur()
       }
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength])
 
   const handleLetterClick = useCallback((letter) => {
     setCurrentGuess((prevGuess) => prevGuess + letter)
@@ -459,9 +475,10 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     }
   }, [showTemporaryError, t])
 
+  // No confirm here (ROADMAP 12.5 / 11.6): App.jsx asks first through the shared
+  // <ConfirmationModal>, like every other destructive action, then calls this.
   const handleGiveUp = useCallback(async () => {
     if (isTimeUp) return
-    if (!window.confirm(t('giveUpHint.confirmGiveUp'))) return
     try {
       const result = await betuAPI.giveUp()
       endGame('given_up', { possibleWords: result.possible_words })
@@ -518,6 +535,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion }) {
     currentAnimatingIndex, isScoreFlashing, preGame, targetLength, uiConfig, gameWordlist,
     scoreAtExpiry,
     gameEasyMode, isDailyGame, gameAlphabet, hintPenalty, hintLoading, hintMessage,
+    hintCost: rules.hintCost, minWordLength: rules.minWordLength,
     reportedWords, suggestPrompt, suggestLoading, suggestThanks, possibleWordsCount,
     allPossibleWords, showRemainingWords, allPossibleWordsFound, totalScore, displayScore,
     usedLetters,

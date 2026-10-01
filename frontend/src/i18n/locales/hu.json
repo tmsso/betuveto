@@ -1,8 +1,20 @@
 {
-  "app": { "title": "Betűvető" },
-  "loading": { "screen": "Betöltés...", "startingGame": "Játék indítása..." },
-  "crash": {"title": "Hiba történt", "body": "A játékban váratlan hiba lépett fel. Egy újratöltés általában megoldja — a pontjaid és beállításaid megmaradnak.", "reload": "Újratöltés"},
-  "errorScreen": { "title": "Hiba!", "retry": "Újraindítás" },
+  "app": {
+    "title": "Betűvető"
+  },
+  "loading": {
+    "screen": "Betöltés...",
+    "startingGame": "Játék indítása..."
+  },
+  "crash": {
+    "title": "Hiba történt",
+    "body": "A játékban váratlan hiba lépett fel. Egy újratöltés általában megoldja — a pontjaid és beállításaid megmaradnak.",
+    "reload": "Újratöltés"
+  },
+  "errorScreen": {
+    "title": "Hiba!",
+    "retry": "Újraindítás"
+  },
   "easyModeBadge": "Könnyű mód",
   "easyModeToggle": {
     "label": "Könnyű mód",
@@ -72,6 +84,7 @@
     "loading": "Betöltés...",
     "empty": "Még nincs rögzített pontszám ezen a hosszon.",
     "yourBest": "Legjobb pontszámod:",
+    "anonymous": "Névtelen játékos",
     "offlineWithLocal": "Nincs kapcsolat a szerverrel — helyi pontjaid:",
     "offlineNone": "Nincs kapcsolat a szerverrel."
   },
@@ -81,7 +94,10 @@
   },
   "wordlistPill": {
     "title": "A tábla nyelve: {{language}}",
-    "lang": { "hu": "magyar", "en": "angol" }
+    "lang": {
+      "hu": "magyar",
+      "en": "angol"
+    }
   },
   "guessInput": {
     "ariaLabel": "Tipp beírása",
@@ -107,6 +123,8 @@
   "giveUpHint": {
     "giveUp": "🏳️ Feladom (megoldás felfedése)",
     "confirmGiveUp": "Biztosan feladod? Felfedjük a megoldást.",
+    "confirmGiveUpTitle": "Feladod?",
+    "confirmGiveUpButton": "Feladom",
     "hint": "💡 Segítség (-{{cost}} pont)",
     "hintTitle": "Egy szó első betűjének felfedése (-{{cost}} pont)"
   },
@@ -241,5 +259,22 @@
     "reportLimit": "Ma már sok szót jelentettél — köszönjük! Holnap folytathatod.",
     "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
     "suggestFailed": "Hiba történt a javaslat küldésekor."
+  },
+  "help": {
+    "open": "Játékszabály",
+    "title": "Hogyan játssz?",
+    "close": "Bezárás",
+    "goal": "🎯 Rakj ki minél több szót a megkevert betűkből, mielőtt lejár az idő. Egy szó az összes betűt felhasználja — az éri a legtöbbet.",
+    "words": "✍️ A szavak legalább {{count}} betűsek legyenek, és minden betűlapka egyszer használható. Koppints a betűkre vagy gépelj, majd Enter vagy ✅.",
+    "scoring": "⭐ Egy szó a hossza négyzetét éri, így a hosszú szavak sokkal többet hoznak (egy 7 betűs szó 49 pont). Ha minden szót megtalálsz, a hátralévő időt bónuszként kapod meg.",
+    "buttons": "🔀 újrakeveri a betűket · 💡 felfedi egy még meg nem talált szó első betűjét ({{cost}} pontba kerül) · 🏳️ feladod, és látod az összes szót.",
+    "curation": "⚑ a szó mellett: jelzed, hogy hibás. Ha egy létező szót nem fogad el a játék, beküldheted, hogy bekerüljön a szótárba.",
+    "more": "⚙️ Beállítások: táblaméret, szótár nyelve, a napi rejtvény (mindenkinek ugyanaz a tábla, sorozattal), ranglisták és a statisztikád.",
+    "feedbackIntro": "Valami nem működik, zavaros vagy hiányzik?"
+  },
+  "feedback": {
+    "link": "Visszajelzés küldése",
+    "subject": "Betűvető visszajelzés",
+    "bodyIntro": "Mi történt, és mire számítottál?"
   }
 }

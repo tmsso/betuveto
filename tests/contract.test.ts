@@ -767,6 +767,24 @@ describeApi("Betűvető API contract", () => {
     }
   });
 
+  // ROADMAP 12.5 (= 11.5 / 11.7): the client mirrors admin-editable rules from the start
+  // response, and an unnamed player comes back as null for the client to localise.
+  it("echoes the hint cost and minimum word length on game/start", async () => {
+    const game = (await start()) as unknown as { rules: { hint_cost: number; min_word_length: number } };
+    expect(typeof game.rules.hint_cost).toBe("number");
+    expect(game.rules.min_word_length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("returns display_name null (never a hardcoded Hungarian placeholder) for unnamed players", async () => {
+    const { cookie } = await completeSmallGame();
+    const { status, json } = await call("GET", "/api/v1/scores/top?length=5", undefined, { Cookie: cookie });
+    expect(status).toBe(200);
+    for (const entry of json.top as { display_name: string | null }[]) {
+      expect(entry.display_name === null || entry.display_name.trim().length > 0).toBe(true);
+      expect(entry.display_name).not.toBe("Névtelen játékos");
+    }
+  }, 60_000);
+
   it("reports your_best: null with no identity cookie", async () => {
     const { json } = await call("GET", "/api/v1/scores/top?length=7");
     expect(json.your_best).toBeNull();

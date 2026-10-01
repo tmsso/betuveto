@@ -344,6 +344,10 @@ export async function startGame(
         show_wordlist_selector: ui.show_wordlist_selector,
         show_easy_mode: ui.show_easy_mode,
       },
+      // ROADMAP 12.5 (= 11.5): the admin-editable rules the client has to mirror, so the
+      // hint label and the client-side "too short" pre-check follow an admin edit instead
+      // of hardcoded copies of the defaults.
+      rules: { hint_cost: config.hint_cost, min_word_length: config.min_word_length },
       // Not the auth token itself (that stays HttpOnly) — just the id, so a black-box
       // test (or a future /me endpoint) can assert continuity across requests.
       player_id: playerId,
@@ -605,7 +609,6 @@ export async function getState(gameId: string): Promise<Reply> {
       found_count: game.found_count,
       possible_count: game.possible_count,
       total_score: effectiveScore(game.raw_guess_score, game.hint_cost_total),
-      guess_count: game.found_count,
       target_length: game.target_length,
       ends_at: epochSeconds(game.ends_at),
     },

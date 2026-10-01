@@ -6,6 +6,7 @@ import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import SettingsPanel from './components/SettingsPanel'
+import HelpPanel from './components/HelpPanel'
 import Board from './components/Board'
 import GuessInput from './components/GuessInput'
 import Timer from './components/Timer'
@@ -50,11 +51,6 @@ const UI_LANGUAGES = [
   { code: 'hu', label: 'Magyar' },
   { code: 'en', label: 'English' },
 ];
-// Mirrors lib/hints.ts's HINT_COST — duplicated the same way useGame.js's
-// durationForLength mirrors lib/words.ts; used only to label the hint button before it's
-// obviously futile. The server is the real authority on cost and always floors the score
-// at 0 regardless of this check.
-const HINT_COST = 10;
 
 function App() {
   const { t, i18n } = useTranslation()
@@ -118,6 +114,7 @@ function App() {
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
     handleUseHint, handleReportWord, handleSuggestWord,
+    hintCost, minWordLength,
   } = game
 
   // Game-start orchestration (which endpoint to hit, syncing the "next game" selectors to
@@ -128,10 +125,12 @@ function App() {
 
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false) // ROADMAP 12.5 how-to-play
   // A single confirmation gate. `null` when nothing is pending; otherwise `{ message, run }`
   // and `run()` fires once the player confirms. Both the "Új játék" button and a
   // game-restarting selector change (length / wordlist / easy mode, item 15) funnel
   // through here so an in-progress game is never discarded without a prompt.
+  // Optional `title` / `confirmLabel` override the modal's "new game?" defaults (give-up).
   const [pendingConfirm, setPendingConfirm] = useState(null)
   // Local top-3, kept only as an offline/error fallback now that scores are
   // server-side (ROADMAP 2.2) — the panel below prefers `serverScores` whenever it loads.
@@ -347,6 +346,17 @@ function App() {
     }
   }, [foundWords.length, isTimeUp, t])
 
+  // Give-up asks through the same modal as everything else (ROADMAP 12.5 / 11.6) instead
+  // of the browser's own window.confirm.
+  const handleGiveUpClick = useCallback(() => {
+    setPendingConfirm({
+      title: t('giveUpHint.confirmGiveUpTitle'),
+      message: t('giveUpHint.confirmGiveUp'),
+      confirmLabel: t('giveUpHint.confirmGiveUpButton'),
+      run: handleGiveUp,
+    })
+  }, [t, handleGiveUp])
+
   const handleNewGameClick = useCallback(() => {
     requestRestart(() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode))
   }, [requestRestart, startNewGame, selectedLength, selectedWordlist, selectedEasyMode])
@@ -545,16 +555,27 @@ function App() {
             length, wordlist, easy mode, leaderboard, stats) now lives behind this one
             gear button, in <SettingsPanel>, leaving the board / input / score / timer /
             actions as the default view. */}
-        <button
-          type="button"
-          onClick={() => setIsSettingsOpen(true)}
-          aria-label={t('settings.open')}
-          title={t('settings.open')}
-          className="mt-1 inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
-        >
-          <span aria-hidden="true">⚙️</span>
-          <span>{t('settings.open')}</span>
-        </button>
+        <div className="mt-1 flex items-center gap-2">
+          {/* ROADMAP 12.5 — the rules, for testers who arrive from a shared link. */}
+          <button
+            type="button"
+            onClick={() => setIsHelpOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+          >
+            <span aria-hidden="true">❓</span>
+            <span>{t('help.open')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            aria-label={t('settings.open')}
+            title={t('settings.open')}
+            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+          >
+            <span aria-hidden="true">⚙️</span>
+            <span>{t('settings.open')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-game-surface rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
@@ -680,7 +701,7 @@ function App() {
         {!isTimeUp && (
           <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
-              onClick={handleGiveUp}
+              onClick={handleGiveUpClick}
               className="text-xs text-game-muted underline hover:text-red-600"
             >
               {t('giveUpHint.giveUp')}
@@ -688,10 +709,10 @@ function App() {
             <button
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
-              title={t('giveUpHint.hintTitle', { cost: HINT_COST })}
+              title={t('giveUpHint.hintTitle', { cost: hintCost })}
               className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300 disabled:text-gray-300 dark:disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
             >
-              {t('giveUpHint.hint', { cost: HINT_COST })}
+              {t('giveUpHint.hint', { cost: hintCost })}
             </button>
           </div>
         )}
@@ -863,11 +884,20 @@ function App() {
         onPlayDaily={handlePlayDaily}
       />
 
+      <HelpPanel
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        minWordLength={minWordLength}
+        hintCost={hintCost}
+      />
+
       <ConfirmationModal
         isOpen={pendingConfirm !== null}
         onClose={() => setPendingConfirm(null)}
         onConfirm={() => pendingConfirm?.run()}
         message={pendingConfirm?.message ?? ''}
+        title={pendingConfirm?.title}
+        confirmLabel={pendingConfirm?.confirmLabel}
       />
     </div>
   )
