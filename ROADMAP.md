@@ -2048,7 +2048,8 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
 - `[x]` *(PR #79)* **12.4 Node runtime (= 11.12).** Planned as Node 22. The PR's first
   Vercel build logged "Node.js version changed from 24.x to 22.x": production was already
   running Node 24 (the dashboard default), so 22 would have been a downgrade. Now pinned to
-  **24.x** (`engines`, Active LTS to 2028-04), and CI runs 24 too.
+  **24.x** (`engines`, Active LTS to 2028-04), and CI runs 24 too. **Owner approved Node 24
+  on 2026-10-01.**
 - `[x]` *(PR #80)* **12.5 Tester polish:** 11.5, 11.6, 11.7 (+11.9), a how-to-play dialog
   (header button, never auto-opened), and a feedback mailto link driven by
   `VITE_FEEDBACK_EMAIL` at build time. **Owner step:** set that variable on Vercel
