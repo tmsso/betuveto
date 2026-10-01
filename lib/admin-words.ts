@@ -5,7 +5,7 @@
  * only for the word row itself.
  */
 import type { Sql } from "postgres";
-import { logAdminAction } from "./admin.js";
+import { type AdminIdentity, logAdminAction } from "./admin.js";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 import { letterCount, normalizeWord, signatureOf } from "./words.js";
@@ -79,7 +79,7 @@ async function isActiveGameTarget(
   return !!row;
 }
 
-export async function editWord(wordId: number, rawWord: unknown): Promise<Reply> {
+export async function editWord(admin: AdminIdentity, wordId: number, rawWord: unknown): Promise<Reply> {
   if (typeof rawWord !== "string") {
     return { status: 422, body: { detail: "word must be a string." } };
   }
@@ -113,11 +113,11 @@ export async function editWord(wordId: number, rawWord: unknown): Promise<Reply>
     throw error;
   }
 
-  await logAdminAction("edit_word", { word_id: wordId, from: existing.word, to: normalized });
+  await logAdminAction(admin, "edit_word", { word_id: wordId, from: existing.word, to: normalized });
   return { status: 200, body: { id: wordId, word: normalized } };
 }
 
-export async function deleteWord(wordId: number): Promise<Reply> {
+export async function deleteWord(admin: AdminIdentity, wordId: number): Promise<Reply> {
   const sql = db();
   const existing = await loadWord(sql, wordId);
   if (!existing) return { status: 404, body: { detail: "Unknown word." } };
@@ -133,6 +133,6 @@ export async function deleteWord(wordId: number): Promise<Reply> {
   // CASCADE) — nothing else references words.id, so this is a clean hard delete.
   await sql`delete from words where id = ${wordId}`;
 
-  await logAdminAction("delete_word", { word_id: wordId, word: existing.word });
+  await logAdminAction(admin, "delete_word", { word_id: wordId, word: existing.word });
   return { status: 200, body: { id: wordId, deleted: true } };
 }

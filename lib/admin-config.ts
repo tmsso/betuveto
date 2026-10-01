@@ -1,5 +1,5 @@
 /** Admin HTTP surface for lib/config.ts (ROADMAP Batch 5.2 item 2, Batch 10 item 14). */
-import { logAdminAction } from "./admin.js";
+import { type AdminIdentity, logAdminAction } from "./admin.js";
 import {
   type GameConfig,
   type UiConfig,
@@ -17,7 +17,11 @@ export async function getConfigList(): Promise<Reply> {
   return { status: 200, body: { config: await listConfig() } };
 }
 
-export async function updateConfigValue(key: string, rawValue: unknown): Promise<Reply> {
+export async function updateConfigValue(
+  admin: AdminIdentity,
+  key: string,
+  rawValue: unknown,
+): Promise<Reply> {
   if (!isConfigKey(key)) {
     return { status: 404, body: { detail: `Unknown config key: ${key}` } };
   }
@@ -26,7 +30,7 @@ export async function updateConfigValue(key: string, rawValue: unknown): Promise
   }
 
   await setConfigValue(key as keyof GameConfig, rawValue);
-  await logAdminAction("update_config", { key, value: rawValue });
+  await logAdminAction(admin, "update_config", { key, value: rawValue });
   return { status: 200, body: { key, value: rawValue } };
 }
 
@@ -35,7 +39,11 @@ export async function getUiConfigList(): Promise<Reply> {
   return { status: 200, body: { config: await listUiConfig() } };
 }
 
-export async function updateUiConfigValue(key: string, rawValue: unknown): Promise<Reply> {
+export async function updateUiConfigValue(
+  admin: AdminIdentity,
+  key: string,
+  rawValue: unknown,
+): Promise<Reply> {
   if (!isUiConfigKey(key)) {
     return { status: 404, body: { detail: `Unknown UI config key: ${key}` } };
   }
@@ -55,6 +63,6 @@ export async function updateUiConfigValue(key: string, rawValue: unknown): Promi
   }
 
   await setUiConfigValue(key as keyof UiConfig, value);
-  await logAdminAction("update_ui_config", { key, value });
+  await logAdminAction(admin, "update_ui_config", { key, value });
   return { status: 200, body: { key, value } };
 }

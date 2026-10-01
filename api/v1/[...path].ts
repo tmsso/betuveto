@@ -31,7 +31,7 @@ import {
   searchPlayers,
 } from "../../lib/admin-players.js";
 import { deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
-import { isAdminAuthorized } from "../../lib/admin.js";
+import { type AdminIdentity, authorizeAdmin } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
 import { allowIdentityMint } from "../../lib/identity-throttle.js";
 import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
@@ -203,13 +203,15 @@ function suggestWordRoute(req: VercelRequest) {
 
 /** Wraps an admin logic function so every /api/v1/admin/* route enforces the same check
  *  (admin token or Neon Auth session — lib/admin.ts) the same way, in one place — no
- *  future admin route can add itself here and forget it. */
-function requireAdmin(logic: (req: VercelRequest) => Promise<Reply>) {
+ *  future admin route can add itself here and forget it. The resolved identity is handed
+ *  to the logic so mutations can record who made them (ROADMAP 11.8). */
+function requireAdmin(logic: (req: VercelRequest, admin: AdminIdentity) => Promise<Reply>) {
   return async (req: VercelRequest): Promise<Reply> => {
-    if (!(await isAdminAuthorized(req))) {
+    const admin = await authorizeAdmin(req);
+    if (!admin) {
       return { status: 401, body: { detail: "Invalid or missing admin credentials." } };
     }
-    return logic(req);
+    return logic(req, admin);
   };
 }
 
@@ -221,22 +223,22 @@ function parseId(segment: string | undefined): number | undefined {
 }
 
 function resolveReportRoute(wordId: number) {
-  return async (req: VercelRequest): Promise<Reply> => {
+  return async (req: VercelRequest, admin: AdminIdentity): Promise<Reply> => {
     const decision = bodyField(req, "decision");
     if (decision !== "accept" && decision !== "reject") {
       return { status: 422, body: { detail: "decision must be 'accept' or 'reject'." } };
     }
-    return resolveReport(wordId, decision);
+    return resolveReport(admin, wordId, decision);
   };
 }
 
 function resolveSuggestionRoute(suggestionId: number) {
-  return async (req: VercelRequest): Promise<Reply> => {
+  return async (req: VercelRequest, admin: AdminIdentity): Promise<Reply> => {
     const decision = bodyField(req, "decision");
     if (decision !== "approve" && decision !== "reject") {
       return { status: 422, body: { detail: "decision must be 'approve' or 'reject'." } };
     }
-    return resolveSuggestion(suggestionId, decision);
+    return resolveSuggestion(admin, suggestionId, decision);
   };
 }
 
@@ -501,8 +503,8 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       const wordId = parseId(c);
       if (wordId === undefined) return undefined;
       return methodHandler({
-        PATCH: requireAdmin((req) => editWord(wordId, bodyField(req, "word"))),
-        DELETE: requireAdmin(() => deleteWord(wordId)),
+        PATCH: requireAdmin((req, admin) => editWord(admin, wordId, bodyField(req, "word"))),
+        DELETE: requireAdmin((_req, admin) => deleteWord(admin, wordId)),
       });
     }
 
@@ -521,7 +523,7 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       if (c === undefined) return undefined;
       const key = c;
       return methodHandler({
-        PATCH: requireAdmin((req) => updateUiConfigValue(key, bodyField(req, "value"))),
+        PATCH: requireAdmin((req, admin) => updateUiConfigValue(admin, key, bodyField(req, "value"))),
       });
     }
 
@@ -533,7 +535,7 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       if (c === undefined) return undefined;
       const key = c;
       return methodHandler({
-        PATCH: requireAdmin((req) => updateConfigValue(key, bodyField(req, "value"))),
+        PATCH: requireAdmin((req, admin) => updateConfigValue(admin, key, bodyField(req, "value"))),
       });
     }
 
@@ -545,7 +547,7 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       if (c === undefined) return undefined;
       const playerId = c;
       return methodHandler({
-        PATCH: requireAdmin((req) => renamePlayer(playerId, bodyField(req, "display_name"))),
+        PATCH: requireAdmin((req, admin) => renamePlayer(admin, playerId, bodyField(req, "display_name"))),
       });
     }
 
@@ -556,7 +558,7 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
     if (segments.length === 4 && b === "games" && d === "disqualify") {
       if (c === undefined) return undefined;
       const gameId = c;
-      return methodHandler({ POST: requireAdmin(() => disqualifyGame(gameId)) });
+      return methodHandler({ POST: requireAdmin((_req, admin) => disqualifyGame(admin, gameId)) });
     }
 
     if (segments.length === 3 && b === "games") {
@@ -574,7 +576,7 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
     if (segments.length === 4 && b === "words" && d === "reactivate") {
       const wordId = parseId(c);
       if (wordId === undefined) return undefined;
-      return methodHandler({ POST: requireAdmin(() => reactivateWord(wordId)) });
+      return methodHandler({ POST: requireAdmin((_req, admin) => reactivateWord(admin, wordId)) });
     }
 
     if (segments.length === 4 && b === "suggestions" && d === "resolve") {

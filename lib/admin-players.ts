@@ -5,7 +5,7 @@
  * Batch 8's Google OAuth merge rule needs, and building it now would mean either
  * duplicating that logic or pre-empting a design that batch hasn't landed yet.
  */
-import { logAdminAction } from "./admin.js";
+import { type AdminIdentity, logAdminAction } from "./admin.js";
 import { db, wordlistId } from "./db.js";
 import type { Reply } from "./game.js";
 import { normalizeDisplayName } from "./players.js";
@@ -53,7 +53,11 @@ export async function searchPlayers(query: string): Promise<Reply> {
   return { status: 200, body: { players: rows } };
 }
 
-export async function renamePlayer(playerId: string, rawName: unknown): Promise<Reply> {
+export async function renamePlayer(
+  admin: AdminIdentity,
+  playerId: string,
+  rawName: unknown,
+): Promise<Reply> {
   // Unlike the player-facing setDisplayName (ROADMAP 7.2.0), an admin submitting a blank
   // name is a deliberate "clear it" action, not a validation error.
   const result = normalizeDisplayName(rawName);
@@ -67,7 +71,7 @@ export async function renamePlayer(playerId: string, rawName: unknown): Promise<
   `;
   if (!player) return { status: 404, body: { detail: "Unknown player." } };
 
-  await logAdminAction("rename_player", { player_id: playerId, to: trimmed || "(cleared)" });
+  await logAdminAction(admin, "rename_player", { player_id: playerId, to: trimmed || "(cleared)" });
   return { status: 200, body: { id: playerId, display_name: trimmed || null } };
 }
 
@@ -181,7 +185,7 @@ export async function getGameDetail(gameId: string): Promise<Reply> {
   return { status: 200, body: { game, guesses, hints } };
 }
 
-export async function disqualifyGame(gameId: string): Promise<Reply> {
+export async function disqualifyGame(admin: AdminIdentity, gameId: string): Promise<Reply> {
   const sql = db();
   const [game] = await sql<{ id: string; status: string; disqualified_at: string | null }[]>`
     select id, status, disqualified_at from games where id = ${gameId}
@@ -195,6 +199,6 @@ export async function disqualifyGame(gameId: string): Promise<Reply> {
   }
 
   await sql`update games set disqualified_at = now() where id = ${gameId}`;
-  await logAdminAction("disqualify_game", { game_id: gameId });
+  await logAdminAction(admin, "disqualify_game", { game_id: gameId });
   return { status: 200, body: { id: gameId, disqualified: true } };
 }

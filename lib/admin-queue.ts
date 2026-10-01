@@ -2,7 +2,7 @@
  * Word review queue (ROADMAP Batch 5.1/5.2 item 1): listing, plus accept/reject/
  * reactivate mutations. Edit/delete words and search-the-wordlist are still a later PR.
  */
-import { logAdminAction } from "./admin.js";
+import { type AdminIdentity, logAdminAction } from "./admin.js";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 
@@ -65,7 +65,11 @@ export async function getReviewQueue(): Promise<Reply> {
  * Reject: the report was wrong — the word is fine. Reactivates it and closes the reports.
  * Both branches touch `words` and `word_reports` together, so they run in one transaction.
  */
-export async function resolveReport(wordId: number, decision: "accept" | "reject"): Promise<Reply> {
+export async function resolveReport(
+  admin: AdminIdentity,
+  wordId: number,
+  decision: "accept" | "reject",
+): Promise<Reply> {
   const sql = db();
 
   const [word] = await sql<{ id: number; word: string }[]>`
@@ -88,20 +92,20 @@ export async function resolveReport(wordId: number, decision: "accept" | "reject
     return { status: 404, body: { detail: "No open reports for this word." } };
   }
 
-  await logAdminAction("resolve_report", { word_id: wordId, word: word.word, decision });
+  await logAdminAction(admin, "resolve_report", { word_id: wordId, word: word.word, decision });
   return { status: 200, body: { word: word.word, active: shouldBeActive, resolved_count: updated.length } };
 }
 
 /** Reactivates a word directly, independent of any report's status — an admin override
  *  for the auto-inactivation rule (ROADMAP 4.1), not tied to resolving a specific report. */
-export async function reactivateWord(wordId: number): Promise<Reply> {
+export async function reactivateWord(admin: AdminIdentity, wordId: number): Promise<Reply> {
   const sql = db();
   const [word] = await sql<{ id: number; word: string }[]>`
     update words set active = true where id = ${wordId} returning id, word
   `;
   if (!word) return { status: 404, body: { detail: "Unknown word." } };
 
-  await logAdminAction("reactivate_word", { word_id: wordId, word: word.word });
+  await logAdminAction(admin, "reactivate_word", { word_id: wordId, word: word.word });
   return { status: 200, body: { word: word.word, active: true } };
 }
 
@@ -111,6 +115,7 @@ export async function reactivateWord(wordId: number): Promise<Reply> {
  * deferred "delete words" feature) and marks the suggestion rejected.
  */
 export async function resolveSuggestion(
+  admin: AdminIdentity,
   suggestionId: number,
   decision: "approve" | "reject",
 ): Promise<Reply> {
@@ -135,7 +140,7 @@ export async function resolveSuggestion(
     await tx`update word_suggestions set status = ${newStatus} where id = ${suggestionId}`;
   });
 
-  await logAdminAction("resolve_suggestion", {
+  await logAdminAction(admin, "resolve_suggestion", {
     suggestion_id: suggestionId,
     word: suggestion.word,
     decision,
