@@ -134,6 +134,48 @@ function memberDone(m: RoomPlayerRow, now: number): boolean {
   return m.game_ends_at !== null && now > m.game_ends_at.getTime();
 }
 
+/**
+ * Word-agnostic live milestones (ROADMAP 7.2.4b, docs/multiplayer.md §1), derived at read
+ * time from the member's own game — nothing stored, so nothing to keep in sync. Only the
+ * highest clearance badge is listed (½ → ¾ → ✔), not all three at once.
+ */
+function memberBadges(m: RoomPlayerRow, possibleCount: number | null): string[] {
+  if (!m.game_id) return [];
+  const badges: string[] = [];
+  if (m.found_target) badges.push("full_word");
+  const fraction = possibleCount ? (m.found_count ?? 0) / possibleCount : 0;
+  if (fraction >= 1) badges.push("all_cleared");
+  else if (fraction >= 0.75) badges.push("three_quarters_cleared");
+  else if (fraction >= 0.5) badges.push("half_cleared");
+  if (m.hint_count > 0) badges.push("hint_used");
+  if (m.game_status === "given_up") badges.push("gave_up");
+  return badges;
+}
+
+/** Ranking (docs/multiplayer.md §1): score desc, then found_count desc, then the earlier
+ *  finisher; members equal on all three share a rank (1, 1, 3 — standard competition
+ *  ranking). Returns rank by player_id. */
+function rankMembers(members: RoomPlayerRow[]): Map<string, number> {
+  const endMs = (m: RoomPlayerRow) => m.game_ended_at?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  const sorted = [...members].sort(
+    (a, b) =>
+      memberScore(b) - memberScore(a) ||
+      (b.found_count ?? 0) - (a.found_count ?? 0) ||
+      endMs(a) - endMs(b),
+  );
+  const ranks = new Map<string, number>();
+  sorted.forEach((m, i) => {
+    const prev = sorted[i - 1];
+    const tied =
+      prev &&
+      memberScore(prev) === memberScore(m) &&
+      (prev.found_count ?? 0) === (m.found_count ?? 0) &&
+      endMs(prev) === endMs(m);
+    ranks.set(m.player_id, tied ? ranks.get(prev.player_id)! : i + 1);
+  });
+  return ranks;
+}
+
 /** The snapshot — the single read every member polls (docs/multiplayer.md §4). */
 async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise<Record<string, unknown>> {
   const members = await loadMembers(sql, room.id);
@@ -158,9 +200,56 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
       found_count: m.found_count ?? 0,
       score: m.game_id ? memberScore(m) : 0,
       done: memberDone(m, now),
+      badges: memberBadges(m, room.possible_count),
     })),
     next_room_code: room.next_room_code,
   };
+
+  // Words found by *anyone*, as one count — co-op only: in versus it would tell you how
+  // much of the board your opponents hold (docs/multiplayer.md §6).
+  if (room.mode === "coop" && room.status !== "lobby") {
+    const [{ found }] = await sql<{ found: number }[]>`
+      select count(distinct gg.word)::int as found
+        from game_guesses gg join games g on g.id = gg.game_id
+       where g.room_id = ${room.id} and gg.correct
+    `;
+    snapshot.room_found_count = found;
+  }
+
+  // The reveal — finished rooms only (D5: nothing stays hidden after the game; D9: nothing
+  // is revealed before it).
+  if (room.status === "finished" && room.target_word) {
+    const config = await getConfig();
+    const guessRows = await sql<{ player_id: string; word: string }[]>`
+      select g.player_id, gg.word
+        from game_guesses gg join games g on g.id = gg.game_id
+       where g.room_id = ${room.id} and gg.correct
+       order by gg.created_at
+    `;
+    const wordsBy = new Map<string, string[]>();
+    for (const row of guessRows) wordsBy.set(row.player_id, [...(wordsBy.get(row.player_id) ?? []), row.word]);
+    const everyoneFound = new Set(guessRows.map((row) => row.word));
+    const possible = await findableWords(sql, room.wordlist_id, room.target_word, config.min_word_length);
+    const ranks = rankMembers(members);
+    snapshot.reveal = {
+      target_word: room.target_word,
+      remaining_words: possible.filter((word) => !everyoneFound.has(word)),
+      members: members
+        .map((m) => ({
+          player_id: m.player_id,
+          display_name: m.display_name,
+          words: wordsBy.get(m.player_id) ?? [],
+          final_score: memberScore(m),
+          found_count: m.found_count ?? 0,
+          rank: ranks.get(m.player_id)!,
+          badges: memberBadges(m, room.possible_count),
+        }))
+        .sort((a, b) => a.rank - b.rank),
+      end_reason: room.end_reason,
+      room_cleared: room.end_reason === "cleared",
+      bonus_per_member: room.bonus_per_member ?? 0,
+    };
+  }
 
   // your_game: the caller's own game, shaped exactly like a game/start response so the
   // frontend applies it with the same useGame.beginFromStartResponse (7.2.6). The board
@@ -193,6 +282,33 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
     };
   }
   return snapshot;
+}
+
+/** A new lobby room with a fresh unique code, host already joined — shared by createRoom
+ *  and rematchRoom. Null if no unique code turned up in CODE_GENERATION_ATTEMPTS tries. */
+async function insertLobbyRoom(
+  sql: Sql,
+  hostId: string,
+  listId: number,
+  targetLength: number,
+  mode: string,
+): Promise<{ id: string; code: string } | null> {
+  for (let attempt = 0; attempt < CODE_GENERATION_ATTEMPTS; attempt++) {
+    const candidate = generateCode();
+    try {
+      const [inserted] = await sql<{ id: string }[]>`
+        insert into rooms (code, host_player_id, wordlist_id, target_length, mode)
+        values (${candidate}, ${hostId}, ${listId}, ${targetLength}, ${mode})
+        returning id
+      `;
+      await sql`insert into room_players (room_id, player_id) values (${inserted.id}, ${hostId})`;
+      return { id: inserted.id, code: candidate };
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") continue; // unique_violation: retry
+      throw error;
+    }
+  }
+  return null;
 }
 
 export async function createRoom(
@@ -246,28 +362,11 @@ export async function createRoom(
     on conflict (id) do update set display_name = excluded.display_name
   `;
 
-  let code: string | null = null;
-  let roomId: string | null = null;
-  for (let attempt = 0; attempt < CODE_GENERATION_ATTEMPTS && !roomId; attempt++) {
-    const candidate = generateCode();
-    try {
-      const [inserted] = await sql<{ id: string }[]>`
-        insert into rooms (code, host_player_id, wordlist_id, target_length, mode)
-        values (${candidate}, ${playerId}, ${listId}, ${targetLength}, ${mode})
-        returning id
-      `;
-      code = candidate;
-      roomId = inserted.id;
-    } catch (error) {
-      if ((error as { code?: string }).code === "23505") continue; // unique_violation: retry
-      throw error;
-    }
-  }
-  if (!roomId || !code) {
+  const created = await insertLobbyRoom(sql, playerId, listId, targetLength, mode);
+  if (!created) {
     return { status: 503, body: { detail: "Could not generate a unique room code, try again." } };
   }
-
-  await sql`insert into room_players (room_id, player_id) values (${roomId}, ${playerId})`;
+  const { code } = created;
 
   const room = await loadRoomForCode(sql, code);
   if (!room) throw new Error("Room vanished immediately after insert.");
@@ -467,4 +566,37 @@ export async function startRoom(
   const refreshed = await loadRoomForCode(sql, room.code);
   if (!refreshed) throw new Error("Room vanished immediately after start.");
   return { status: 200, body: await buildSnapshot(sql, refreshed, playerId) };
+}
+
+/**
+ * POST /rooms/{code}/rematch — host only, finished rooms only (ROADMAP 7.2.6's backend).
+ * A new lobby with the same settings and mode, the host already in it; the old room's
+ * `next_room_code` points at it, so every other member sees "join the rematch" on their
+ * next poll and joins with one tap. Idempotent: asking again returns the same new room.
+ */
+export async function rematchRoom(code: string, playerId: string | null): Promise<Reply> {
+  if (!playerId) return { status: 401, body: { detail: "No player identity. Start a game first." } };
+  const sql = db();
+  const room = await loadRoomForCode(sql, code);
+  if (!room) return { status: 404, body: { detail: "Unknown room." } };
+  if (room.host_player_id !== playerId) return { status: 403, body: { detail: "not_host" } };
+  if (room.status !== "finished") return { status: 409, body: { detail: "room_not_finished" } };
+  if (room.next_room_code) return { status: 200, body: { code: room.next_room_code } };
+
+  const created = await insertLobbyRoom(sql, playerId, room.wordlist_id, room.target_length, room.mode);
+  if (!created) return { status: 503, body: { detail: "Could not generate a unique room code, try again." } };
+  // Guarded so two concurrent rematch clicks can't leave the old room pointing at a
+  // different lobby than the one returned: the loser cancels its own spare room and
+  // returns the winner's.
+  const [linked] = await sql<{ next_room_code: string }[]>`
+    update rooms set next_room_code = ${created.code}
+     where id = ${room.id} and next_room_code is null
+     returning next_room_code
+  `;
+  if (!linked) {
+    await sql`update rooms set status = 'cancelled' where id = ${created.id}`;
+    const [winner] = await sql<{ next_room_code: string }[]>`select next_room_code from rooms where id = ${room.id}`;
+    return { status: 200, body: { code: winner.next_room_code } };
+  }
+  return { status: 200, body: { code: created.code } };
 }

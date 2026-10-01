@@ -92,3 +92,50 @@ export async function checkAllDone(sql: Sql, roomId: string, config: GameConfig)
   `;
   if (live === 0) await finishRoom(sql, roomId, "all_done", config);
 }
+
+/** Co-op only (ROADMAP 7.2.4): has the union of every member's finds covered the board?
+ *  `possible_count` is frozen on the room at start, so a word deactivated mid-game can't
+ *  move the goalposts (docs/multiplayer.md §3). Returns true if this call cleared it. */
+export async function checkCollectiveClear(sql: Sql, roomId: string, config: GameConfig): Promise<boolean> {
+  const [room] = await sql<{ mode: string; status: string; possible_count: number | null }[]>`
+    select mode, status, possible_count from rooms where id = ${roomId}
+  `;
+  if (!room || room.mode !== "coop" || room.status !== "playing" || room.possible_count === null) {
+    return false;
+  }
+  const [{ found }] = await sql<{ found: number }[]>`
+    select count(distinct gg.word)::int as found
+      from game_guesses gg join games g on g.id = gg.game_id
+     where g.room_id = ${roomId} and gg.correct
+  `;
+  if (found < room.possible_count) return false;
+  return finishRoom(sql, roomId, "cleared", config);
+}
+
+/** Called by guess() after a member scores a word: co-op collective clear first, then —
+ *  if this guess also ended the member's own game (personal full clear) — everyone-done.
+ *  Returns whether the room is finished after this guess. */
+export async function afterRoomGuess(
+  sql: Sql,
+  roomId: string,
+  ownGameEnded: boolean,
+  config: GameConfig,
+): Promise<boolean> {
+  await checkCollectiveClear(sql, roomId, config);
+  if (ownGameEnded) await checkAllDone(sql, roomId, config);
+  return !(await isRoomStillPlaying(sql, roomId));
+}
+
+/** D9 (owner decision 2026-09-30): while the room is still playing, no member gets the
+ *  answers — not from give_up, not from possible_words. Otherwise a member could give up,
+ *  read every word (and the target) and feed them to a teammate or a second identity.
+ *  Lazily expires an over-deadline room first, so a member whose clock ran out still gets
+ *  the reveal on the next call. */
+export async function isRoomStillPlaying(sql: Sql, roomId: string, config?: GameConfig): Promise<boolean> {
+  const [room] = await sql<{ id: string; status: string; ends_at: Date | null }[]>`
+    select id, status, ends_at from rooms where id = ${roomId}
+  `;
+  if (!room) return false;
+  if (config && (await expireRoomIfDue(sql, room, config))) return false;
+  return room.status === "playing";
+}

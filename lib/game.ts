@@ -39,6 +39,7 @@ import {
   findableWords,
   loadGame,
 } from "./game-core.js";
+import { afterRoomGuess, checkAllDone, isRoomStillPlaying } from "./room-lifecycle.js";
 
 export {
   type GameRow,
@@ -366,6 +367,12 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   // been found, at this guess or an earlier one), so this only ever touches mastery, never
   // times_failed.
   if (gameEnded) await finalizeWordStats(sql, game, config);
+  // Multiplayer (ROADMAP 7.2.4): a room member's find can end the whole room — a co-op
+  // collective clear, or (both modes) this guess was the last member's personal clear.
+  // `room_finished` lets the client refresh its snapshot at once instead of on the next
+  // poll; a collective clear also ends *this* member's game (with their bonus share)
+  // even though this guess itself didn't clear their personal board.
+  const roomFinished = game.room_id ? await afterRoomGuess(sql, game.room_id, gameEnded, config) : false;
   const completionBonus = gameEnded ? remainingSeconds * config.completion_bonus_multiplier : 0;
   // gameEnded's final_score comes straight back from the row just persisted (see the
   // comment above the UPDATE) rather than being recomputed here from the pre-insert
@@ -386,6 +393,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
       total_score: gameEnded ? finalScore : totalScore,
       completion_bonus: completionBonus,
       found_count: foundCount,
+      ...(game.room_id ? { room_finished: roomFinished } : {}),
     },
   };
 }
@@ -404,6 +412,16 @@ export async function giveUp(gameId: string): Promise<Reply> {
        where id = ${game.id} and status = 'active'
     `;
     if (result.count > 0) await finalizeWordStats(sql, game, config);
+  }
+
+  // Multiplayer (ROADMAP 7.2.4): giving up ends only your own game; if you were the last
+  // one playing, the room is done. D9: while anyone else is still playing, the answers
+  // stay hidden — the reveal comes through the room snapshot once the room finishes.
+  if (game.room_id) {
+    await checkAllDone(sql, game.room_id, config);
+    if (await isRoomStillPlaying(sql, game.room_id, config)) {
+      return { status: 200, body: { target_word: null, possible_words: null, room_pending: true } };
+    }
   }
 
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
@@ -476,6 +494,10 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
       status: 403,
       body: { detail: "Possible words are only available after the game ends." },
     };
+  }
+  // D9 (ROADMAP 7.2.4): a room game's answers stay hidden until the whole room is over.
+  if (game.room_id && (await isRoomStillPlaying(sql, game.room_id, config))) {
+    return { status: 403, body: { detail: "room_in_progress" } };
   }
 
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
