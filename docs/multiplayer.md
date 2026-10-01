@@ -1,6 +1,6 @@
 # Multiplayer co-op rooms — design (ROADMAP Batch 7.1)
 
-> Status: **design, 2026-09-15** — reviewed against the codebase as it stands after PR #69.
+> Status: **built 2026-09-30 (ROADMAP 7.2.3–7.2.7, PRs #82–#86)**; design written 2026-09-15 — reviewed against the codebase as it stands after PR #69.
 > Nothing here is built. ROADMAP 7.2 holds the ordered work orders; this document is the
 > "why" and the contract they implement against. Decisions **D1–D4** were made by the
 > project owner the same day (§7); the competitive mode (`versus`) was added at the owner's
@@ -292,6 +292,18 @@ E2E coverage extended *before* room code lands on top of it.
   separate "rooms" board is a possible follow-up, not v1.
 - **D4 — Host leaves / disappears: v1 cancels the room.** Host hand-off is a follow-up if
   it hurts in practice (ROADMAP 11.22).
+
+- **D9 (owner, 2026-09-30) — no early reveal.** While a room is still playing, a member's
+  `give_up` returns `{target_word: null, possible_words: null, room_pending: true}` and
+  `game/{id}/possible_words` answers 403 `room_in_progress`, in both modes. The reveal
+  arrives through the snapshot once the room is finished. Without this, a member could give
+  up, read every answer (and the target) and feed them to a teammate or a second identity.
+
+**As built (2026-09-30, ROADMAP 7.2.3–7.2.7):** D2's divisor is the members *still playing*
+when the room clears. The snapshot also carries `room_found_count` (co-op only),
+`reveal.end_reason`, `reveal.members[].found_count`, and a start-shaped `your_game`
+(`alphabet`, `rules`, `ui` included). `rooms.end_reason` / `bonus_per_member` come from
+migration 0022. Rematch: `POST /rooms/{code}/rematch` (host, finished room, idempotent).
 
 Competitive-mode defaults, decided here when the mode was added (2026-09-15) — reversible,
 say so if any should differ:

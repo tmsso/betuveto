@@ -2131,6 +2131,9 @@ describeApi("Betűvető API contract", () => {
   });
 
   // --- Multiplayer rooms — start + shared deadline (ROADMAP 7.2.3) ----------------
+  // Every room test from here on is skipped against production: each one mints several
+  // fresh players and rooms (and would trip the 12.6 identity throttle). Run them against
+  // a preview whose DATABASE_URL is a branch DB, never production's.
   /** Host + one guest in a fresh lobby of the given length (5 = small, quick boards). */
   async function twoPlayerLobby(targetLength = 5, mode: "coop" | "versus" = "coop") {
     const { status, json, headers } = await call("POST", "/api/v1/rooms", {
@@ -2150,6 +2153,7 @@ describeApi("Betűvető API contract", () => {
     call("GET", `/api/v1/rooms/${code}`, undefined, { Cookie: cookie });
 
   it("starts a room: host only, needs 2 members, one shared board and deadline", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const solo = await createRoomWithCookie("Alone");
     const tooFew = await call("POST", `/api/v1/rooms/${solo.result.code}/start`, {}, { Cookie: solo.cookie });
     expect(tooFew.status).toBe(409);
@@ -2188,6 +2192,7 @@ describeApi("Betűvető API contract", () => {
   }, 60_000);
 
   it("plays a room game through the normal game routes; others see the found count and score", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const { code, hostCookie, guestCookie } = await twoPlayerLobby();
     await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
     const mine = (await snapshot(code, hostCookie)).json.your_game;
@@ -2210,6 +2215,7 @@ describeApi("Betűvető API contract", () => {
   }, 60_000);
 
   it("expires a room lazily at the shared deadline, ending every member game", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const { code, hostCookie, guestCookie } = await twoPlayerLobby();
     const started = await call("POST", `/api/v1/rooms/${code}/start`, { duration_seconds: 5 }, { Cookie: hostCookie });
     expect(started.status).toBe(200);
@@ -2247,6 +2253,7 @@ describeApi("Betűvető API contract", () => {
   const pause = () => new Promise((resolve) => setTimeout(resolve, 400)); // stay under the guess rate limit
 
   it("co-op: finds that together cover the board clear the room once, with an equal bonus", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const room = await startedSmallRoom("coop");
     const [lastA, lastB, ...rest] = room.words;
     // Alternate the earlier words between the two members…
@@ -2284,6 +2291,7 @@ describeApi("Betűvető API contract", () => {
   }, 180_000);
 
   it("versus: covering the board together does not end the room; badges, give-up and ranking", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const room = await startedSmallRoom("versus");
     for (const [i, word] of room.words.entries()) {
       const res =
@@ -2330,6 +2338,7 @@ describeApi("Betűvető API contract", () => {
   }, 180_000);
 
   it("shows hint_used live, and rematch is host-only and idempotent", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const { code, hostCookie, guestCookie } = await twoPlayerLobby();
     await call("POST", `/api/v1/rooms/${code}/start`, { duration_seconds: 5 }, { Cookie: hostCookie });
     const guestGame = (await snapshot(code, guestCookie)).json.your_game;
@@ -2357,6 +2366,7 @@ describeApi("Betűvető API contract", () => {
 
   // --- Multiplayer rooms — admin (ROADMAP 7.2.7) -------------------------------
   it("shows rooms on the admin dashboard and the room in a member game's drill-down", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     if (!ADMIN_TOKEN) return;
     const admin = { "x-admin-token": ADMIN_TOKEN };
     const { code, hostCookie } = await twoPlayerLobby();
