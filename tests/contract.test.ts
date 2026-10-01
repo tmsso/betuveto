@@ -2129,4 +2129,99 @@ describeApi("Betűvető API contract", () => {
     expect(joinCancelled.status).toBe(409);
     expect(joinCancelled.json.detail).toBe("room_cancelled");
   });
+
+  // --- Multiplayer rooms — start + shared deadline (ROADMAP 7.2.3) ----------------
+  /** Host + one guest in a fresh lobby of the given length (5 = small, quick boards). */
+  async function twoPlayerLobby(targetLength = 5, mode: "coop" | "versus" = "coop") {
+    const { status, json, headers } = await call("POST", "/api/v1/rooms", {
+      display_name: "Host",
+      mode,
+      target_length: targetLength,
+    });
+    expect(status).toBe(200);
+    const hostCookie = headers.get("set-cookie")!.split(";", 1)[0];
+    const code = json.code as string;
+    const guest = await joinRoomWithCookie(code, "Guest");
+    expect(guest.status).toBe(200);
+    return { code, hostCookie, guestCookie: guest.cookie };
+  }
+
+  const snapshot = (code: string, cookie: string) =>
+    call("GET", `/api/v1/rooms/${code}`, undefined, { Cookie: cookie });
+
+  it("starts a room: host only, needs 2 members, one shared board and deadline", async () => {
+    const solo = await createRoomWithCookie("Alone");
+    const tooFew = await call("POST", `/api/v1/rooms/${solo.result.code}/start`, {}, { Cookie: solo.cookie });
+    expect(tooFew.status).toBe(409);
+    expect(tooFew.json.detail).toBe("not_enough_players");
+
+    const { code, hostCookie, guestCookie } = await twoPlayerLobby();
+    const notHost = await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: guestCookie });
+    expect(notHost.status).toBe(403);
+
+    const started = await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    expect(started.status).toBe(200);
+    expect(started.json.status).toBe("playing");
+
+    const again = await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    expect(again.status).toBe(409);
+    expect(again.json.detail).toBe("room_started");
+
+    const host = (await snapshot(code, hostCookie)).json;
+    const guest = (await snapshot(code, guestCookie)).json;
+    for (const view of [host, guest]) {
+      expect(view.status).toBe("playing");
+      expect(view.your_game.game_active).toBe(true);
+      expect(typeof view.your_game.alphabet).toBe("string");
+      expect(view.your_game.possible_count).toBe(view.possible_count);
+      expect(view.your_game.rules.min_word_length).toBeGreaterThan(0);
+    }
+    expect(host.your_game.game_id).not.toBe(guest.your_game.game_id);
+    expect(lettersOf(host.your_game).split("").sort().join("")).toBe(
+      lettersOf(guest.your_game).split("").sort().join(""),
+    );
+    expect(host.your_game.ends_at).toBe(guest.your_game.ends_at);
+
+    const late = await joinRoomWithCookie(code, "Latecomer");
+    expect(late.status).toBe(409);
+    expect(late.json.detail).toBe("room_started");
+  }, 60_000);
+
+  it("plays a room game through the normal game routes; others see the found count and score", async () => {
+    const { code, hostCookie, guestCookie } = await twoPlayerLobby();
+    await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    const mine = (await snapshot(code, hostCookie)).json.your_game;
+
+    let scored = false;
+    for (const word of findable(mine).slice(0, 5)) {
+      const { json } = await call("POST", `/api/game/${mine.game_id}/guess`, { word }, { Cookie: hostCookie });
+      if (json.result === "correct") {
+        scored = true;
+        break;
+      }
+    }
+    expect(scored).toBe(true);
+
+    const seenByGuest = (await snapshot(code, guestCookie)).json;
+    const hostRow = seenByGuest.members.find((m: any) => m.is_host);
+    expect(hostRow.found_count).toBe(1);
+    expect(hostRow.score).toBeGreaterThan(0);
+    expect(seenByGuest.members.find((m: any) => m.is_you).found_count).toBe(0);
+  }, 60_000);
+
+  it("expires a room lazily at the shared deadline, ending every member game", async () => {
+    const { code, hostCookie, guestCookie } = await twoPlayerLobby();
+    const started = await call("POST", `/api/v1/rooms/${code}/start`, { duration_seconds: 5 }, { Cookie: hostCookie });
+    expect(started.status).toBe(200);
+    const guestGame = (await snapshot(code, guestCookie)).json.your_game.game_id;
+
+    await new Promise((resolve) => setTimeout(resolve, 6500));
+    const after = (await snapshot(code, hostCookie)).json;
+    expect(after.status).toBe("finished");
+    expect(after.members.every((m: any) => m.done)).toBe(true);
+    expect(after.your_game.game_active).toBe(false);
+
+    const state = await call("GET", `/api/game/${guestGame}`);
+    expect(state.json.status).toBe("expired");
+  }, 60_000);
 });

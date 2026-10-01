@@ -64,7 +64,7 @@ import {
 } from "../../lib/players.js";
 import { getMyAchievements } from "../../lib/achievements.js";
 import { deleteMe } from "../../lib/account.js";
-import { createRoom, getRoomSnapshot, joinRoom, leaveRoom } from "../../lib/rooms.js";
+import { createRoom, getRoomSnapshot, joinRoom, leaveRoom, startRoom } from "../../lib/rooms.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
@@ -470,6 +470,15 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
           });
         case "leave":
           return methodHandler({ POST: (req) => leaveRoom(code, playerId(req)) });
+        case "start":
+          // ROADMAP 7.2.3. duration_seconds is the same test-only override game/start
+          // takes (it can only shorten the clock); absent = the length-scaled default.
+          return methodHandler({
+            POST: (req) => {
+              const raw = bodyField(req, "duration_seconds");
+              return startRoom(code, playerId(req), raw === undefined ? undefined : typeof raw === "number" ? raw : NaN);
+            },
+          });
         default:
           return undefined;
       }
