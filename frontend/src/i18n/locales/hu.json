@@ -276,5 +276,58 @@
     "link": "Visszajelzés küldése",
     "subject": "Betűvető visszajelzés",
     "bodyIntro": "Mi történt, és mire számítottál?"
+  },
+  "room": {
+    "panelTitle": "Játék barátokkal",
+    "alreadyInRoom": "Egy szobában vagy — nézd a táblát.",
+    "nameLabel": "Neved",
+    "namePlaceholder": "ezt látják a többiek",
+    "nameRequired": "Adj meg egy nevet — a többiek ezt látják.",
+    "modeLabel": "Mód",
+    "mode": {
+      "coop": {
+        "name": "Együtt",
+        "explain": "Csapatban az idő ellen: tisztítsátok le együtt a táblát, és osztozzatok az időbónuszon."
+      },
+      "versus": {
+        "name": "Egymás ellen",
+        "explain": "Mindenkinek ugyanaz a tábla — a legtöbb pont nyer."
+      }
+    },
+    "create": "Szoba létrehozása",
+    "codeLabel": "Szobakód",
+    "codePlaceholder": "KÓD",
+    "codeAria": "Szobakód: {{code}}",
+    "join": "Csatlakozás",
+    "share": "Meghívó link megosztása",
+    "copied": "Link kimásolva!",
+    "shareText": "Gyere a Betűvető-szobámba: {{code}}",
+    "lengthInfo": "{{length}} betűs tábla",
+    "membersLabel": "Játékosok a szobában",
+    "online": "elérhető",
+    "offline": "nincs itt",
+    "host": "házigazda",
+    "you": "te",
+    "memberCount": "{{count}} / {{max}} játékos",
+    "start": "Indítás",
+    "waitingForPlayers": "Legalább 2 játékosra vár…",
+    "waitingForHost": "Várakozás a házigazdára…",
+    "leave": "Kilépés a szobából",
+    "closeRoom": "Szoba bezárása",
+    "invited": "Meghívtak a(z) {{code}} szobába",
+    "notNow": "Most nem",
+    "cancelled": "Ezt a szobát bezárták.",
+    "backToSolo": "Vissza az egyéni játékhoz",
+    "errors": {
+      "room_full": "Ez a szoba megtelt.",
+      "room_started": "Ez a játék már elindult.",
+      "room_cancelled": "Ezt a szobát bezárták.",
+      "not_enough_players": "Legalább 2 játékos kell.",
+      "not_host": "Ezt csak a házigazda teheti meg.",
+      "not_found": "Nincs ilyen kódú szoba.",
+      "rate_limited": "Túl sok új játékos érkezett a hálózatodról — próbáld később.",
+      "invalid_name": "Ez a név nem használható (legfeljebb 20 karakter).",
+      "generic": "Valami hiba történt — próbáld újra."
+    }
   }
 }

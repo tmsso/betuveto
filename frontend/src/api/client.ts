@@ -31,6 +31,8 @@ export interface StartGameResult {
     show_wordlist_selector: boolean;
     show_easy_mode: boolean;
   };
+  /** ROADMAP 12.5 — admin-editable rules the client mirrors (hint label, "too short"). */
+  rules?: { hint_cost: number; min_word_length: number };
   /** Present only on a daily-puzzle game (ROADMAP Batch 10 item 1). `already_graded` marks
    *  a replay whose result won't count toward the streak / leaderboard. */
   daily?: {
@@ -136,6 +138,81 @@ export interface AchievementEntry {
 export interface MyAchievements {
   /** The full catalog in display order — locked entries included (unlocked_at null). */
   achievements: AchievementEntry[];
+}
+
+// --- Multiplayer rooms (ROADMAP 7.2, contract: docs/multiplayer.md §4) ----------------
+export type RoomMode = 'coop' | 'versus';
+export type RoomBadge =
+  | 'full_word' | 'half_cleared' | 'three_quarters_cleared' | 'all_cleared' | 'hint_used' | 'gave_up';
+
+export interface RoomMember {
+  player_id: string;
+  display_name: string | null;
+  is_you: boolean;
+  is_host: boolean;
+  online: boolean;
+  found_count: number;
+  score: number;
+  done: boolean;
+  badges: RoomBadge[];
+}
+
+export interface RoomRevealMember {
+  player_id: string;
+  display_name: string | null;
+  words: string[];
+  final_score: number;
+  found_count: number;
+  rank: number;
+  badges: RoomBadge[];
+}
+
+export interface RoomSnapshot {
+  code: string;
+  status: 'lobby' | 'playing' | 'finished' | 'cancelled';
+  mode: RoomMode;
+  wordlist: string;
+  target_length: number;
+  is_host: boolean;
+  member_count: number;
+  max_members: number;
+  ends_at: number | null;
+  possible_count: number | null;
+  members: RoomMember[];
+  /** The caller's own game, shaped like a game/start response (playing/finished only). */
+  your_game?: StartGameResult;
+  /** Co-op only: distinct words found by anyone in the room. */
+  room_found_count?: number;
+  /** Finished rooms only. */
+  reveal?: {
+    target_word: string;
+    remaining_words: string[];
+    members: RoomRevealMember[];
+    end_reason: 'cleared' | 'all_done' | 'expired' | null;
+    room_cleared: boolean;
+    bonus_per_member: number;
+  };
+  next_room_code: string | null;
+}
+
+/** A failed room call keeps its HTTP status and the server's machine-readable `detail`
+ *  code (room_full, room_started, not_enough_players, ...) for the UI to translate. */
+export class RoomError extends Error {
+  status: number;
+  code: string | undefined;
+  constructor(status: number, code: string | undefined) {
+    super(`Room request failed (${status}${code ? `: ${code}` : ''})`);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function roomJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new RoomError(response.status, typeof body?.detail === 'string' ? body.detail : undefined);
+  }
+  return response.json();
 }
 
 class BetuAPIClient {
@@ -435,9 +512,51 @@ class BetuAPIClient {
     if (!response.ok) throw new Error(`Failed to suggest word (${response.status})`);
     return response.json();
   }
+  /** Points the per-game calls (guess / hint / give_up / possible_words / rescramble) at a
+   *  game this client didn't start itself — a room member's game arrives from a snapshot
+   *  poll, not from startGame (ROADMAP 7.2.6). */
+  setActiveGame(gameId: string): void {
+    this.gameId = gameId;
+  }
+
+  // --- Multiplayer rooms (ROADMAP 7.2) ---------------------------------------------
+  async createRoom(opts: { display_name: string; mode: RoomMode; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts),
+    }));
+  }
+
+  async joinRoom(code: string, displayName: string): Promise<{ room: RoomSnapshot }> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: displayName }),
+    }));
+  }
+
+  async getRoom(code: string): Promise<RoomSnapshot> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}`));
+  }
+
+  async leaveRoom(code: string): Promise<{ ok: boolean }> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}/leave`, { method: 'POST' }));
+  }
+
+  async startRoom(code: string): Promise<RoomSnapshot> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    }));
+  }
+
+  async rematchRoom(code: string): Promise<{ code: string }> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}/rematch`, { method: 'POST' }));
+  }
 }
 
-// Export singleton instance
 export const betuAPI = new BetuAPIClient();
 
 // Utility functions

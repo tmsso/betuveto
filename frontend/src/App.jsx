@@ -7,6 +7,9 @@ import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import SettingsPanel from './components/SettingsPanel'
 import HelpPanel from './components/HelpPanel'
+import RoomLobby from './components/RoomLobby'
+import RoomInvite from './components/RoomInvite'
+import { useRoom } from './components/useRoom'
 import Board from './components/Board'
 import GuessInput from './components/GuessInput'
 import Timer from './components/Timer'
@@ -46,6 +49,20 @@ const WORDLISTS = [
   { code: 'hu', label: 'Magyar' },
   { code: 'en', label: 'English' },
 ];
+// ROADMAP 7.2.5 — an invite link is `/?room=CODE`. Read once on load; the param is removed
+// from the address bar once the invite has been accepted or dismissed.
+function readInviteCode() {
+  const raw = new URLSearchParams(window.location.search).get('room')
+  const code = raw?.trim().toUpperCase()
+  return code && /^[A-Z0-9]{6}$/.test(code) ? code : null
+}
+
+function clearInviteParam() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('room')
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash)
+}
+
 // UI language selector (ROADMAP 6.2) — independent of the wordlist above (migrations/0010).
 const UI_LANGUAGES = [
   { code: 'hu', label: 'Magyar' },
@@ -126,6 +143,9 @@ function App() {
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false) // ROADMAP 12.5 how-to-play
+  // Multiplayer rooms (ROADMAP 7.2.5): the room this tab follows + its polled snapshot.
+  const rooms = useRoom()
+  const [inviteCode, setInviteCode] = useState(readInviteCode)
   // A single confirmation gate. `null` when nothing is pending; otherwise `{ message, run }`
   // and `run()` fires once the player confirms. Both the "Új játék" button and a
   // game-restarting selector change (length / wordlist / easy mode, item 15) funnel
@@ -356,6 +376,38 @@ function App() {
       run: handleGiveUp,
     })
   }, [t, handleGiveUp])
+
+  // Rooms (ROADMAP 7.2.5). Creating or joining a room leaves any solo game in progress
+  // (confirmed first, like every other restart) and shows the lobby on the pre-game board.
+  const handleCreateRoom = useCallback((name, mode) => {
+    requestRestart(async () => {
+      enterPreGame()
+      const snapshot = await rooms.create({
+        display_name: name,
+        mode,
+        wordlist: selectedWordlist,
+        target_length: selectedLength,
+      })
+      if (snapshot) setIsSettingsOpen(false)
+    })
+  }, [requestRestart, enterPreGame, rooms, selectedWordlist, selectedLength])
+
+  const handleJoinRoom = useCallback((code, name) => {
+    requestRestart(async () => {
+      enterPreGame()
+      const snapshot = await rooms.join(code, name)
+      if (snapshot) {
+        setIsSettingsOpen(false)
+        setInviteCode(null)
+        clearInviteParam()
+      }
+    })
+  }, [requestRestart, enterPreGame, rooms])
+
+  const dismissInvite = useCallback(() => {
+    setInviteCode(null)
+    clearInviteParam()
+  }, [])
 
   const handleNewGameClick = useCallback(() => {
     requestRestart(() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode))
@@ -618,6 +670,42 @@ function App() {
 
         {/* Leaderboard toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
 
+        {/* ROADMAP 7.2.5 — rooms take over the board area before a round starts: an invite
+            prompt (from a ?room= link), the lobby, or a "room closed" notice. */}
+        {(() => {
+          const room = rooms.room
+          if (inviteCode && !rooms.code) {
+            return (
+              <RoomInvite
+                code={inviteCode}
+                displayName={displayName}
+                busy={rooms.busy}
+                error={rooms.error}
+                onJoin={handleJoinRoom}
+                onDismiss={dismissInvite}
+              />
+            )
+          }
+          if (room?.status === 'lobby') {
+            return (
+              <RoomLobby room={room} busy={rooms.busy} error={rooms.error} onStart={rooms.start} onLeave={rooms.leave} />
+            )
+          }
+          if (room?.status === 'cancelled') {
+            return (
+              <div className="mb-6 flex flex-col items-center gap-3 text-center">
+                <p className="font-semibold">{t('room.cancelled')}</p>
+                <button type="button" onClick={rooms.leave} className="text-sm underline text-game-secondary">
+                  {t('room.backToSolo')}
+                </button>
+              </div>
+            )
+          }
+          return null
+        })()}
+
+        {!(inviteCode && !rooms.code) && !(rooms.room && ['lobby', 'cancelled'].includes(rooms.room.status)) && (
+        <>
         {/* Scrambled letters */}
         <Board
           preGame={preGame}
@@ -643,6 +731,8 @@ function App() {
               <span>{t('actions.newGame')}</span>
             </button>
           </div>
+        )}
+        </>
         )}
 
         {!preGame && (
@@ -882,6 +972,14 @@ function App() {
         dailyLoading={dailyLoading}
         isDailyGame={isDailyGame}
         onPlayDaily={handlePlayDaily}
+        roomPanel={{
+          displayName,
+          busy: rooms.busy,
+          error: rooms.error,
+          inRoom: Boolean(rooms.code),
+          onCreate: handleCreateRoom,
+          onJoin: handleJoinRoom,
+        }}
       />
 
       <HelpPanel

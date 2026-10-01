@@ -5,6 +5,7 @@ import SoundToggle from './SoundToggle'
 import HighScoresPanel from './HighScoresPanel'
 import StatsPanel from './StatsPanel'
 import DailyPanel from './DailyPanel'
+import RoomPanel from './RoomPanel'
 import { feedbackHref } from '../feedback'
 
 /**
@@ -56,6 +57,7 @@ export default function SettingsPanel({
   dailyLoading,
   isDailyGame,
   onPlayDaily,
+  roomPanel,
 }) {
   const { t } = useTranslation()
   const closeButtonRef = useRef(null)
@@ -270,6 +272,9 @@ export default function SettingsPanel({
           onPlayDaily={onPlayDaily}
           controlsDisabled={controlsDisabled}
         />
+
+        {/* Multiplayer rooms (ROADMAP 7.2.5) */}
+        {roomPanel && <RoomPanel {...roomPanel} />}
 
         {/* Leaderboard */}
         <div className="flex flex-col gap-2">
