@@ -123,6 +123,9 @@ interface GameDetailRow {
   status: string;
   disqualified_at: string | null;
   country: string | null;
+  // ROADMAP 7.2.7 — set when this was a room member's game.
+  room_code: string | null;
+  room_mode: string | null;
 }
 
 interface GameGuessRow {
@@ -152,10 +155,12 @@ export async function getGameDetail(gameId: string): Promise<Reply> {
   const [game] = await sql<GameDetailRow[]>`
     select g.id, g.player_id, p.display_name, wl.code as wordlist, g.target_word,
            g.target_length, g.started_at, g.ends_at, g.ended_at, g.final_score,
-           g.found_count, g.possible_count, g.status, g.disqualified_at, g.country
+           g.found_count, g.possible_count, g.status, g.disqualified_at, g.country,
+           r.code as room_code, r.mode as room_mode
       from games g
       join wordlists wl on wl.id = g.wordlist_id
       left join players p on p.id = g.player_id
+      left join rooms r on r.id = g.room_id
      where g.id = ${gameId}
   `;
   if (!game) return { status: 404, body: { detail: "Unknown game." } };

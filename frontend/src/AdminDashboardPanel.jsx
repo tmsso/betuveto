@@ -93,6 +93,22 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
         </div>
       </section>
 
+      {/* ROADMAP 7.2.7 — multiplayer rooms, same 30-day window as the daily table. */}
+      {stats.rooms && (
+        <section className="mb-8">
+          <h2 className="text-lg font-bold mb-2">{t('dash.roomsHeader')}</h2>
+          <p className="text-sm">
+            {t('dash.roomsSummary', {
+              started: stats.rooms.started,
+              coop: stats.rooms.coop,
+              versus: stats.rooms.versus,
+              cleared: stats.rooms.cleared,
+              avg: stats.rooms.avg_members.toFixed(1),
+            })}
+          </p>
+        </section>
+      )}
+
       <section className="mb-8">
         <h2 className="text-lg font-bold mb-2">{t('dash.dailyHeader')}</h2>
         <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
@@ -101,6 +117,7 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
               <th className="py-2 px-2">{t('common.date')}</th>
               <th className="py-2 px-2">{t('dash.games')}</th>
               <th className="py-2 px-2">{t('dash.dau')}</th>
+              <th className="py-2 px-2">{t('dash.rooms')}</th>
               <th className="py-2 px-2 w-1/2">&nbsp;</th>
             </tr>
           </thead>
@@ -110,6 +127,7 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
                 <td className="py-2 px-2">{d.date}</td>
                 <td className="py-2 px-2 font-semibold">{d.games}</td>
                 <td className="py-2 px-2">{d.dau}</td>
+                <td className="py-2 px-2">{d.rooms ?? 0}</td>
                 <td className="py-2 px-2">
                   <div className="bg-game-secondary/20 rounded h-3">
                     <div

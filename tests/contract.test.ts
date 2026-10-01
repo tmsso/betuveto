@@ -2354,4 +2354,23 @@ describeApi("Betűvető API contract", () => {
     expect(rejoin.status).toBe(200);
     expect(rejoin.json.room.member_count).toBe(2);
   }, 60_000);
+
+  // --- Multiplayer rooms — admin (ROADMAP 7.2.7) -------------------------------
+  it("shows rooms on the admin dashboard and the room in a member game's drill-down", async () => {
+    if (!ADMIN_TOKEN) return;
+    const admin = { "x-admin-token": ADMIN_TOKEN };
+    const { code, hostCookie } = await twoPlayerLobby();
+    await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    const gameId = (await snapshot(code, hostCookie)).json.your_game.game_id;
+
+    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, admin);
+    expect(dashboard.status).toBe(200);
+    expect(dashboard.json.rooms.started).toBeGreaterThanOrEqual(1);
+    expect(dashboard.json.daily.at(-1).rooms).toBeGreaterThanOrEqual(1);
+
+    const detail = await call("GET", `/api/v1/admin/games/${gameId}`, undefined, admin);
+    expect(detail.status).toBe(200);
+    expect(detail.json.game.room_code).toBe(code);
+    expect(detail.json.game.room_mode).toBe("coop");
+  }, 60_000);
 });
