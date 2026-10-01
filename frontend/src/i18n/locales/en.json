@@ -69,6 +69,12 @@
       "completed": "Solved",
       "notCompleted": "Not solved",
       "score": "{{score}} pts"
+    },
+    "share": {
+      "button": "Share result",
+      "copied": "Copied to clipboard",
+      "failed": "Couldn't copy, sorry",
+      "text": "Betűvető 🗓️ {{date}} · {{length}} letters\n{{found}}/{{total}} words · {{score}} pts{{solved}}\n🔥 {{streak}}-day streak\n{{url}}"
     }
   },
   "score": {

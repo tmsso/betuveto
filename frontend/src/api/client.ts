@@ -55,7 +55,8 @@ export interface DailyView {
   target_length: number;
   possible_count: number;
   already_played: boolean;
-  your_result: { completed: boolean; final_score: number } | null;
+  /** found_count = words found in the graded first attempt (ROADMAP 11.20 share card). */
+  your_result: { completed: boolean; final_score: number; found_count: number } | null;
   streak: { current: number; best: number };
   leaderboard: DailyLeaderEntry[];
 }

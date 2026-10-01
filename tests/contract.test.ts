@@ -1605,8 +1605,10 @@ describeApi("Betűvető API contract", () => {
     const words = dictionary
       .filter((w) => letterCount(w) <= letterCount(board) && canFormWord(w, board))
       .slice(0, 40);
+    let foundSoFar = 0;
     for (const word of words) {
-      await call("POST", `/api/v1/game/${first.json.game_id}/guess`, { word }, { Cookie: cookie });
+      const g = await call("POST", `/api/v1/game/${first.json.game_id}/guess`, { word }, { Cookie: cookie });
+      if (typeof g.json?.found_count === "number") foundSoFar = g.json.found_count;
       await new Promise((r) => setTimeout(r, 400));
     }
     await call("POST", `/api/v1/game/${first.json.game_id}/give_up`, undefined, { Cookie: cookie });
@@ -1616,6 +1618,9 @@ describeApi("Betűvető API contract", () => {
     expect(view1.json.already_played).toBe(true);
     expect(view1.json.your_result).not.toBeNull();
     expect(typeof view1.json.your_result.final_score).toBe("number");
+    // ROADMAP 11.20: the share card's "found/total" — the graded game's own count.
+    expect(view1.json.your_result.found_count).toBe(foundSoFar);
+    expect(view1.json.your_result.found_count).toBeLessThanOrEqual(view1.json.possible_count);
     expect(view1.json.leaderboard.length).toBeGreaterThanOrEqual(1);
     const { final_score: gradedScore, completed: gradedCompleted } = view1.json.your_result;
     // The loop guessed every findable word, so the target was among them unless it was
@@ -1630,6 +1635,7 @@ describeApi("Betűvető API contract", () => {
     const view2 = await call("GET", "/api/v1/daily?target_length=5", undefined, { Cookie: cookie });
     expect(view2.json.your_result.final_score).toBe(gradedScore); // first attempt frozen
     expect(view2.json.your_result.completed).toBe(gradedCompleted);
+    expect(view2.json.your_result.found_count).toBe(foundSoFar); // the replay doesn't count
   }, 60000);
 
   it("a hidden length selector also pins the daily puzzle's length", async () => {
