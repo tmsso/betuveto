@@ -237,6 +237,7 @@
     "gameNotActive": "The game isn't active.",
     "noHintableWords": "No more words to reveal.",
     "reportFailed": "Something went wrong reporting the word.",
+    "reportLimit": "You have reported a lot of words today — thanks! Try again tomorrow.",
     "suggestRateLimited": "Too many suggestions today, try tomorrow.",
     "suggestFailed": "Something went wrong sending the suggestion."
   }

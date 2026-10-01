@@ -1008,6 +1008,78 @@ describeApi("Betűvető API contract", () => {
     expect(unknown.status).toBe(404);
   });
 
+  // --- ROADMAP 12.2: word-report abuse limits ----------------------------------
+  //
+  // Skipped against production: the trusted-reporter test *does* retire a real word, which
+  // is exactly the side effect the note above warns about. Preview deployments run on an
+  // isolated per-branch Neon database, where that's harmless. All three assume the config
+  // defaults (threshold 3, 3 completed games, 20 reports/day).
+
+  /** A random dictionary word, so repeated runs against one preview DB don't collide. */
+  function randomWord(): string {
+    const candidates = dictionary.filter((word) => letterCount(word) >= 5);
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  /** A fresh identity with `games` finished games, each with at least one found word —
+   *  i.e. a "trusted" reporter under report_min_completed_games. */
+  async function trustedReporter(games = 3): Promise<string> {
+    let cookie: string | undefined;
+    for (let played = 0; played < games; ) {
+      const result = await startWithCookie(5, cookie);
+      cookie = result.cookie;
+      let found = false;
+      for (const word of findable(result.game).slice(0, 5)) {
+        const { json } = await call("POST", `/api/game/${result.game.game_id}/guess`, { word }, { Cookie: cookie });
+        if (json.result === "correct") {
+          found = true;
+          break;
+        }
+      }
+      await call("POST", `/api/game/${result.game.game_id}/give_up`, undefined, { Cookie: cookie });
+      if (found) played++;
+    }
+    return cookie!;
+  }
+
+  it("does not let throwaway identities retire a word", async () => {
+    if (IS_PRODUCTION) return;
+    const word = randomWord();
+    for (let i = 0; i < 3; i++) {
+      const { cookie } = await startWithCookie();
+      const res = await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
+      expect(res.status).toBe(200);
+      expect(res.json.deactivated).toBe(false);
+    }
+  }, 60_000);
+
+  it("retires a word once enough trusted players report it", async () => {
+    if (IS_PRODUCTION) return;
+    const word = randomWord();
+    const reporters = [await trustedReporter(), await trustedReporter(), await trustedReporter()];
+
+    const first = await call("POST", "/api/v1/words/report", { word }, { Cookie: reporters[0] });
+    expect(first.json.deactivated).toBe(false);
+    const second = await call("POST", "/api/v1/words/report", { word }, { Cookie: reporters[1] });
+    expect(second.json.deactivated).toBe(false);
+    const third = await call("POST", "/api/v1/words/report", { word }, { Cookie: reporters[2] });
+    expect(third.status).toBe(200);
+    expect(third.json.deactivated).toBe(true);
+  }, 180_000);
+
+  it("caps reports per player per day with a 429", async () => {
+    if (IS_PRODUCTION) return;
+    const { cookie } = await startWithCookie();
+    const words = new Set<string>();
+    while (words.size < 21) words.add(randomWord());
+    const statuses: number[] = [];
+    for (const word of words) {
+      statuses.push((await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie })).status);
+    }
+    expect(statuses.slice(0, 20).every((status) => status === 200)).toBe(true);
+    expect(statuses[20]).toBe(429);
+  }, 90_000);
+
   // --- Batch 4.2: suggest a missing word --------------------------------------
   it("requires identity and validates a suggested word", async () => {
     const { cookie } = await startWithCookie();
