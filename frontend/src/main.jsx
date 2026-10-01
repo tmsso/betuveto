@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import PrivacyPage from './components/PrivacyPage.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
+import './observability.js'
 // i18next init (ROADMAP 6.2) — must run before App renders so useTranslation() has a
 // ready instance on first render. AdminApp doesn't use it; importing unconditionally here
 // is still simplest and matches how the font imports below are also unconditional.
@@ -29,24 +31,8 @@ import './index.css'
 // "/admin", "/privacy" — with no nested or dynamic routes, so a pathname check here is
 // simpler than adding react-router for what would be a handful of always-matching rules.
 // Any tabs within the admin panel are component-local state, not sub-routes.
-// ROADMAP Batch 10 item 9 — error tracking. Inert until VITE_SENTRY_DSN is set: the
-// condition is build-time constant, so with no DSN Vite drops the branch and never ships
-// the Sentry chunk to players (the same bundle-cost care as the AdminApp lazy load below).
-// @sentry/browser, not @sentry/react — this app renders no ErrorBoundary/profiler and
-// doesn't need react-router integration, so the React package's extra weight (roughly
-// doubles the chunk) buys nothing here. Dynamic import so, even when enabled, the SDK
-// loads off the critical path.
-if (import.meta.env.VITE_SENTRY_DSN) {
-  import('@sentry/browser')
-    .then((Sentry) => {
-      Sentry.init({
-        dsn: import.meta.env.VITE_SENTRY_DSN,
-        environment: import.meta.env.MODE,
-        tracesSampleRate: 0,
-      })
-    })
-    .catch(() => { /* observability must never break the app */ })
-}
+// Error tracking (ROADMAP Batch 10 item 9) is initialised by importing observability.js,
+// which ErrorBoundary also uses to report render errors (ROADMAP 12.3).
 
 const isAdminRoute = window.location.pathname.startsWith('/admin')
 const isPrivacyRoute = window.location.pathname === '/privacy'
@@ -65,14 +51,16 @@ const AdminApp = lazy(() => import('./AdminApp.jsx'))
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {isAdminRoute ? (
-      <Suspense fallback={null}>
-        <AdminApp />
-      </Suspense>
-    ) : isPrivacyRoute ? (
-      <PrivacyPage />
-    ) : (
-      <App />
-    )}
+    <ErrorBoundary>
+      {isAdminRoute ? (
+        <Suspense fallback={null}>
+          <AdminApp />
+        </Suspense>
+      ) : isPrivacyRoute ? (
+        <PrivacyPage />
+      ) : (
+        <App />
+      )}
+    </ErrorBoundary>
   </React.StrictMode>,
 )

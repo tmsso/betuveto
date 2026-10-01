@@ -1,6 +1,7 @@
 {
   "app": { "title": "Betűvető" },
   "loading": { "screen": "Betöltés...", "startingGame": "Játék indítása..." },
+  "crash": {"title": "Hiba történt", "body": "A játékban váratlan hiba lépett fel. Egy újratöltés általában megoldja — a pontjaid és beállításaid megmaradnak.", "reload": "Újratöltés"},
   "errorScreen": { "title": "Hiba!", "retry": "Újraindítás" },
   "easyModeBadge": "Könnyű mód",
   "easyModeToggle": {
