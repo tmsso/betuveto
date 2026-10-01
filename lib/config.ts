@@ -28,10 +28,13 @@ export interface GameConfig {
   report_auto_inactivate_threshold: number;
   report_min_completed_games: number;
   reports_per_player_per_day: number;
+  // ROADMAP 12.6 — fresh anonymous identities one client address may mint per hour
+  // (lib/identity-throttle.ts). 0 disables the throttle.
+  identity_mints_per_ip_per_hour: number;
 }
 
 /** Also the seed values in migrations/0005_config.sql — keep the two in sync if either
- *  changes. The three report_* keys (ROADMAP 12.2) have no seed row: an absent row reads
+ *  changes. The report_* keys (ROADMAP 12.2) and identity_mints_per_ip_per_hour (12.6) have no seed row: an absent row reads
  *  as the default below, so they need no migration. */
 export const CONFIG_DEFAULTS: GameConfig = {
   hint_cost: 10,
@@ -43,6 +46,7 @@ export const CONFIG_DEFAULTS: GameConfig = {
   report_auto_inactivate_threshold: 3,
   report_min_completed_games: 3,
   reports_per_player_per_day: 20,
+  identity_mints_per_ip_per_hour: 30,
 };
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS) as (keyof GameConfig)[];

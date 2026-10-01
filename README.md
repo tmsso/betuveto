@@ -152,6 +152,13 @@ CI runs all of the above on every pull request (`.github/workflows/ci.yml`): an 
 HTTP contract suite (`tests/contract.test.ts`) is not in CI — run it by hand against a
 preview deployment before merging API changes (see the API section above).
 
+> **Identity-mint throttle (ROADMAP 12.6):** each client IP may mint at most
+> `identity_mints_per_ip_per_hour` (default 30) fresh anonymous players per hour. A full
+> contract-suite run mints many fresh players from your one IP (100+ against a preview,
+> where the pinned CI cookie isn't used; ~12 against production), so it will hit 429s.
+> Before a run, set that config key to `0` (disabled) on the target database — admin
+> config panel, or directly in a preview branch's `config` table — and restore it after.
+
 ## Deployment
 
 Vercel builds and deploys the whole app (frontend + `api/`) from its GitHub integration on
