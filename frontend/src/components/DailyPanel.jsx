@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { buildDailyShareText, shareDailyResult } from './dailyShare'
 
 /**
  * ROADMAP Batch 10 item 1 — daily puzzle + streaks. Lives inside <SettingsPanel>: shows
@@ -10,6 +12,9 @@ import { useTranslation } from 'react-i18next'
  * the same confirm-before-restart funnel the length/wordlist selectors use.
  *
  * `daily` is the /api/v1/daily payload (client.ts DailyView) or null while it loads.
+ *
+ * ROADMAP 11.20: once today's result exists, a Share button posts a word-free result card
+ * (see dailyShare.js). Copy feedback is announced through a polite live region.
  */
 export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, controlsDisabled }) {
   const { t } = useTranslation()
@@ -17,6 +22,21 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
   const alreadyPlayed = daily?.already_played ?? false
   const streak = daily?.streak ?? { current: 0, best: 0 }
   const leaderboard = daily?.leaderboard ?? []
+  // 'copied' | 'failed' | null — 'shared'/'cancelled' need no message, the OS sheet was
+  // the feedback.
+  const [shareStatus, setShareStatus] = useState(null)
+
+  useEffect(() => {
+    if (!shareStatus) return undefined
+    const timer = setTimeout(() => setShareStatus(null), 2500)
+    return () => clearTimeout(timer)
+  }, [shareStatus])
+
+  const handleShare = async () => {
+    const text = buildDailyShareText(t, daily, window.location.origin)
+    const outcome = await shareDailyResult(text)
+    setShareStatus(outcome === 'copied' || outcome === 'failed' ? outcome : null)
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -48,6 +68,22 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
                 : <span className="text-game-muted">⏳ {t('daily.yourResult.notCompleted')}</span>}
               <span className="text-game-muted font-normal">
                 {' '}· {t('daily.yourResult.score', { score: daily.your_result.final_score })}
+              </span>
+            </div>
+          )}
+
+          {alreadyPlayed && daily.your_result && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleShare}
+                className="rounded-lg border border-game-secondary text-game-secondary text-sm font-bold px-3 py-1 hover:bg-game-secondary hover:text-white focus:outline-none focus:ring-2 focus:ring-game-secondary"
+              >
+                📤 {t('daily.share.button')}
+              </button>
+              <span role="status" aria-live="polite" className="text-xs text-game-muted">
+                {shareStatus === 'copied' && t('daily.share.copied')}
+                {shareStatus === 'failed' && t('daily.share.failed')}
               </span>
             </div>
           )}

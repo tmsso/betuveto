@@ -186,14 +186,25 @@ export async function getDailyView(
     return { status: 404, body: { detail: `No words found with length ${targetLength}` } };
   }
 
-  let yourResult: { completed: boolean; final_score: number } | null = null;
+  // found_count (ROADMAP 11.20) is the share card's "7/41": a count, never which words,
+  // so it respects the no-per-word-history rule. It comes from the graded first attempt's
+  // game, which is terminal by then, so the number can't drift on a later replay.
+  let yourResult: { completed: boolean; final_score: number; found_count: number } | null = null;
   let streak: StreakInfo = { current: 0, best: 0 };
   if (playerId) {
-    const [row] = await sql<{ completed: boolean; final_score: number }[]>`
-      select completed, final_score from daily_results
-       where puzzle_id = ${puzzle.id} and player_id = ${playerId}
+    const [row] = await sql<{ completed: boolean; final_score: number; found_count: number }[]>`
+      select dr.completed, dr.final_score, g.found_count
+        from daily_results dr
+        join games g on g.id = dr.game_id
+       where dr.puzzle_id = ${puzzle.id} and dr.player_id = ${playerId}
     `;
-    if (row) yourResult = { completed: row.completed, final_score: row.final_score };
+    if (row) {
+      yourResult = {
+        completed: row.completed,
+        final_score: row.final_score,
+        found_count: row.found_count,
+      };
+    }
     streak = await computeStreak(sql, playerId);
   }
 

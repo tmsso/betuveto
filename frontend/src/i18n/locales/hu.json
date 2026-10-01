@@ -69,6 +69,12 @@
       "completed": "Megfejtve",
       "notCompleted": "Nincs megfejtve",
       "score": "{{score}} pont"
+    },
+    "share": {
+      "button": "Eredmény megosztása",
+      "copied": "Vágólapra másolva",
+      "failed": "Nem sikerült a másolás",
+      "text": "Betűvető 🗓️ {{date}} · {{length}} betű\n{{found}}/{{total}} szó · {{score}} pont{{solved}}\n🔥 {{streak}} napos sorozat\n{{url}}"
     }
   },
   "score": {
