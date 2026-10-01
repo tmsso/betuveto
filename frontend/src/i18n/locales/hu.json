@@ -180,7 +180,7 @@
       },
       "retention": {
         "heading": "Megőrzés",
-        "body": "Az adatokat addig őrizzük, amíg nem törlöd őket (lásd lent). Az adatbázisról havonta készül biztonsági mentés, amelyet 90 nap után törlünk."
+        "body": "Az adatokat addig őrizzük, amíg nem törlöd őket (lásd lent). Az adatbázisról hetente titkosított biztonsági mentés készül, amelyet 90 nap után törlünk."
       }
     },
     "delete": {

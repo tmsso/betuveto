@@ -1,4 +1,4 @@
-name: Monthly DB backup
+name: Weekly DB backup
 
 # Deferred in ROADMAP 1.4 until there was real player/game data to protect (Batch 2
 # identity had not shipped yet); it has since, so this is that backup. Requires a
@@ -6,9 +6,15 @@ name: Monthly DB backup
 # elsewhere) — set it under Settings → Secrets and variables → Actions before this can
 # run. `workflow_dispatch` lets you run it once by hand to confirm the secret and the
 # pg_dump version match before trusting the monthly cron.
+#
+# Encrypted before upload (2026-09-30): this repository is public, and a public repo's
+# workflow artifacts can be downloaded by any signed-in GitHub user. The dump is encrypted
+# to the public key in .github/backup-public-key.asc; only the matching private key (held
+# by the project owner, never in GitHub) can decrypt it — so there is no secret here to
+# leak either. Restore steps: README "Restoring a backup".
 on:
   schedule:
-    - cron: "0 3 1 * *" # 03:00 UTC on the 1st of every month
+    - cron: "0 3 * * 1" # 03:00 UTC every Monday
   workflow_dispatch: {}
 
 jobs:
@@ -28,6 +34,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-18
 
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/backup-public-key.asc
+          sparse-checkout-cone-mode: false
+
       - name: Dump the database
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -42,9 +53,19 @@ jobs:
           # the versioned binary directly instead of trusting PATH resolution.
           /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" --format=custom --file=betuveto-backup.dump
 
-      - name: Upload backup artifact
+      - name: Encrypt the dump (public-key only; the plaintext never leaves the runner)
+        run: |
+          gpg --batch --yes --trust-model always \
+            --recipient-file .github/backup-public-key.asc \
+            --output betuveto-backup.dump.gpg --encrypt betuveto-backup.dump
+          rm -f betuveto-backup.dump
+          # Guard: never upload anything if encryption didn't produce the .gpg file.
+          test -s betuveto-backup.dump.gpg
+
+      - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: betuveto-db-backup-${{ github.run_id }}
-          path: betuveto-backup.dump
+          path: betuveto-backup.dump.gpg
+          if-no-files-found: error
           retention-days: 90

@@ -120,6 +120,24 @@ npm run db:verify
 > as the Supabase build, no swap needed. `prepare: false` stays required: Neon's pooler is
 > also PgBouncer in transaction mode.
 
+### Restoring a backup
+
+`.github/workflows/backup.yml` runs `pg_dump` every Monday and uploads the dump as a
+90-day workflow artifact — **encrypted** to the public key in
+`.github/backup-public-key.asc`, because artifacts of a public repository are
+downloadable by any signed-in GitHub user. Only the project owner holds the matching
+private key (never stored in GitHub). To restore:
+
+```bash
+gh run download <run-id> -n betuveto-db-backup-<run-id>      # -> betuveto-backup.dump.gpg
+export GNUPGHOME=$(mktemp -d)                                  # throwaway keyring
+gpg --import betuveto-backup-private-key.asc
+gpg --output betuveto-backup.dump --decrypt betuveto-backup.dump.gpg
+pg_restore --list betuveto-backup.dump | head                  # sanity check (pg_restore 18)
+# restore into a Neon *branch*, never straight over production:
+pg_restore --no-owner --dbname "$BRANCH_DATABASE_URL" betuveto-backup.dump
+```
+
 ## Tests
 
 ```bash
