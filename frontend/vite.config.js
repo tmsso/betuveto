@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -61,11 +62,18 @@ export default defineConfig({
   // production API rather than a local one, since this repo has no local API server since
   // Batch 1.3's cutover to same-origin Vercel functions. Only affects `vite preview`;
   // Vercel's own deploy never runs it.
+  //
+  // E2E_API_TARGET (ROADMAP 7.2.6) points the proxy at a PR preview's API instead — e.g.
+  // to run e2e/rooms.spec.ts against a preview whose branch database has the room schema —
+  // with VERCEL_AUTOMATION_BYPASS_SECRET forwarded for Vercel's preview protection.
   preview: {
     proxy: {
       '/api': {
-        target: 'https://betuveto.vercel.app',
+        target: process.env.E2E_API_TARGET || 'https://betuveto.vercel.app',
         changeOrigin: true,
+        headers: process.env.E2E_API_TARGET && process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+          ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+          : {},
       },
     },
   },

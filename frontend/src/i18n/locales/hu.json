@@ -328,6 +328,28 @@
       "rate_limited": "Túl sok új játékos érkezett a hálózatodról — próbáld később.",
       "invalid_name": "Ez a név nem használható (legfeljebb 20 karakter).",
       "generic": "Valami hiba történt — próbáld újra."
+    },
+    "gaveUpWaiting": "Feladtad — a megoldást akkor látod, amikor a többiek is végeztek.",
+    "teamProgress": "Csapat: {{found}} / {{total}} szó",
+    "points": "{{points}} p",
+    "wordsCount": "{{count}} szó",
+    "resultsTitle": "A szoba eredménye",
+    "clearedTogether": "Együtt kiraktátok a táblát! Időbónusz: +{{bonus}} fejenként.",
+    "notCleared": "{{count}} szó maradt megtalálatlanul.",
+    "targetWas": "A teljes szó:",
+    "noWords": "Nem talált szót.",
+    "nobodyFound": "Szavak, amelyeket senki sem talált meg ({{count}})",
+    "rematch": "Visszavágó",
+    "joinRematch": "Csatlakozás a visszavágóhoz",
+    "waitingForRematch": "Várakozás, hogy a házigazda visszavágót indítson…",
+    "boardBadge": "{{code}} szoba",
+    "badges": {
+      "full_word": "Megtalálta a teljes szót",
+      "half_cleared": "Megtalálta a szavak felét",
+      "three_quarters_cleared": "Megtalálta a szavak háromnegyedét",
+      "all_cleared": "Minden szót megtalált",
+      "hint_used": "Segítséget kért",
+      "gave_up": "Feladta"
     }
   }
 }

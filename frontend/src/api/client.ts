@@ -76,6 +76,8 @@ export interface GameResult {
   completion_bonus?: number;
   /** Only present when result === 'too_short'. */
   min_length?: number;
+  /** Room games only (ROADMAP 7.2.4): this guess ended the whole room. */
+  room_finished?: boolean;
 }
 
 export interface GameState {
@@ -91,12 +93,15 @@ export interface GameState {
 }
 
 export interface GiveUpResult {
-  target_word: string;
-  possible_words: string[];
+  /** null in a room that's still playing (D9, ROADMAP 7.2.4) — see room_pending. */
+  target_word: string | null;
+  possible_words: string[] | null;
+  room_pending?: boolean;
 }
 
 export interface TopScoreEntry {
-  display_name: string;
+  /** null = the player never set a name; the client shows a localised placeholder. */
+  display_name: string | null;
   final_score: number;
   ended_at: number;
   /** At least one hint was taken during this game (ROADMAP 3.1). */
