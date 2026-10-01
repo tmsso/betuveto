@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Betűvető — Hungarian word game: Vercel API functions (api/), shared game logic (lib/), and Neon DB tooling (scripts/, migrations/). The React frontend lives in frontend/.",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "build": "npm --prefix frontend ci && npm --prefix frontend run build -- --outDir ../dist --emptyOutDir",
     "db:migrate": "tsx scripts/migrate.ts",

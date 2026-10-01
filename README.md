@@ -24,7 +24,7 @@ appropriate Wiktionary edition (Hungarian or English).
 
 ## Development setup
 
-Requirements: Node 20.19+ (CI runs 20; Vite 7 needs at least that), the
+Requirements: Node 24 (pinned via `engines` in package.json, which also sets the Vercel function runtime; CI runs 24), the
 [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`,
 then `vercel login` and `vercel link` once to connect this checkout to the Vercel project).
 
