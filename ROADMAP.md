@@ -2059,7 +2059,9 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   address per hour. Only an HMAC of the IP is stored, purged after 24 h (disclosed on the
   privacy page). Fails open without the table. The contract suite mints many identities from
   one IP, so disable the cap on the target DB before a full run (README).
-- **Merge order / owner steps:** the PRs are stacked #76 ← #77 ← … ← #86 ← #87 (docs) ← #88 ← #89 ← #90 ← #91 (Wave C, 2026-10-01: 11.17, 11.8, 11.20, docs). Wave C adds no migrations.
+- **Shipped 2026-10-02.** Production migrations 0021/0022 ran first. Then #76–#91 were merged in order with merge commits; main's tree equals the tested #91 tip. Live checks: security headers present, the bundle has the help dialog and Share button, and the CI E2E passes against production. Still to check by hand: a two-browser room round, Share after a real daily, one Magic Link admin change recording `admin_id`, and the first weekly `.gpg` backup artifact.
+  **Stacked-chain lesson:** don't use `gh pr merge --delete-branch` on a stack in this repo. With "automatically delete head branches" off, deleting a PR's base branch makes GitHub *close* the PR stacked on it (it happened to #77, which was reopened). Instead, retarget each PR with `gh pr edit N --base main`, merge, and delete branches only after the whole chain has landed.
+- **Merge order / owner steps (historical):** the PRs are stacked #76 ← #77 ← … ← #86 ← #87 (docs) ← #88 ← #89 ← #90 ← #91 (Wave C, 2026-10-01: 11.17, 11.8, 11.20, docs). Wave C adds no migrations.
   **Previews for #84 onward run on the production DB** (their per-branch Neon DBs were never created). Wave C was verified in-process against a preview-branch DB instead. Fix the project-wide Preview `DATABASE_URL` before anyone tests on a preview.
   **Use merge commits, not squash.** A local dry run showed squash-merging the chain
   conflicts from #80 onward, because later PRs edit lines earlier ones introduced. Merge
