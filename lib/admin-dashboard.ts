@@ -16,7 +16,10 @@ const COUNTRY_LIMIT = 15;
 // A game must have reached one of these to count toward duration/games-per-player stats
 // (Batch 10 item 13) — the same "played to a decision" convention lib/word-stats.ts
 // already uses for its own mastery calculation. An `active` game has no real duration yet
-// (still running) and `abandoned` is swept without ever getting a terminal timestamp.
+// (still running). `abandoned` is a dead value of the games.status check constraint
+// (0001_init.sql): nothing writes it, since expiry became lazy (ROADMAP 0.4) and the
+// planned sweeper was never needed (ROADMAP 11.11). Drop it from the constraint in the
+// next migration that touches `games` anyway; don't build a sweeper.
 const TERMINAL_STATUSES = ["finished", "given_up", "expired"] as const;
 // Every query below excludes is_ci players (ROADMAP Batch 10 item 11) — CI noise would
 // skew a per-player average or a country distribution just as badly as it skewed
