@@ -6,7 +6,6 @@ import HighScoresPanel from './HighScoresPanel'
 import StatsPanel from './StatsPanel'
 import DailyPanel from './DailyPanel'
 import RoomPanel from './RoomPanel'
-import { feedbackHref } from '../feedback'
 
 /**
  * ROADMAP Batch 10 item 15 — start-screen cleanup. Everything that isn't the core play
@@ -323,15 +322,6 @@ export default function SettingsPanel({
           >
             {t('privacy.title')}
           </a>
-          {/* ROADMAP 12.5 — tester feedback; rendered only when VITE_FEEDBACK_EMAIL is set. */}
-          {feedbackHref(t) && (
-            <a
-              href={feedbackHref(t)}
-              className="ml-4 text-xs text-game-muted underline hover:text-game-secondary"
-            >
-              {t('feedback.link')}
-            </a>
-          )}
         </div>
       </div>
     </div>

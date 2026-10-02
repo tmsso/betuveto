@@ -193,7 +193,7 @@
     "sections": {
       "stored": {
         "heading": "What we store",
-        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players). To limit automated abuse, when a new player ID is created the game keeps a keyed hash of your IP address (never the address itself) for 24 hours."
+        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players). To limit automated abuse, when a new player ID is created the game keeps a keyed hash of your IP address (never the address itself) for 24 hours. If you send feedback from the help screen, your message is stored with the page address, your browser's user-agent string and the interface language, so the operator can read it."
       },
       "notStored": {
         "heading": "What we don't store",
@@ -279,9 +279,15 @@
     "feedbackIntro": "Something broken, confusing or missing?"
   },
   "feedback": {
-    "link": "Send feedback",
-    "subject": "Betűvető feedback",
-    "bodyIntro": "What happened, and what did you expect?"
+    "open": "Write to us",
+    "label": "Feedback",
+    "placeholder": "What happened, and what did you expect?",
+    "privacyNote": "Your message is stored with the page address, your browser details and the interface language so the operator can read it. No email address needed.",
+    "send": "Send",
+    "sending": "Sending…",
+    "sent": "Thanks, we got it!",
+    "rateLimited": "You've reached today's feedback limit. Please try again tomorrow.",
+    "error": "Couldn't send it. Please try again later."
   },
   "room": {
     "panelTitle": "Play with friends",

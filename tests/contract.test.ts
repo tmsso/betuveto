@@ -2389,4 +2389,69 @@ describeApi("Betűvető API contract", () => {
     expect(detail.json.game.room_code).toBe(code);
     expect(detail.json.game.room_mode).toBe("coop");
   }, 60_000);
+
+  // ROADMAP 12.7 — in-app feedback replaces the mailto link.
+  it("rejects empty and over-long feedback", async () => {
+    const empty = await call("POST", "/api/v1/feedback", { message: "   " });
+    expect(empty.status).toBe(422);
+    const long = await call("POST", "/api/v1/feedback", { message: "x".repeat(2001) });
+    expect(long.status).toBe(422);
+    const wrongType = await call("POST", "/api/v1/feedback", { message: 42 });
+    expect(wrongType.status).toBe(422);
+  });
+
+  it("stores feedback for a first-time visitor, caps it per day, and lets the admin resolve it", async () => {
+    if (IS_PRODUCTION) return; // writes real rows
+
+    // No cookie: the route mints an identity (like game/start) and must hand it back.
+    const marker = `contract-feedback-${Date.now()}`;
+    const first = await call("POST", "/api/v1/feedback", {
+      message: `${marker} first`,
+      page_url: "https://example.test/?x=1",
+      ui_language: "hu",
+    });
+    expect(first.status).toBe(200);
+    expect(first.json.sent).toBe(true);
+    const setCookie = first.headers.get("set-cookie");
+    expect(setCookie).toMatch(/^bv_anon=/);
+    const cookie = setCookie!.split(";", 1)[0];
+
+    // 5 per player per rolling day: 4 more succeed, the 6th is refused and not stored.
+    for (let i = 2; i <= 5; i++) {
+      const ok = await call("POST", "/api/v1/feedback", { message: `${marker} #${i}` }, { Cookie: cookie });
+      expect(ok.status).toBe(200);
+      expect(ok.headers.get("set-cookie")).toBeNull(); // existing identity: no new cookie
+    }
+    const capped = await call("POST", "/api/v1/feedback", { message: `${marker} #6` }, { Cookie: cookie });
+    expect(capped.status).toBe(429);
+    expect(capped.json.detail).toBe("rate_limited");
+
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+    expect((await call("GET", "/api/v1/admin/feedback")).status).toBe(401);
+
+    const open = await call("GET", "/api/v1/admin/feedback?status=open", undefined, adminHeaders);
+    expect(open.status).toBe(200);
+    const mine = open.json.feedback.filter((f: any) => f.message.startsWith(marker));
+    expect(mine).toHaveLength(5); // the refused 6th was rolled back
+    const firstRow = mine.find((f: any) => f.message === `${marker} first`);
+    expect(firstRow.page_url).toBe("https://example.test/?x=1");
+    expect(firstRow.ui_language).toBe("hu");
+    expect(typeof firstRow.user_agent).toBe("string");
+    expect(firstRow.resolved_at).toBeNull();
+
+    const resolved = await call("POST", `/api/v1/admin/feedback/${firstRow.id}/resolve`, undefined, adminHeaders);
+    expect(resolved.status).toBe(200);
+    expect(resolved.json.resolved_at).toBeTruthy();
+    const openAfter = await call("GET", "/api/v1/admin/feedback?status=open", undefined, adminHeaders);
+    expect(openAfter.json.feedback.some((f: any) => f.id === firstRow.id)).toBe(false);
+    const all = await call("GET", "/api/v1/admin/feedback?status=all", undefined, adminHeaders);
+    expect(all.json.feedback.some((f: any) => f.id === firstRow.id && f.resolved_at)).toBe(true);
+    expect((await call("POST", "/api/v1/admin/feedback/999999999/resolve", undefined, adminHeaders)).status).toBe(404);
+
+    // Account deletion takes the player's feedback with it (privacy page promise).
+    expect((await call("DELETE", "/api/v1/me", undefined, { Cookie: cookie })).status).toBe(200);
+    const afterDelete = await call("GET", "/api/v1/admin/feedback?status=all", undefined, adminHeaders);
+    expect(afterDelete.json.feedback.some((f: any) => f.message.startsWith(marker))).toBe(false);
+  }, 60_000);
 });

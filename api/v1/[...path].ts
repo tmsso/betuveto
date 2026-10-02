@@ -68,6 +68,7 @@ import { createRoom, getRoomSnapshot, joinRoom, leaveRoom, rematchRoom, startRoo
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
+import { listFeedback, resolveFeedback, submitFeedback } from "../../lib/feedback.js";
 import { getMyStats } from "../../lib/word-stats.js";
 import { DEFAULT_TARGET_LENGTH } from "../../lib/words.js";
 
@@ -342,6 +343,23 @@ async function createRoomRoute(req: VercelRequest): Promise<Reply> {
   );
 }
 
+// ROADMAP 12.7 — in-app feedback. Mints like game/start (a first-time visitor can open
+// the help dialog before playing), through the same throttle. The Set-Cookie rides on
+// every reply, not only success: once an identity is minted, the browser must keep it,
+// or a retry would mint (and count against the throttle) again.
+async function submitFeedbackRoute(req: VercelRequest): Promise<Reply> {
+  const identity = await resolveOrMintIdentity(req);
+  if (!identity) return MINT_THROTTLED;
+  const reply = await submitFeedback(identity.playerId, bodyField(req, "message"), {
+    page_url: bodyField(req, "page_url"),
+    user_agent: req.headers["user-agent"],
+    ui_language: bodyField(req, "ui_language"),
+  });
+  return identity.setCookieHeader
+    ? { ...reply, headers: { ...reply.headers, "Set-Cookie": identity.setCookieHeader } }
+    : reply;
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -419,6 +437,10 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       default:
         return undefined;
     }
+  }
+
+  if (segments.length === 1 && a === "feedback") {
+    return methodHandler({ POST: submitFeedbackRoute });
   }
 
   // DELETE /api/v1/me — wipe the caller's player record + personal data, anonymise their
@@ -577,6 +599,18 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
       const wordId = parseId(c);
       if (wordId === undefined) return undefined;
       return methodHandler({ POST: requireAdmin((_req, admin) => reactivateWord(admin, wordId)) });
+    }
+
+    if (segments.length === 2 && b === "feedback") {
+      return methodHandler({
+        GET: requireAdmin((req) => listFeedback(stringQuery(req, "status", "open"))),
+      });
+    }
+
+    if (segments.length === 4 && b === "feedback" && d === "resolve") {
+      const feedbackId = parseId(c);
+      if (feedbackId === undefined) return undefined;
+      return methodHandler({ POST: requireAdmin((_req, admin) => resolveFeedback(admin, feedbackId)) });
     }
 
     if (segments.length === 4 && b === "suggestions" && d === "resolve") {

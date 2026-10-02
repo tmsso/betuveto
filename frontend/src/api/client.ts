@@ -509,6 +509,22 @@ class BetuAPIClient {
   // Word curation (ROADMAP 4.2): suggest a word the dictionary rejected. Idempotent and
   // non-error either way (already in the dictionary vs. genuinely new) — only bad input,
   // missing identity, or the daily rate limit come back as a thrown error.
+  /** ROADMAP 12.7 — in-app feedback. Throws with `.status` so the caller can tell the
+   *  per-player daily cap (429) apart from a failure. */
+  async sendFeedback(message: string, pageUrl: string, uiLanguage?: string): Promise<{ sent: boolean }> {
+    const response = await fetch('/api/v1/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, page_url: pageUrl, ui_language: uiLanguage }),
+    });
+    if (!response.ok) {
+      throw Object.assign(new Error(`Failed to send feedback (${response.status})`), {
+        status: response.status,
+      });
+    }
+    return response.json();
+  }
+
   async suggestWord(word: string): Promise<{ suggested: boolean; already_present: boolean }> {
     const response = await fetch('/api/v1/words/suggest', {
       method: 'POST',
