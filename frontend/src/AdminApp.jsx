@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminConfigPanel from './AdminConfigPanel'
 import AdminDashboardPanel from './AdminDashboardPanel'
+import AdminFeedbackPanel from './AdminFeedbackPanel'
 import AdminPlayersPanel from './AdminPlayersPanel'
 import AdminWordsPanel from './AdminWordsPanel'
 import { AdminLangProvider } from './admin/AdminLangProvider'
@@ -271,6 +272,7 @@ function AdminAppInner() {
             ['words', t('tabs.words')],
             ['config', t('tabs.config')],
             ['players', t('tabs.players')],
+            ['feedback', t('tabs.feedback')],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -290,6 +292,7 @@ function AdminAppInner() {
         {tab === 'words' && <AdminWordsPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
         {tab === 'config' && <AdminConfigPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
         {tab === 'players' && <AdminPlayersPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
+        {tab === 'feedback' && <AdminFeedbackPanel authHeaders={authHeaders} onAuthError={handleLogout} />}
 
         {tab === 'queue' && (
         <>

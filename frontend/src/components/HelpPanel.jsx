@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { feedbackHref } from '../feedback'
+import FeedbackForm from './FeedbackForm'
 
 /**
  * How to play (ROADMAP 12.5) — the rules in one short dialog, for testers arriving from
@@ -37,7 +37,6 @@ export default function HelpPanel({ isOpen, onClose, minWordLength, hintCost }) 
 
   if (!isOpen) return null
 
-  const feedback = feedbackHref(t)
   const items = [
     t('help.goal'),
     t('help.words', { count: minWordLength }),
@@ -73,14 +72,9 @@ export default function HelpPanel({ isOpen, onClose, minWordLength, hintCost }) 
             <li key={i}>{text}</li>
           ))}
         </ul>
-        {feedback && (
-          <p className="mt-5 pt-4 border-t border-game-border text-sm">
-            {t('help.feedbackIntro')}{' '}
-            <a href={feedback} className="underline text-game-secondary hover:text-blue-700 dark:hover:text-blue-300">
-              {t('feedback.link')}
-            </a>
-          </p>
-        )}
+        <div className="mt-5 pt-4 border-t border-game-border">
+          <FeedbackForm />
+        </div>
       </div>
     </div>
   )

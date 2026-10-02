@@ -9,7 +9,7 @@
  * deletion behaviour at definition time:
  *
  *   ON DELETE CASCADE   — word_stats, word_reports, word_suggestions, daily_results,
- *                         player_achievements  → rows removed with the player
+ *                         player_achievements, feedback (12.7)  → rows removed with the player
  *   ON DELETE SET NULL   — games.player_id, admin_audit_log.admin_id
  *                         → rows kept, association removed (games stay as anonymous
  *                           history — "anonymises games", per the roadmap bullet)
