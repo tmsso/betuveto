@@ -71,9 +71,16 @@ async function isActiveGameTarget(
   word: string,
   wordlistId: number,
 ): Promise<boolean> {
+  // Also today's daily puzzle (ROADMAP 13.5 follow-up): daily_puzzles.target_word is a text
+  // snapshot too, and games for it are started all day long, so deleting it would leave
+  // the rest of the day's daily unsolvable.
   const [row] = await sql<{ x: number }[]>`
     select 1 as x from games
      where target_word = ${word} and wordlist_id = ${wordlistId} and status = 'active'
+    union all
+    select 1 from daily_puzzles
+     where target_word = ${word} and wordlist_id = ${wordlistId}
+       and puzzle_date = (now() at time zone 'Europe/Budapest')::date
      limit 1
   `;
   return !!row;
@@ -145,8 +152,9 @@ export const BULK_MAX_IDS = 500;
  * ROADMAP 13.5 — one action for many words. Inactivate and reactivate apply to every
  * selected word: a live game's target stays guessable while inactive (`guess()` matches
  * `active or word = target_word`), so inactivating it never strands a game. Delete skips
- * live targets (the same rule as deleteWord: the target is a text snapshot, and the row has
- * to exist for it to stay guessable) and reports them back, rather than failing the batch.
+ * live targets, i.e. running games' and today's daily puzzle's (the same rule as deleteWord:
+ * the target is a text snapshot, and the row has to exist for it to stay guessable), and
+ * reports them back as active_target rather than failing the batch.
  * One audit row per changed word, like the single-word routes.
  */
 export async function bulkWordAction(admin: AdminIdentity, rawAction: unknown, rawIds: unknown): Promise<Reply> {
@@ -180,11 +188,19 @@ export async function bulkWordAction(admin: AdminIdentity, rawAction: unknown, r
   let targets = found;
   if (action === "delete" && found.length > 0) {
     // One query for every candidate, not one isActiveGameTarget call per word.
+    // Running games' targets plus today's daily puzzle targets (same reason as
+    // isActiveGameTarget above).
     const live = await sql<{ word: string; wordlist_id: string }[]>`
-      select distinct g.target_word as word, g.wordlist_id
+      select g.target_word as word, g.wordlist_id
         from games g
         join words w on w.word = g.target_word and w.wordlist_id = g.wordlist_id
        where g.status = 'active' and w.id = any(${found.map((w) => w.id)})
+      union
+      select d.target_word, d.wordlist_id
+        from daily_puzzles d
+        join words w on w.word = d.target_word and w.wordlist_id = d.wordlist_id
+       where d.puzzle_date = (now() at time zone 'Europe/Budapest')::date
+         and w.id = any(${found.map((w) => w.id)})
     `;
     const liveKeys = new Set(live.map((l) => `${Number(l.wordlist_id)}:${l.word}`));
     targets = found.filter((w) => !liveKeys.has(`${w.wordlist_id}:${w.word}`));
