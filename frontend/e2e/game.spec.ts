@@ -219,15 +219,28 @@ test('typing into other text fields does not leak into the guess', async ({ page
 // board would reshuffle and the typed letter would be wiped. A one-letter guess is too
 // short, so a real submit keeps it in the box: nothing is sent to the server.
 test('Enter after clicking Keverés submits the guess, not the button', async ({ page }) => {
+  // Phone width: at >= 640px a typed letter moves focus into the guess box
+  // (handleLetterClick), so Enter would never land on the button there.
+  await page.setViewportSize({ width: 420, height: 900 })
   const letters = await startGame(page)
   const guessInput = page.getByLabel('Tipp beírása')
   const letter = [...letters].find((c) => /[A-Z]/.test(c))
   expect(letter, `no ASCII letter on board "${letters}"`).toBeTruthy()
 
-  await page.getByRole('button', { name: 'Betűk keverése' }).click()
+  // Wait for the reshuffle itself to land: handleScramble clears the guess when the
+  // response arrives, so typing before that would be wiped by the click, not by Enter.
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/rescramble') && r.ok()),
+    page.getByRole('button', { name: 'Betűk keverése' }).click(),
+  ])
+  await page.waitForTimeout(300) // the body is parsed and state set just after the headers
   await page.keyboard.press(letter!.toLowerCase())
   await expect(guessInput).toHaveValue(letter!)
+  // Deterministic: pressing Keverés again would send a second /rescramble request.
+  let rescrambles = 0
+  page.on('request', (r) => { if (r.url().includes('/rescramble')) rescrambles++ })
   await page.keyboard.press('Enter')
-  await page.waitForTimeout(300)
+  await page.waitForTimeout(1500)
+  expect(rescrambles, 'Enter pressed Keverés instead of submitting').toBe(0)
   await expect(guessInput).toHaveValue(letter!)
 })
