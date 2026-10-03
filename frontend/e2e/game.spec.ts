@@ -247,17 +247,31 @@ test('Enter after clicking Keverés submits the guess, not the button', async ({
 // been found yet (the confirmation only appeared after the first find). Cancels the
 // dialog, so nothing is saved (the length preference is written only on confirm) — safe
 // in CI against production.
-test('changing the length mid-game asks first, even with no words found', async ({ page }) => {
+test('changing a game setting mid-game asks first, even with no words found', async ({ page }) => {
   await startGame(page)
   const board = page.getByRole('group', { name: 'Kirakható betűk' })
 
   await page.getByRole('button', { name: 'Beállítások' }).click()
-  const lengthSelect = page.locator('#settings-length')
-  const current = await lengthSelect.inputValue()
-  const other = (await lengthSelect.locator('option').evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value)))
-    .find((v) => v !== current)
-  expect(other, 'only one length is offered').toBeTruthy()
-  await lengthSelect.selectOption(other!)
+  await expect(page.getByRole('dialog', { name: 'Beállítások' })).toBeVisible()
+  // Whichever game selector the admin left visible (production may hide some, ROADMAP
+  // Batch 10 item 14) — all three go through the same confirm funnel.
+  const selects = [page.locator('#settings-length'), page.locator('#settings-wordlist')]
+  let changed: { select: import('@playwright/test').Locator; before: string } | null = null
+  for (const select of selects) {
+    if (!(await select.isVisible())) continue
+    const before = await select.inputValue()
+    const values = await select.locator('option').evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value))
+    const other = values.find((v) => v !== before)
+    if (!other) continue
+    await select.selectOption(other)
+    changed = { select, before }
+    break
+  }
+  if (!changed) {
+    const easy = page.locator('#settings-easy-mode')
+    test.skip(!(await easy.isVisible()), 'every game selector is hidden by the admin config')
+    await easy.click()
+  }
 
   const confirm = page.getByRole('dialog', { name: 'Biztosan újrakezded?' })
   await expect(confirm).toBeVisible()
@@ -266,5 +280,5 @@ test('changing the length mid-game asks first, even with no words found', async 
 
   await expect(confirm).toBeHidden()
   await expect(board.getByRole('button').first()).toBeVisible()
-  await expect(lengthSelect).toHaveValue(current)
+  if (changed) await expect(changed.select).toHaveValue(changed.before)
 })
