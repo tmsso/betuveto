@@ -281,6 +281,7 @@
   },
   "feedback": {
     "open": "Írj nekünk",
+    "openFromSettings": "Visszajelzés küldése",
     "label": "Visszajelzés",
     "placeholder": "Mi történt, és mire számítottál?",
     "privacyNote": "Az üzenetedet az oldal címével, a böngésződ adataival és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa. Nem kell megadnod e-mail-címet.",
