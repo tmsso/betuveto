@@ -545,6 +545,15 @@ describeApi("Betűvető API contract", () => {
 
     const lengths = await call("GET", "/api/words/lengths");
     expect(lengths.json.available_lengths).toContain(7);
+    // ROADMAP 13.2: the startup call also carries the admin's control visibility and the
+    // values forced for hidden controls, so the app knows them before any game starts.
+    expect(lengths.json.ui).toEqual({
+      show_length_selector: expect.any(Boolean),
+      show_wordlist_selector: expect.any(Boolean),
+      show_easy_mode: expect.any(Boolean),
+      default_length: expect.any(Number),
+      default_wordlist: expect.any(String),
+    });
   });
 
   // --- English wordlist (ROADMAP 6.1) ----------------------------------------

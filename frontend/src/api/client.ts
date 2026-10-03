@@ -9,6 +9,19 @@
 // Frontend and API are same-origin (Vercel serves both) — no base URL to configure.
 const API_BASE_URL = '/api';
 
+/** GET /words/lengths (ROADMAP 13.2): offered lengths plus the admin's control
+ *  visibility. `ui` is absent on deployments older than 13.2 → treat as all-visible. */
+export interface LengthsResponse {
+  available_lengths: number[];
+  ui?: {
+    show_length_selector: boolean;
+    show_wordlist_selector: boolean;
+    show_easy_mode: boolean;
+    default_length: number;
+    default_wordlist: string;
+  };
+}
+
 export interface StartGameResult {
   game_id: string;
   wordlist: string;
@@ -247,11 +260,16 @@ class BetuAPIClient {
   }
 
   async getAvailableLengths(wordlist?: string): Promise<number[]> {
+    return (await this.getLengthsAndUi(wordlist)).available_lengths;
+  }
+
+  // ROADMAP 13.2: the same call also carries the admin's control visibility (and the
+  // values forced for hidden controls), which the app needs before any game starts.
+  async getLengthsAndUi(wordlist?: string): Promise<LengthsResponse> {
     const params = wordlist ? `?${new URLSearchParams({ wordlist }).toString()}` : '';
     const response = await fetch(`${this.baseUrl}/words/lengths${params}`);
     if (!response.ok) throw new Error('Failed to fetch available lengths');
-    const data = await response.json();
-    return data.available_lengths;
+    return response.json();
   }
 
   // Player preferences (ROADMAP 2.3). Not under /api/game or /api/words, so no

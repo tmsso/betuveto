@@ -535,7 +535,24 @@ export async function getAvailableLengths(wordlistCode?: string): Promise<Reply>
     having count(*) >= ${MIN_WORDS_PER_LENGTH}
      order by length
   `;
-  return { status: 200, body: { available_lengths: rows.map((row) => row.length) } };
+  // ROADMAP 13.2: the app opens on the pre-game board without calling game/start (Batch
+  // 10 item 17), so this startup call is the only place it can learn which controls the
+  // admin hid — and, unlike game/start's echo, the forced values too, since no game has
+  // been played yet to carry them.
+  const ui = await getUiConfig();
+  return {
+    status: 200,
+    body: {
+      available_lengths: rows.map((row) => row.length),
+      ui: {
+        show_length_selector: ui.show_length_selector,
+        show_wordlist_selector: ui.show_wordlist_selector,
+        show_easy_mode: ui.show_easy_mode,
+        default_length: ui.default_length,
+        default_wordlist: ui.default_wordlist,
+      },
+    },
+  };
 }
 
 /** One cheap DB read, for uptime checks (ROADMAP 1.4) — no Neon keep-alive needed. */
