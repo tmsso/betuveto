@@ -13,6 +13,10 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [pendingIds, setPendingIds] = useState(() => new Set())
+  // ROADMAP 13.5: multi-select + one action for every selected word.
+  const [selected, setSelected] = useState(() => new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkResult, setBulkResult] = useState(null)
 
   const runSearch = useCallback(async (q) => {
     setLoading(true)
@@ -28,6 +32,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const body = await response.json()
       setWords(body.words)
+      setSelected(new Set())
     } catch (err) {
       setError(err.message || t('err.search'))
     } finally {
@@ -104,6 +109,45 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
     }
   }
 
+  const toggleSelected = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const runBulk = async (action, label) => {
+    const ids = [...selected]
+    if (ids.length === 0) return
+    if (!window.confirm(t('words.confirmBulk', { action: label, count: ids.length }))) return
+    setBulkBusy(true)
+    setError(null)
+    setBulkResult(null)
+    try {
+      const response = await fetch('/api/v1/admin/words/bulk', {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ids }),
+      })
+      if (response.status === 401) {
+        onAuthError()
+        return
+      }
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`)
+      setBulkResult(body)
+      await runSearch(query)
+    } catch (err) {
+      setError(err.message || t('err.save'))
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const activeTargetSkips = bulkResult?.skipped?.filter((s) => s.reason === 'active_target') ?? []
+
   return (
     <section>
       <form onSubmit={handleSearchSubmit} className="mb-4 flex gap-2">
@@ -126,6 +170,47 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
       {loading && <p className="text-sm text-game-primary/70">{t('common.loading')}</p>}
 
+      {bulkResult && (
+        <div className="text-sm mb-4 text-game-primary/80" role="status">
+          <p>{t('words.bulkResult', {
+            changed: bulkResult.changed.length,
+            unchanged: bulkResult.unchanged_count,
+            skipped: bulkResult.skipped.length,
+          })}</p>
+          {activeTargetSkips.length > 0 && (
+            <p>{t('words.skippedActiveTarget', { words: activeTargetSkips.map((s) => s.word).join(', ') })}</p>
+          )}
+        </div>
+      )}
+
+      {words && words.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+          <button type="button" onClick={() => setSelected(new Set(words.map((w) => w.id)))} className="underline text-game-secondary">
+            {t('words.selectAll')}
+          </button>
+          <button type="button" onClick={() => setSelected(new Set())} className="underline text-game-secondary">
+            {t('words.selectNone')}
+          </button>
+          <span className="text-game-primary/70">{t('words.bulkSelected', { count: selected.size })}</span>
+          {[
+            ['inactivate', t('words.bulkInactivate'), 'bg-amber-600 hover:bg-amber-700'],
+            ['reactivate', t('words.bulkReactivate'), 'bg-green-700 hover:bg-green-800'],
+            ['delete', t('words.bulkDelete'), 'bg-red-600 hover:bg-red-700'],
+          ].map(([action, label, colour]) => (
+            <button
+              key={action}
+              type="button"
+              disabled={bulkBusy || selected.size === 0}
+              onClick={() => runBulk(action, label)}
+              className={`${colour} text-white font-semibold rounded px-3 py-1 disabled:opacity-40`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="basis-full text-xs text-game-primary/60">{t('words.selectAllHint')}</span>
+        </div>
+      )}
+
       {words && (
         words.length === 0 ? (
           <p className="text-sm text-game-primary/60">{t('common.noResults')}</p>
@@ -133,6 +218,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
           <table className="w-full text-sm border-collapse bg-white rounded-lg overflow-hidden shadow">
             <thead>
               <tr className="text-left border-b-2 border-game-border bg-blue-50">
+                <th className="py-2 px-2 w-8"><span className="sr-only">{t('words.bulkSelected', { count: selected.size })}</span></th>
                 <th className="py-2 px-2">{t('common.word')}</th>
                 <th className="py-2 px-2">{t('common.activeQ')}</th>
                 <th className="py-2 px-2">{t('words.source')}</th>
@@ -145,6 +231,14 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
                 const editing = editingId === w.id
                 return (
                   <tr key={w.id} className="border-b border-game-border/40">
+                    <td className="py-2 px-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(w.id)}
+                        onChange={() => toggleSelected(w.id)}
+                        aria-label={t('words.selectRow', { word: w.word })}
+                      />
+                    </td>
                     <td className="py-2 px-2 font-semibold">
                       {editing ? (
                         <input

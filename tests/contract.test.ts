@@ -1384,6 +1384,56 @@ describeApi("Betűvető API contract", () => {
     expect(deleteAgain.status).toBe(404);
   });
 
+  // --- ROADMAP 13.5: bulk word actions -----------------------------------------
+  it("gates and validates the bulk word endpoint", async () => {
+    const noToken = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: [1] });
+    expect(noToken.status).toBe(401);
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+    const badAction = await call("POST", "/api/v1/admin/words/bulk", { action: "nuke", ids: [1] }, adminHeaders);
+    expect(badAction.status).toBe(422);
+    const noIds = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: [] }, adminHeaders);
+    expect(noIds.status).toBe(422);
+    const badIds = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: ["1"] }, adminHeaders);
+    expect(badIds.status).toBe(422);
+  });
+
+  it("reactivates, inactivates and deletes several words in one call", async () => {
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+    const { cookie } = await startWithCookie();
+    const alphabet = "BDFGKLMNPRST";
+    const randomWord = () =>
+      Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+    const ids: number[] = [];
+    for (let i = 0; i < 2; i++) {
+      let novel = randomWord();
+      while (dictionary.includes(novel)) novel = randomWord();
+      await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
+      const found = await call("GET", `/api/v1/admin/words?q=${novel}`, undefined, adminHeaders);
+      const row = found.json.words.find((w: any) => w.word === novel);
+      expect(row?.active).toBe(false);
+      ids.push(row.id);
+    }
+
+    const on = await call("POST", "/api/v1/admin/words/bulk", { action: "reactivate", ids }, adminHeaders);
+    expect(on.status).toBe(200);
+    expect(on.json.changed.map((w: any) => w.id).sort()).toEqual([...ids].sort());
+    // Already active: nothing changes, and nothing is audit-logged as a change.
+    const again = await call("POST", "/api/v1/admin/words/bulk", { action: "reactivate", ids }, adminHeaders);
+    expect(again.json.changed).toHaveLength(0);
+    expect(again.json.unchanged_count).toBe(2);
+
+    const off = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids }, adminHeaders);
+    expect(off.json.changed).toHaveLength(2);
+
+    const unknownId = 2_000_000_000;
+    const gone = await call("POST", "/api/v1/admin/words/bulk", { action: "delete", ids: [...ids, unknownId] }, adminHeaders);
+    expect(gone.status).toBe(200);
+    expect(gone.json.changed).toHaveLength(2);
+    expect(gone.json.skipped).toEqual([{ id: unknownId, reason: "not_found" }]);
+  });
+
   // --- Batch 5.2 item 2: config editor ----------------------------------------
   it("gates the config endpoints behind the admin token", async () => {
     const noToken = await call("GET", "/api/v1/admin/config");

@@ -5,7 +5,7 @@
  * only for the word row itself.
  */
 import type { Sql } from "postgres";
-import { type AdminIdentity, logAdminAction } from "./admin.js";
+import { type AdminIdentity, logAdminAction, logAdminActions } from "./admin.js";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
 import { letterCount, normalizeWord, signatureOf } from "./words.js";
@@ -135,4 +135,76 @@ export async function deleteWord(admin: AdminIdentity, wordId: number): Promise<
 
   await logAdminAction(admin, "delete_word", { word_id: wordId, word: existing.word });
   return { status: 200, body: { id: wordId, deleted: true } };
+}
+
+export const BULK_ACTIONS = ["inactivate", "reactivate", "delete"] as const;
+export type BulkAction = (typeof BULK_ACTIONS)[number];
+export const BULK_MAX_IDS = 500;
+
+/**
+ * ROADMAP 13.5 — one action for many words. Inactivate and reactivate apply to every
+ * selected word: a live game's target stays guessable while inactive (`guess()` matches
+ * `active or word = target_word`), so inactivating it never strands a game. Delete skips
+ * live targets (the same rule as deleteWord: the target is a text snapshot, and the row has
+ * to exist for it to stay guessable) and reports them back, rather than failing the batch.
+ * One audit row per changed word, like the single-word routes.
+ */
+export async function bulkWordAction(admin: AdminIdentity, rawAction: unknown, rawIds: unknown): Promise<Reply> {
+  if (typeof rawAction !== "string" || !(BULK_ACTIONS as readonly string[]).includes(rawAction)) {
+    return { status: 422, body: { detail: `action must be one of ${BULK_ACTIONS.join(", ")}.` } };
+  }
+  const action = rawAction as BulkAction;
+  if (
+    !Array.isArray(rawIds) || rawIds.length === 0 || rawIds.length > BULK_MAX_IDS ||
+    !rawIds.every((id) => Number.isSafeInteger(id) && (id as number) > 0)
+  ) {
+    return { status: 422, body: { detail: `ids must be 1-${BULK_MAX_IDS} positive integers.` } };
+  }
+  const ids = [...new Set(rawIds as number[])];
+
+  const sql = db();
+  const found = await sql<{ id: number; word: string; wordlist_id: number }[]>`
+    select id, word, wordlist_id from words where id = any(${ids})
+  `;
+  const foundIds = new Set(found.map((w) => w.id));
+  const skipped: { id: number; word?: string; reason: "not_found" | "active_target" }[] = ids
+    .filter((id) => !foundIds.has(id))
+    .map((id) => ({ id, reason: "not_found" as const }));
+
+  let targets: { id: number; word: string; wordlist_id: number }[] = found;
+  if (action === "delete" && found.length > 0) {
+    // One query for every candidate, not one isActiveGameTarget call per word.
+    const live = await sql<{ word: string; wordlist_id: number }[]>`
+      select distinct g.target_word as word, g.wordlist_id
+        from games g
+        join words w on w.word = g.target_word and w.wordlist_id = g.wordlist_id
+       where g.status = 'active' and w.id = any(${found.map((w) => w.id)})
+    `;
+    const liveKeys = new Set(live.map((l) => `${l.wordlist_id}:${l.word}`));
+    targets = found.filter((w) => !liveKeys.has(`${w.wordlist_id}:${w.word}`));
+    for (const w of found) {
+      if (liveKeys.has(`${w.wordlist_id}:${w.word}`)) skipped.push({ id: w.id, word: w.word, reason: "active_target" });
+    }
+  }
+
+  const targetIds = targets.map((w) => w.id);
+  let changed: { id: number; word: string }[] = [];
+  if (targetIds.length > 0) {
+    if (action === "delete") {
+      // Cascades word_reports/word_suggestions, exactly as deleteWord does.
+      changed = await sql<{ id: number; word: string }[]>`delete from words where id = any(${targetIds}) returning id, word`;
+    } else {
+      const active = action === "reactivate";
+      // Only rows whose state actually changes, so the audit log doesn't fill with no-ops.
+      changed = await sql<{ id: number; word: string }[]>`
+        update words set active = ${active} where id = any(${targetIds}) and active <> ${active} returning id, word
+      `;
+    }
+  }
+
+  const auditAction = { inactivate: "inactivate_word", reactivate: "reactivate_word", delete: "delete_word" }[action];
+  await logAdminActions(admin, changed.map((w) => ({ action: auditAction, payload: { word_id: w.id, word: w.word, bulk: true } })));
+
+  changed.sort((a, b) => a.id - b.id);
+  return { status: 200, body: { action, changed, unchanged_count: targetIds.length - changed.length, skipped } };
 }
