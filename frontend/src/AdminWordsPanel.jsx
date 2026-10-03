@@ -129,7 +129,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       setWords(body.words)
       // Pre-ticked for review, never acted on: the admin still picks an action below.
       setSelected(new Set(body.words.map((w) => w.id)))
-      setSuspicious({ total: body.total_flagged })
+      setSuspicious({ total: body.total_flagged, reasonCounts: body.reason_counts ?? {} })
     } catch (err) {
       setError(err.message || t('err.search'))
     } finally {
@@ -224,7 +224,10 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
         </button>
         <span className="basis-full text-xs text-game-primary/60">{t('words.suspiciousHint')}</span>
         {suspicious && words && (
-          <span className="basis-full text-xs font-semibold">{t('words.suspiciousTotal', { shown: words.length, total: suspicious.total })}</span>
+          <span className="basis-full text-xs font-semibold">
+            {t('words.suspiciousTotal', { shown: words.length, total: suspicious.total })}{' '}
+            {Object.entries(suspicious.reasonCounts).map(([r, n]) => `${t(`reason.${r}`)}: ${n}`).join(' · ')}
+          </span>
         )}
       </div>
 

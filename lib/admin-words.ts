@@ -271,9 +271,13 @@ export async function findSuspiciousWords(wordlistCode: string, params: Suspicio
   const flagged = candidates
     .map((w) => ({ ...w, reasons: suspicionReasons(w.word, wordlistCode, list.alphabet, params) }))
     .filter((w) => w.reasons.length > 0);
+  // Per-reason totals across ALL flagged words (not just the returned page), so the admin
+  // can see which rule is producing the noise before tuning a threshold.
+  const reasonCounts: Record<string, number> = {};
+  for (const w of flagged) for (const r of w.reasons) reasonCounts[r] = (reasonCounts[r] ?? 0) + 1;
   return {
     status: 200,
-    body: { words: flagged.slice(0, SUSPICIOUS_LIMIT), total_flagged: flagged.length, params },
+    body: { words: flagged.slice(0, SUSPICIOUS_LIMIT), total_flagged: flagged.length, reason_counts: reasonCounts, params },
   };
 }
 
