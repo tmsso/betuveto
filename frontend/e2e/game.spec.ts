@@ -194,7 +194,7 @@ test('typing into other text fields does not leak into the guess', async ({ page
   await expect(feedback).toHaveValue('hello there')
   await feedback.press('Backspace')
   await expect(feedback).toHaveValue('hello ther')
-  await expect(page.getByRole('button', { name: 'Küldés' })).toBeEnabled()
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Küldés' })).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(guessInput).toHaveValue('')
 
