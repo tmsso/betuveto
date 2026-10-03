@@ -1394,8 +1394,12 @@ describeApi("Betűvető API contract", () => {
     expect(badAction.status).toBe(422);
     const noIds = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: [] }, adminHeaders);
     expect(noIds.status).toBe(422);
-    const badIds = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: ["1"] }, adminHeaders);
-    expect(badIds.status).toBe(422);
+    // Never valid ids here: a numeric string like "1" IS accepted (bigint ids arrive as
+    // strings), and would really inactivate word 1.
+    for (const ids of [["x1"], [-1], [1.5], [0]]) {
+      const bad = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids }, adminHeaders);
+      expect(bad.status, JSON.stringify(ids)).toBe(422);
+    }
   });
 
   it("reactivates, inactivates and deletes several words in one call", { timeout: 30_000 }, async () => {
