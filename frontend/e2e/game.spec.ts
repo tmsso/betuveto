@@ -213,3 +213,21 @@ test('typing into other text fields does not leak into the guess', async ({ page
   await page.keyboard.press(letter!.toLowerCase())
   await expect(guessInput).toHaveValue(letter)
 })
+
+// ROADMAP 13.1, the other direction: Enter/Space on a focused *play-area* button must still
+// act on the guess. Keverés keeps focus after a click; if Enter pressed it natively, the
+// board would reshuffle and the typed letter would be wiped. A one-letter guess is too
+// short, so a real submit keeps it in the box: nothing is sent to the server.
+test('Enter after clicking Keverés submits the guess, not the button', async ({ page }) => {
+  const letters = await startGame(page)
+  const guessInput = page.getByLabel('Tipp beírása')
+  const letter = [...letters].find((c) => /[A-Z]/.test(c))
+  expect(letter, `no ASCII letter on board "${letters}"`).toBeTruthy()
+
+  await page.getByRole('button', { name: 'Betűk keverése' }).click()
+  await page.keyboard.press(letter!.toLowerCase())
+  await expect(guessInput).toHaveValue(letter!)
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  await expect(guessInput).toHaveValue(letter!)
+})

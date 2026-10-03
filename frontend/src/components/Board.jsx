@@ -35,7 +35,7 @@ export default function Board({
           </span>
         </div>
       )}
-      <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" data-letter-board role="group" aria-label={t('board.ariaLabel')}>
+      <div className="flex flex-wrap gap-2 sm:gap-3 justify-center max-w-[280px] sm:max-w-none mx-auto" role="group" aria-label={t('board.ariaLabel')}>
         {preGame
           ? /* Inert placeholder tiles (ROADMAP Batch 10 item 17) — the real letters
                aren't known until game/start; these just give the empty board a shape.

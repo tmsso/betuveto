@@ -522,10 +522,11 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         // Any other text field, and anything inside an open dialog (settings, help,
         // confirmations), keeps its keys.
         if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
-        // Enter/Space on a focused button outside the letter board should press that
-        // button, not submit a guess. On the board itself (focus stays on a tile after a
-        // tap on narrow screens) Enter still submits, as before.
-        if ((e.key === 'Enter' || e.key === ' ') && target.closest('button, a') && !target.closest('[data-letter-board]')) return
+        // Enter/Space on a focused button outside the play area (header, room results,
+        // the found-words list) should press that button, not submit a guess. Inside it
+        // (App.jsx's [data-game-keys]: tiles, Keverés, hint, give-up) Enter still submits,
+        // as before; a tile or Keverés keeps focus after a click.
+        if ((e.key === 'Enter' || e.key === ' ') && target.closest('button, a') && !target.closest('[data-game-keys]')) return
       }
       if (target?.id !== 'guess-input') {
         // ROADMAP 6.2: derived from the active game's wordlist (gameAlphabet), not a
