@@ -8,6 +8,7 @@ import type { Sql } from "postgres";
 import { type AdminIdentity, logAdminAction, logAdminActions } from "./admin.js";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
+import { DEFAULT_SUSPICION_PARAMS, type SuspicionParams, suspicionReasons } from "./suspicious-words.js";
 import { letterCount, normalizeWord, signatureOf } from "./words.js";
 
 const SEARCH_LIMIT = 50;
@@ -230,4 +231,59 @@ export async function bulkWordAction(admin: AdminIdentity, rawAction: unknown, r
 
   changed.sort((a, b) => a.id - b.id);
   return { status: 200, body: { action, changed, unchanged_count: targetIds.length - changed.length, skipped } };
+}
+
+const SUSPICIOUS_LIMIT = 200;
+
+/**
+ * ROADMAP 13.6 — scans a wordlist's *active* words for the heuristics in
+ * lib/suspicious-words.ts. A regex pre-filter in Postgres keeps the transfer small: each
+ * pattern is a superset of its heuristic (a raw letter run is at least as long as the
+ * digraph-aware one), so only candidates leave the database and the exact check runs here.
+ * Returns at most SUSPICIOUS_LIMIT words (the admin bulk-acts on a page, then re-scans).
+ */
+export async function findSuspiciousWords(wordlistCode: string, params: SuspicionParams): Promise<Reply> {
+  const sql = db();
+  const [list] = await sql<{ id: number; alphabet: string }[]>`
+    select id, alphabet from wordlists where code = ${wordlistCode}
+  `;
+  if (!list) return { status: 404, body: { detail: "Unknown wordlist." } };
+
+  const vowels = wordlistCode === "hu" ? "AÁEÉIÍOÓÖŐUÚÜŰ" : "AEIOUY";
+  const foreignPattern = wordlistCode === "hu"
+    ? `[^${list.alphabet}]|[QWX]|(^|[^GLNT])Y`
+    : `[^${list.alphabet}]`;
+  const candidates = await sql<WordRow[]>`
+    select id, word, wordlist_id, length, active, source, created_at
+      from words
+     where wordlist_id = ${list.id} and active
+       and (
+         length < ${params.minLength}
+         or word !~ ${`[${vowels}]`}
+         or word !~ ${`[^${vowels}]`}
+         or word ~ ${foreignPattern}
+         or word ~ ${`[${vowels}]{${params.maxVowelRun + 1},}`}
+         or word ~ ${`[^${vowels}]{${params.maxConsonantRun + 1},}`}
+       )
+     order by word
+  `;
+
+  const flagged = candidates
+    .map((w) => ({ ...w, reasons: suspicionReasons(w.word, wordlistCode, list.alphabet, params) }))
+    .filter((w) => w.reasons.length > 0);
+  return {
+    status: 200,
+    body: { words: flagged.slice(0, SUSPICIOUS_LIMIT), total_flagged: flagged.length, params },
+  };
+}
+
+/** Query-string thresholds with the defaults, clamped to sane ranges. */
+export function suspicionParamsFrom(raw: { minLength?: number; maxVowelRun?: number; maxConsonantRun?: number }): SuspicionParams {
+  const clamp = (v: number | undefined, lo: number, hi: number, fallback: number) =>
+    v === undefined || !Number.isInteger(v) ? fallback : Math.min(hi, Math.max(lo, v));
+  return {
+    minLength: clamp(raw.minLength, 1, 15, DEFAULT_SUSPICION_PARAMS.minLength),
+    maxVowelRun: clamp(raw.maxVowelRun, 1, 10, DEFAULT_SUSPICION_PARAMS.maxVowelRun),
+    maxConsonantRun: clamp(raw.maxConsonantRun, 1, 10, DEFAULT_SUSPICION_PARAMS.maxConsonantRun),
+  };
 }
