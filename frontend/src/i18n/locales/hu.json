@@ -236,6 +236,7 @@
   "confirmModal": {
     "title": "Biztosan újrakezded?",
     "message": "A jelenlegi pontszámod elvész.",
+    "messageNoScore": "A jelenlegi játék véget ér.",
     "cancel": "Mégsem",
     "confirm": "Új játék"
   },

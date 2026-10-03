@@ -357,17 +357,20 @@ function App() {
   }, [beginFromStartResponse])
 
   // "Új játék" and every game-restarting selector (length / wordlist / easy mode) route
-  // through here. If the player has real progress to lose, the restart waits behind the
-  // confirmation modal; otherwise it runs straight away. ROADMAP Batch 10 item 15's
+  // through here. While a game is running, the restart waits behind the confirmation
+  // modal; otherwise it runs straight away. ROADMAP Batch 10 item 15's
   // confirm-then-restart-now rule — it replaces the old silent "apply on the next new
   // game" deferral, which made a mid-game selector change look like it did nothing.
+  // ROADMAP 13.3: it used to ask only once a word had been found, so a selector change
+  // with no words yet ended the running game without a word. Now any running game asks.
   const requestRestart = useCallback((run) => {
-    if (foundWords.length > 0 && !isTimeUp) {
-      setPendingConfirm({ message: t('confirmModal.message'), run })
+    if (!preGame && !isTimeUp) {
+      const message = foundWords.length > 0 ? t('confirmModal.message') : t('confirmModal.messageNoScore')
+      setPendingConfirm({ message, run })
     } else {
       run()
     }
-  }, [foundWords.length, isTimeUp, t])
+  }, [preGame, foundWords.length, isTimeUp, t])
 
   // Give-up asks through the same modal as everything else (ROADMAP 12.5 / 11.6) instead
   // of the browser's own window.confirm.

@@ -104,7 +104,9 @@ for (const mode of ['coop', 'versus'] as const) {
     expect(await findAcceptedWord(host, dictionary, hostLetters)).not.toBeNull()
     expect(await findAcceptedWord(guest, dictionary, guestLetters)).not.toBeNull()
     const guestRow = host.getByTestId('room-strip').getByRole('listitem').filter({ hasText: 'Béla' })
-    await expect(guestRow).toContainText(/(^|\D)1\/\d/, { timeout: 10_000 })
+    // At least one find, not exactly one: findAcceptedWord moves on to the next candidate
+    // when the score is slow to update, so it can land two (seen 2026-10-03 on a preview).
+    await expect(guestRow).toContainText(/(^|\D)[1-9]\d*\/\d/, { timeout: 10_000 })
     if (mode === 'coop') await expect(host.getByTestId('room-strip')).toContainText('Csapat:')
     else await expect(host.getByTestId('room-strip')).not.toContainText('Csapat:')
 
