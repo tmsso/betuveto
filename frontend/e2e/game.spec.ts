@@ -243,6 +243,8 @@ test('Enter after clicking Keverés submits the guess, not the button', async ({
   await page.waitForTimeout(1500)
   expect(rescrambles, 'Enter pressed Keverés instead of submitting').toBe(0)
   await expect(guessInput).toHaveValue(letter!)
+})
+
 // ROADMAP 13.3 — a selector change used to end a running game silently when no word had
 // been found yet (the confirmation only appeared after the first find). Cancels the
 // dialog, so nothing is saved (the length preference is written only on confirm) — safe
