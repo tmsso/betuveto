@@ -187,30 +187,30 @@
   },
   "privacy": {
     "title": "Adatvédelem",
-    "updated": "Utolsó frissítés: 2026. szeptember",
+    "updated": "Utolsó frissítés: 2026. október",
     "back": "← Vissza a játékhoz",
     "intro": "A Betűvető regisztráció nélkül játszható. Ez az oldal leírja, milyen adatokat tárol a játék, és hogyan törölheted őket.",
     "sections": {
       "stored": {
         "heading": "Mit tárolunk",
-        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz kötve — amelyet ezen az eszközön egy süti őriz, nem a nevedhez vagy e-mail-címedhez — tárolja: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, az egyes szavak megfejtési számait (kizárólag a feladott szavak kiválasztásához, sosem jelenik meg), a megadott megjelenítendő nevedet, ha beállítottál egyet, a beállításaidat (tábla hossza, nyelv, téma, hang), valamint a kapcsolatodból egy játék indulásakor megállapított hozzávetőleges országot (csak a játék üzemeltetője látja, más játékosok soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címed kulcsolt ujjlenyomatát (soha nem magát a címet) 24 órán át tároljuk. Ha a súgóban visszajelzést küldesz, az üzenetedet az oldal címével, a böngésződ azonosító szövegével és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa."
+        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha visszajelzést küldesz (a súgóból vagy a Beállításokból), az üzenetedet az oldal címével, a böngésződ azonosító szövegével és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa."
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
-        "body": "Nincs fiók, nincs jelszó, nincs e-mail (a játék nem is kér ilyet). Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Hibadiagnosztikát csak akkor gyűjtünk, ha az üzemeltető bekapcsolta, és az soha nem tartalmazza a tippjeidet vagy pontszámaidat."
+        "body": "Nincs fiók, jelszó vagy e-mail-cím: a játék ilyet nem is kér. Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Hibadiagnosztikai adatokat csak akkor gyűjtünk, ha az üzemeltető ezt bekapcsolta, és ezek soha nem tartalmazzák a tippjeidet vagy a pontszámaidat."
       },
       "hosting": {
         "heading": "Hol tároljuk",
-        "body": "A játék a Vercel platformon fut, az adatokat pedig egy EU-ban üzemeltetett Neon PostgreSQL adatbázis tárolja. Mindkettő adatfeldolgozóként jár el."
+        "body": "A játék a Vercel platformon fut, az adatokat pedig egy EU-ban üzemeltetett Neon PostgreSQL-adatbázis tárolja. Mindkét szolgáltató adatfeldolgozóként jár el."
       },
       "retention": {
         "heading": "Megőrzés",
-        "body": "Az adatokat addig őrizzük, amíg nem törlöd őket (lásd lent). Az adatbázisról hetente titkosított biztonsági mentés készül, amelyet 90 nap után törlünk."
+        "body": "Az adatokat addig őrizzük meg, amíg nem törlöd őket (lásd lent). Az adatbázisról hetente titkosított biztonsági mentés készül, ezeket 90 nap után töröljük."
       }
     },
     "delete": {
       "heading": "Adataim törlése",
-      "body": "Ez véglegesen eltávolítja a játékosrekordodat, a szavankénti statisztikáidat, a napi eredményeidet, a kitüntetéseidet, valamint az általad küldött szójelentéseket és -javaslatokat. A korábbi játékaid név nélküli előzményként maradnak az adatbázisban, hozzád nem köthető módon. Utána azonnal folytathatod a játékot új, névtelen játékosként.",
+      "body": "Ez véglegesen eltávolítja a játékosprofilodat, a szavankénti statisztikáidat, a napi eredményeidet, a kitüntetéseidet, az általad küldött szójelentéseket és -javaslatokat, valamint a visszajelzéseidet. A korábbi játékaid névtelen előzményként az adatbázisban maradnak, de nem köthetők hozzád. Utána azonnal folytathatod a játékot új, névtelen játékosként.",
       "button": "Adataim törlése",
       "deleting": "Törlés…",
       "confirm": "Véglegesen törlöd a Betűvető-adataidat ezen az eszközön? Ezt nem lehet visszavonni.",
@@ -271,12 +271,12 @@
     "open": "Játékszabály",
     "title": "Hogyan játssz?",
     "close": "Bezárás",
-    "goal": "🎯 Rakj ki minél több szót a megkevert betűkből, mielőtt lejár az idő. Egy szó az összes betűt felhasználja — az éri a legtöbbet.",
-    "words": "✍️ A szavak legalább {{count}} betűsek legyenek, és minden betűlapka egyszer használható. Koppints a betűkre vagy gépelj, majd Enter vagy ✅.",
-    "scoring": "⭐ Egy szó a hossza négyzetét éri, így a hosszú szavak sokkal többet hoznak (egy 7 betűs szó 49 pont). Ha minden szót megtalálsz, a hátralévő időt bónuszként kapod meg.",
-    "buttons": "🔀 újrakeveri a betűket · 💡 felfedi egy még meg nem talált szó első betűjét ({{cost}} pontba kerül) · 🏳️ feladod, és látod az összes szót.",
-    "curation": "⚑ a szó mellett: jelzed, hogy hibás. Ha egy létező szót nem fogad el a játék, beküldheted, hogy bekerüljön a szótárba.",
-    "more": "⚙️ Beállítások: táblaméret, szótár nyelve, a napi rejtvény (mindenkinek ugyanaz a tábla, sorozattal), ranglisták és a statisztikád.",
+    "goal": "🎯 Rakj ki minél több szót a megkevert betűkből, mielőtt lejár az idő! Van egy szó, amely az összes betűt felhasználja – ez ér a legtöbbet.",
+    "words": "✍️ A szavak legalább {{count}} betűsek legyenek, és minden betűt csak egyszer használhatsz fel. Koppints a betűkre, vagy gépelj, majd nyomj Entert, vagy koppints a ✅ gombra.",
+    "scoring": "⭐ Minden szó a hossza négyzetének megfelelő pontot ér, így a hosszú szavak sokkal többet hoznak: egy 7 betűs szó 49 pontot. Ha az összes szót megtalálod, a hátralévő idő bónuszpontként jár.",
+    "buttons": "🔀 újrakeveri a betűket · 💡 megmutatja egy még meg nem talált szó első betűjét ({{cost}} pontba kerül) · 🏳️ feladja a játékot, és megmutatja az összes szót",
+    "curation": "⚑ A szó melletti zászlóval jelezheted, hogy a szó hibás. Ha a játék nem fogad el egy létező szót, beküldheted, hogy felvegyük a szótárba.",
+    "more": "⚙️ A Beállításokban választhatsz szóhosszt és szótárnyelvet, és itt találod a napi rejtvényt (mindenki ugyanazt a táblát kapja, és sorozatot gyűjthetsz), a közös játékot barátokkal, a ranglistákat és a statisztikáidat.",
     "feedbackIntro": "Valami nem működik, zavaros vagy hiányzik?"
   },
   "feedback": {
