@@ -2078,6 +2078,70 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
 
 ---
 
+## Batch 13 — Owner test-pass findings (2026-10-03)
+
+*From the owner's hands-on pass on production after Batch 12 + rooms went live. Bugs first:
+13.1 blocks rooms, display names and feedback for every player.*
+
+**Bugs**
+- `[ ]` **13.1 Keystrokes in any text field are swallowed by the game (blocks rooms, display
+  name, feedback).** Root cause (found 2026-10-03): `useGame.js`'s global `keydown`
+  handler only exempts `#guess-input`. Every alphabet letter typed into any other input or
+  textarea becomes a guess letter, and `preventDefault()` stops it reaching the field.
+  Backspace/Enter are hijacked everywhere too. Symptoms: the room name and the settings
+  display name can't be typed; the feedback box stays empty, so its Send button looks
+  permanently "disabled". The code comment even says "unless a real input already has
+  focus", but the check doesn't do that.
+  Fix: return early when `e.target` is an `INPUT`/`TEXTAREA`/`SELECT`/contentEditable
+  (other than the guess input), and ideally whenever a modal/dialog is open.
+  **Test lesson:** 12.7's click-through used Playwright `fill()`, which sets the value
+  without key events, so it couldn't catch this. New E2E for text fields must type with
+  `pressSequentially()`/`keyboard.type()`. Add a regression E2E that types a room name and
+  a feedback message key by key.
+- `[ ]` **13.2 Admin "hide word length" didn't take effect.** The owner set
+  `show_length_selector` off; the selector/length still behaved as visible. To check:
+  the 30 s config cache (lib/config.ts) vs. a real bug. The server forces
+  `ui.default_length` in game/start and daily/start, while the client reads `uiConfig` only
+  from a game-start response (App.jsx:344, SettingsPanel.jsx:119), so the settings panel
+  may show a stale value until the next game start. Also check rooms
+  (`lib/rooms.ts` echoes it, but does createRoom force the length?).
+- `[ ]` **13.3 Changing dictionary or word length mid-game still stops the running game.**
+  Batch 10 item 17 was meant to fix this (an explicit start). Either a regression or
+  incomplete. Wanted: a confirmation dialog ("this ends the current game"), or, if that's
+  complicated, apply the setting **at the next game** only. Recommended default: the
+  setting applies at the next game, with a one-line note under the selector. Simplest, and
+  never destroys a game.
+
+**Features**
+- `[ ]` **13.4 Feedback link in Settings too**, not only in the help dialog (12.7 removed the
+  settings-footer mailto; add a "Visszajelzés küldése" entry that opens the same form).
+  Depends on 13.1.
+- `[ ]` **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
+  words list (and the review queue), select all / none, and one action for all selected
+  (inactivate, reactivate, delete where allowed). It must respect the existing rule that a
+  live game's target is never yanked. One audit-log row per word, or one row with the id
+  list.
+- `[ ]` **13.6 "Select suspicious" heuristics** in the same admin view, pre-ticking clearly
+  wrong words for review (never auto-applying). Traits requested by the owner: vowels only
+  (csak magánhangzó), consonants only (csak mássalhangzó), too short, non-Hungarian
+  characters (Q/W/X/Y or anything outside the hu alphabet), 3+ vowels in a row, 4+
+  consonants in a row. **Design note:** count Hungarian digraphs/trigraphs (cs, dz, dzs, gy,
+  ly, ny, sz, ty, zs) as ONE consonant, or real words like "legszebb" or "ország" will be
+  flagged. Make the thresholds parameters. Pairs naturally with the Magyar Ispell
+  hardening run (memory: wordlist hardening). The heuristics catch the obvious ones and
+  hunspell the rest.
+
+**Content (backlog)**
+- `[ ]` **13.7 Hungarian language-quality review** of the how-to-play text and the privacy
+  page (hu locale). **Always run this on Opus** (owner instruction): a native-quality
+  editorial pass, not a literal translation check.
+
+**Verified by the owner on production 2026-10-03:** daily → Share works; a Magic Link admin
+change was made (`admin_audit_log.admin_id` still to be confirmed, since Claude is blocked
+from production reads; see the owner action items).
+
+---
+
 ## Challenged / rejected ideas (and why)
 
 | Original idea | Verdict | Reasoning |
