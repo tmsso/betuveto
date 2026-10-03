@@ -17,6 +17,10 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
   const [selected, setSelected] = useState(() => new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkResult, setBulkResult] = useState(null)
+  // ROADMAP 13.6: "select suspicious" — the last scan's thresholds and totals. While set,
+  // the table shows the scan's words (pre-ticked) and a reasons column.
+  const [suspicionParams, setSuspicionParams] = useState({ min_length: 3, max_vowel_run: 2, max_consonant_run: 3 })
+  const [suspicious, setSuspicious] = useState(null)
 
   const runSearch = useCallback(async (q) => {
     setLoading(true)
@@ -33,6 +37,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       const body = await response.json()
       setWords(body.words)
       setSelected(new Set())
+      setSuspicious(null)
     } catch (err) {
       setError(err.message || t('err.search'))
     } finally {
@@ -109,6 +114,29 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
     }
   }
 
+  const runSuspiciousScan = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams(Object.entries(suspicionParams).map(([k, v]) => [k, String(v)]))
+      const response = await fetch(`/api/v1/admin/words/suspicious?${params}`, { headers: authHeaders })
+      if (response.status === 401) {
+        onAuthError()
+        return
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const body = await response.json()
+      setWords(body.words)
+      // Pre-ticked for review, never acted on: the admin still picks an action below.
+      setSelected(new Set(body.words.map((w) => w.id)))
+      setSuspicious({ total: body.total_flagged, reasonCounts: body.reason_counts ?? {} })
+    } catch (err) {
+      setError(err.message || t('err.search'))
+    } finally {
+      setLoading(false)
+    }
+  }, [suspicionParams, authHeaders, onAuthError, t])
+
   const toggleSelected = (id) => {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -138,7 +166,8 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
       const body = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`)
       setBulkResult(body)
-      await runSearch(query)
+      if (suspicious) await runSuspiciousScan()
+      else await runSearch(query)
     } catch (err) {
       setError(err.message || t('err.save'))
     } finally {
@@ -166,6 +195,41 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
           {t('common.search')}
         </button>
       </form>
+
+      <div className="mb-4 flex flex-wrap items-end gap-3 text-sm">
+        {[
+          ['min_length', t('words.suspiciousMinLength')],
+          ['max_vowel_run', t('words.suspiciousMaxVowels')],
+          ['max_consonant_run', t('words.suspiciousMaxConsonants')],
+        ].map(([key, label]) => (
+          <label key={key} className="flex flex-col gap-1">
+            <span className="text-xs text-game-primary/70">{label}</span>
+            <input
+              type="number"
+              min={1}
+              max={key === 'min_length' ? 15 : 10}
+              value={suspicionParams[key]}
+              onChange={(e) => setSuspicionParams((p) => ({ ...p, [key]: Number(e.target.value) }))}
+              className="w-20 border-2 border-game-border rounded p-1"
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={runSuspiciousScan}
+          className="bg-amber-600 text-white font-semibold rounded px-4 py-2 hover:bg-amber-700 disabled:opacity-40"
+        >
+          {t('words.suspiciousButton')}
+        </button>
+        <span className="basis-full text-xs text-game-primary/60">{t('words.suspiciousHint')}</span>
+        {suspicious && words && (
+          <span className="basis-full text-xs font-semibold">
+            {t('words.suspiciousTotal', { shown: words.length, total: suspicious.total })}{' '}
+            {Object.entries(suspicious.reasonCounts).map(([r, n]) => `${t(`reason.${r}`)}: ${n}`).join(' · ')}
+          </span>
+        )}
+      </div>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
       {loading && <p className="text-sm text-game-primary/70">{t('common.loading')}</p>}
@@ -222,6 +286,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
                 <th className="py-2 px-2">{t('common.word')}</th>
                 <th className="py-2 px-2">{t('common.activeQ')}</th>
                 <th className="py-2 px-2">{t('words.source')}</th>
+                {suspicious && <th className="py-2 px-2">{t('words.reasons')}</th>}
                 <th className="py-2 px-2">{t('common.action')}</th>
               </tr>
             </thead>
@@ -254,6 +319,9 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
                     </td>
                     <td className="py-2 px-2">{w.active ? t('common.yes') : t('common.no')}</td>
                     <td className="py-2 px-2">{w.source === 'suggested' ? t('words.sourceSuggested') : t('words.sourceOriginal')}</td>
+                    {suspicious && (
+                      <td className="py-2 px-2 text-xs">{(w.reasons ?? []).map((r) => t(`reason.${r}`)).join(', ')}</td>
+                    )}
                     <td className="py-2 px-2 whitespace-nowrap">
                       {editing ? (
                         <>

@@ -1440,6 +1440,38 @@ describeApi("Betűvető API contract", () => {
     expect(gone.json.skipped).toEqual([{ id: unknownId, reason: "not_found" }]);
   });
 
+  // --- ROADMAP 13.6: suspicious-word scan ---------------------------------------
+  it("scans for suspicious words (read-only) with the heuristics' reasons", { timeout: 30_000 }, async () => {
+    const noToken = await call("GET", "/api/v1/admin/words/suspicious");
+    expect(noToken.status).toBe(401);
+    if (!ADMIN_TOKEN) return;
+    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+
+    const scan = await call("GET", "/api/v1/admin/words/suspicious?wordlist=hu", undefined, adminHeaders);
+    expect(scan.status).toBe(200);
+    expect(scan.json.params).toEqual({ minLength: 3, maxVowelRun: 2, maxConsonantRun: 3 });
+    expect(scan.json.words.length).toBeLessThanOrEqual(200);
+    expect(scan.json.total_flagged).toBeGreaterThanOrEqual(scan.json.words.length);
+    const counted = Object.values(scan.json.reason_counts as Record<string, number>).reduce((a, b) => a + b, 0);
+    expect(counted).toBeGreaterThanOrEqual(scan.json.total_flagged); // a word can have several reasons
+    for (const w of scan.json.words) {
+      expect(w.active).toBe(true);
+      expect(w.reasons.length).toBeGreaterThan(0);
+    }
+
+    // Out-of-range thresholds are clamped, not rejected.
+    const clamped = await call(
+      "GET",
+      "/api/v1/admin/words/suspicious?wordlist=hu&min_length=99&max_vowel_run=0&max_consonant_run=x",
+      undefined,
+      adminHeaders,
+    );
+    expect(clamped.json.params).toEqual({ minLength: 15, maxVowelRun: 1, maxConsonantRun: 3 });
+
+    const unknown = await call("GET", "/api/v1/admin/words/suspicious?wordlist=zz", undefined, adminHeaders);
+    expect(unknown.status).toBe(404);
+  });
+
   // --- Batch 5.2 item 2: config editor ----------------------------------------
   it("gates the config endpoints behind the admin token", async () => {
     const noToken = await call("GET", "/api/v1/admin/config");
