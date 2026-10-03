@@ -2116,7 +2116,7 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
 - `[x]` *(PR #96)* **13.4 Feedback link in Settings too**, not only in the help dialog (12.7 removed the
   settings-footer mailto; add a "Visszajelzés küldése" entry that opens the same form).
   Depends on 13.1.
-- `[x]` *(PR #97. `POST /admin/words/bulk`; inactivate/reactivate apply to all selected words, since an inactive live target stays guessable; delete skips live targets. One audit row per changed word. The review queue keeps per-report actions; see D-13b.)* **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
+- `[x]` *(PR #97. `POST /admin/words/bulk`; inactivate/reactivate apply to all selected words, since an inactive live target stays guessable; delete skips live targets: running games' and, since a review follow-up, today's daily puzzle's, a gap the single delete had too. One audit row per changed word. The review queue keeps per-report actions; see D-13b.)* **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
   words list (and the review queue), select all / none, and one action for all selected
   (inactivate, reactivate, delete where allowed). It must respect the existing rule that a
   live game's target is never yanked. One audit-log row per word, or one row with the id
@@ -2151,6 +2151,9 @@ and a headless click-through.
   left as specified; they are one-line constants in `lib/suspicious-words.ts`.
 - **D-13b (open, owner):** bulk *resolve* in the review queue (13.5 mentioned "and the
   review queue"). Not built: it changes report status, not the word row.
+- **Neon branch slots ran out again** during this session: #100/#101's previews got no
+  branch DB (they fail closed, so no production fallback). Prune the per-PR Neon branches
+  once the stack is merged, or enable the integration's auto-delete.
 - **Gotcha recorded:** `words.id` is a bigint, which postgres.js returns as a *string*. The
   bulk endpoint accepts numeric strings; any new code comparing ids must `Number()` them.
 
