@@ -154,33 +154,39 @@ export async function bulkWordAction(admin: AdminIdentity, rawAction: unknown, r
     return { status: 422, body: { detail: `action must be one of ${BULK_ACTIONS.join(", ")}.` } };
   }
   const action = rawAction as BulkAction;
+  // words.id is a bigint, which postgres.js hands back as a *string* ("27"). That is what
+  // searchWords returns and the admin UI selects, so numeric strings are accepted
+  // alongside numbers, and everything is compared as numbers from here on.
+  const parsed = Array.isArray(rawIds)
+    ? rawIds.map((id) => (typeof id === "string" && /^\d+$/.test(id) ? Number(id) : id))
+    : [];
   if (
-    !Array.isArray(rawIds) || rawIds.length === 0 || rawIds.length > BULK_MAX_IDS ||
-    !rawIds.every((id) => Number.isSafeInteger(id) && (id as number) > 0)
+    parsed.length === 0 || parsed.length > BULK_MAX_IDS ||
+    !parsed.every((id) => Number.isSafeInteger(id) && (id as number) > 0)
   ) {
     return { status: 422, body: { detail: `ids must be 1-${BULK_MAX_IDS} positive integers.` } };
   }
-  const ids = [...new Set(rawIds as number[])];
+  const ids = [...new Set(parsed as number[])];
 
   const sql = db();
-  const found = await sql<{ id: number; word: string; wordlist_id: number }[]>`
+  const found = (await sql<{ id: string; word: string; wordlist_id: string }[]>`
     select id, word, wordlist_id from words where id = any(${ids})
-  `;
+  `).map((w) => ({ id: Number(w.id), word: w.word, wordlist_id: Number(w.wordlist_id) }));
   const foundIds = new Set(found.map((w) => w.id));
   const skipped: { id: number; word?: string; reason: "not_found" | "active_target" }[] = ids
     .filter((id) => !foundIds.has(id))
     .map((id) => ({ id, reason: "not_found" as const }));
 
-  let targets: { id: number; word: string; wordlist_id: number }[] = found;
+  let targets = found;
   if (action === "delete" && found.length > 0) {
     // One query for every candidate, not one isActiveGameTarget call per word.
-    const live = await sql<{ word: string; wordlist_id: number }[]>`
+    const live = await sql<{ word: string; wordlist_id: string }[]>`
       select distinct g.target_word as word, g.wordlist_id
         from games g
         join words w on w.word = g.target_word and w.wordlist_id = g.wordlist_id
        where g.status = 'active' and w.id = any(${found.map((w) => w.id)})
     `;
-    const liveKeys = new Set(live.map((l) => `${l.wordlist_id}:${l.word}`));
+    const liveKeys = new Set(live.map((l) => `${Number(l.wordlist_id)}:${l.word}`));
     targets = found.filter((w) => !liveKeys.has(`${w.wordlist_id}:${w.word}`));
     for (const w of found) {
       if (liveKeys.has(`${w.wordlist_id}:${w.word}`)) skipped.push({ id: w.id, word: w.word, reason: "active_target" });
@@ -192,13 +198,14 @@ export async function bulkWordAction(admin: AdminIdentity, rawAction: unknown, r
   if (targetIds.length > 0) {
     if (action === "delete") {
       // Cascades word_reports/word_suggestions, exactly as deleteWord does.
-      changed = await sql<{ id: number; word: string }[]>`delete from words where id = any(${targetIds}) returning id, word`;
+      changed = (await sql<{ id: string; word: string }[]>`delete from words where id = any(${targetIds}) returning id, word`)
+        .map((w) => ({ id: Number(w.id), word: w.word }));
     } else {
       const active = action === "reactivate";
       // Only rows whose state actually changes, so the audit log doesn't fill with no-ops.
-      changed = await sql<{ id: number; word: string }[]>`
+      changed = (await sql<{ id: string; word: string }[]>`
         update words set active = ${active} where id = any(${targetIds}) and active <> ${active} returning id, word
-      `;
+      `).map((w) => ({ id: Number(w.id), word: w.word }));
     }
   }
 

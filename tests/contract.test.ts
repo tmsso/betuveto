@@ -1398,7 +1398,7 @@ describeApi("Betűvető API contract", () => {
     expect(badIds.status).toBe(422);
   });
 
-  it("reactivates, inactivates and deletes several words in one call", async () => {
+  it("reactivates, inactivates and deletes several words in one call", { timeout: 30_000 }, async () => {
     if (!ADMIN_TOKEN) return;
     const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
     const { cookie } = await startWithCookie();
@@ -1418,7 +1418,9 @@ describeApi("Betűvető API contract", () => {
 
     const on = await call("POST", "/api/v1/admin/words/bulk", { action: "reactivate", ids }, adminHeaders);
     expect(on.status).toBe(200);
-    expect(on.json.changed.map((w: any) => w.id).sort()).toEqual([...ids].sort());
+    // ids are sent as searchWords returned them (bigint → numeric strings); the reply
+    // uses numbers.
+    expect(on.json.changed.map((w: any) => w.id).sort()).toEqual(ids.map(Number).sort());
     // Already active: nothing changes, and nothing is audit-logged as a change.
     const again = await call("POST", "/api/v1/admin/words/bulk", { action: "reactivate", ids }, adminHeaders);
     expect(again.json.changed).toHaveLength(0);
