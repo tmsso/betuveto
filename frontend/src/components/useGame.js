@@ -508,11 +508,26 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     }
   }, [isTimeUp, showTemporaryError, t, endGame, onRoomFinished])
 
-  // Global keydown handler: letter keys append to the guess (unless a real input already
-  // has focus), Backspace/Enter act on it regardless of focus.
+  // Global keydown handler: letter keys append to the guess, Backspace/Enter act on it —
+  // but only when the key isn't meant for something else (ROADMAP 13.1). It used to
+  // exempt only #guess-input, so every letter typed into a room name, display name or
+  // the feedback box was turned into a guess letter and preventDefault()ed away.
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.target.id !== 'guess-input') {
+      // Browser/OS shortcuts (Ctrl+C, Cmd+F, …) are never game keys. AltGr arrives as
+      // ctrlKey+altKey on Windows, so a letter typed with AltGr is still let through.
+      if ((e.ctrlKey && !e.altKey) || e.metaKey) return
+      const target = e.target instanceof Element ? e.target : null
+      if (target && target.id !== 'guess-input') {
+        // Any other text field, and anything inside an open dialog (settings, help,
+        // confirmations), keeps its keys.
+        if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+        // Enter/Space on a focused button outside the letter board should press that
+        // button, not submit a guess. On the board itself (focus stays on a tile after a
+        // tap on narrow screens) Enter still submits, as before.
+        if ((e.key === 'Enter' || e.key === ' ') && target.closest('button, a') && !target.closest('[data-letter-board]')) return
+      }
+      if (target?.id !== 'guess-input') {
         // ROADMAP 6.2: derived from the active game's wordlist (gameAlphabet), not a
         // hardcoded Hungarian-only whitelist.
         const acceptedKeys = gameAlphabet + ' '

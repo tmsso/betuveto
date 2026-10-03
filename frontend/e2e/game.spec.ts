@@ -175,3 +175,41 @@ test('opens the how-to-play panel with the game\'s own rules, and closes it with
   await page.keyboard.press('Escape')
   await expect(help).toHaveCount(0)
 })
+
+// ROADMAP 13.1 — the global game keydown handler used to swallow every letter typed into
+// any field other than the guess box. Types key by key (pressSequentially) on purpose:
+// fill() sets the value without keydown events, which is exactly how 12.7's check missed
+// it. ASCII letters only, since Playwright may not emit keydown for characters off a US
+// layout. Nothing is submitted (CI runs this against production with the pinned CI
+// identity): the feedback form isn't sent, no room is created, and the display name —
+// which saves on blur — is never touched.
+test('typing into other text fields does not leak into the guess', async ({ page }) => {
+  const letters = await startGame(page)
+  const guessInput = page.getByLabel('Tipp beírása')
+
+  await page.getByRole('button', { name: 'Játékszabály' }).click()
+  await page.getByRole('button', { name: 'Írj nekünk' }).click()
+  const feedback = page.getByLabel('Visszajelzés', { exact: true })
+  await feedback.pressSequentially('hello there')
+  await expect(feedback).toHaveValue('hello there')
+  await feedback.press('Backspace')
+  await expect(feedback).toHaveValue('hello ther')
+  await expect(page.getByRole('button', { name: 'Küldés' })).toBeEnabled()
+  await page.keyboard.press('Escape')
+  await expect(guessInput).toHaveValue('')
+
+  await page.getByRole('button', { name: 'Beállítások' }).click()
+  const roomName = page.getByLabel('Neved')
+  await roomName.fill('')
+  await roomName.pressSequentially('Anna')
+  await expect(roomName).toHaveValue('Anna')
+  await page.keyboard.press('Escape')
+  await expect(guessInput).toHaveValue('')
+
+  // …and the game keys still work outside those fields: focus is back on the settings
+  // button (a plain button, not a text field), so a board letter goes to the guess.
+  const letter = [...letters].find((c) => /[A-Z]/.test(c))
+  expect(letter, `no ASCII letter on board "${letters}"`).toBeTruthy()
+  await page.keyboard.press(letter!.toLowerCase())
+  await expect(guessInput).toHaveValue(letter)
+})
