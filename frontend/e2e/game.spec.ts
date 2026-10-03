@@ -243,4 +243,28 @@ test('Enter after clicking Keverés submits the guess, not the button', async ({
   await page.waitForTimeout(1500)
   expect(rescrambles, 'Enter pressed Keverés instead of submitting').toBe(0)
   await expect(guessInput).toHaveValue(letter!)
+// ROADMAP 13.3 — a selector change used to end a running game silently when no word had
+// been found yet (the confirmation only appeared after the first find). Cancels the
+// dialog, so nothing is saved (the length preference is written only on confirm) — safe
+// in CI against production.
+test('changing the length mid-game asks first, even with no words found', async ({ page }) => {
+  await startGame(page)
+  const board = page.getByRole('group', { name: 'Kirakható betűk' })
+
+  await page.getByRole('button', { name: 'Beállítások' }).click()
+  const lengthSelect = page.locator('#settings-length')
+  const current = await lengthSelect.inputValue()
+  const other = (await lengthSelect.locator('option').evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value)))
+    .find((v) => v !== current)
+  expect(other, 'only one length is offered').toBeTruthy()
+  await lengthSelect.selectOption(other!)
+
+  const confirm = page.getByRole('dialog', { name: 'Biztosan újrakezded?' })
+  await expect(confirm).toBeVisible()
+  await expect(confirm).toContainText('A jelenlegi játék véget ér.')
+  await confirm.getByRole('button', { name: 'Mégsem' }).click()
+
+  await expect(confirm).toBeHidden()
+  await expect(board.getByRole('button').first()).toBeVisible()
+  await expect(lengthSelect).toHaveValue(current)
 })

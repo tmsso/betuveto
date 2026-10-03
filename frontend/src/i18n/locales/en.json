@@ -236,6 +236,7 @@
   "confirmModal": {
     "title": "Start a new game?",
     "message": "Your current score will be lost.",
+    "messageNoScore": "The current game will end.",
     "cancel": "Cancel",
     "confirm": "New game"
   },
