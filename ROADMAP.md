@@ -2084,7 +2084,7 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
 13.1 blocks rooms, display names and feedback for every player.*
 
 **Bugs**
-- `[ ]` **13.1 Keystrokes in any text field are swallowed by the game (blocks rooms, display
+- `[x]` *(PR #93. As built: game keys are ignored for Ctrl/Cmd shortcuts, other text fields and anything inside an open dialog. Enter/Space press a focused button except in the play area (`[data-game-keys]`: board, guess box, Keverés/hint/give-up), where they still drive the guess. Two E2Es: typing into the feedback and room-name fields, and Keverés+Enter at phone width, which was mutation-checked.)* **13.1 Keystrokes in any text field are swallowed by the game (blocks rooms, display
   name, feedback).** Root cause (found 2026-10-03): `useGame.js`'s global `keydown`
   handler only exempts `#guess-input`. Every alphabet letter typed into any other input or
   textarea becomes a guess letter, and `preventDefault()` stops it reaching the field.
@@ -2098,14 +2098,14 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   without key events, so it couldn't catch this. New E2E for text fields must type with
   `pressSequentially()`/`keyboard.type()`. Add a regression E2E that types a room name and
   a feedback message key by key.
-- `[ ]` **13.2 Admin "hide word length" didn't take effect.** The owner set
+- `[x]` *(PR #94. Root cause: since Batch 10 item 17 the app opens without game/start, the only source of `uiConfig`. `words/lengths` now also returns `ui` with the forced values, applied on mount.)* **13.2 Admin "hide word length" didn't take effect.** The owner set
   `show_length_selector` off; the selector/length still behaved as visible. To check:
   the 30 s config cache (lib/config.ts) vs. a real bug. The server forces
   `ui.default_length` in game/start and daily/start, while the client reads `uiConfig` only
   from a game-start response (App.jsx:344, SettingsPanel.jsx:119), so the settings panel
   may show a stale value until the next game start. Also check rooms
   (`lib/rooms.ts` echoes it, but does createRoom force the length?).
-- `[ ]` **13.3 Changing dictionary or word length mid-game still stops the running game.**
+- `[x]` *(PR #95. **Owner decision 2026-10-03: confirm-always**, not next-game: any running game now asks, even with 0 words found; the old check needed ≥1 find. Room create/join and the daily ask too.)* **13.3 Changing dictionary or word length mid-game still stops the running game.**
   Batch 10 item 17 was meant to fix this (an explicit start). Either a regression or
   incomplete. Wanted: a confirmation dialog ("this ends the current game"), or, if that's
   complicated, apply the setting **at the next game** only. Recommended default: the
@@ -2113,15 +2113,15 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   never destroys a game.
 
 **Features**
-- `[ ]` **13.4 Feedback link in Settings too**, not only in the help dialog (12.7 removed the
+- `[x]` *(PR #96)* **13.4 Feedback link in Settings too**, not only in the help dialog (12.7 removed the
   settings-footer mailto; add a "Visszajelzés küldése" entry that opens the same form).
   Depends on 13.1.
-- `[ ]` **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
+- `[x]` *(PR #97. `POST /admin/words/bulk`; inactivate/reactivate apply to all selected words, since an inactive live target stays guessable; delete skips live targets: running games' and, since a review follow-up, today's daily puzzle's, a gap the single delete had too. One audit row per changed word. The review queue keeps per-report actions (D-13b: decided no).)* **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
   words list (and the review queue), select all / none, and one action for all selected
   (inactivate, reactivate, delete where allowed). It must respect the existing rule that a
   live game's target is never yanked. One audit-log row per word, or one row with the id
   list.
-- `[ ]` **13.6 "Select suspicious" heuristics** in the same admin view, pre-ticking clearly
+- `[x]` *(PR #98. Read-only `GET /admin/words/suspicious`, ≤200 rows + per-reason totals; heuristics in `lib/suspicious-words.ts`; thresholds per D-13a.)* **13.6 "Select suspicious" heuristics** in the same admin view, pre-ticking clearly
   wrong words for review (never auto-applying). Traits requested by the owner: vowels only
   (csak magánhangzó), consonants only (csak mássalhangzó), too short, non-Hungarian
   characters (Q/W/X/Y or anything outside the hu alphabet), 3+ vowels in a row, 4+
@@ -2132,9 +2132,33 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   hunspell the rest.
 
 **Content (backlog)**
-- `[ ]` **13.7 Hungarian language-quality review** of the how-to-play text and the privacy
+- `[x]` *(PR #99, on Opus. Also two factual privacy fixes, hu + en: account deletion removes feedback, and feedback can come from Settings.)* **13.7 Hungarian language-quality review** of the how-to-play text and the privacy
   page (hu locale). **Always run this on Opus** (owner instruction): a native-quality
   editorial pass, not a literal translation check.
+
+**Built 2026-10-03 (one long session), as stacked PRs #93 ← … ← #101:** 13.1–13.7, plus
+#100, an `npm audit fix` without `--force` (dev tooling only; root 22 → 13 advisories,
+frontend 19 → 5; production dependencies at 0 before and after). #93 was flagged for an
+early merge on its own. All of it was verified on #98's preview (a branch DB that is a copy
+of production, so it had the real hidden-length config): the full contract suite (98/99; the one failure was a test bug, fixed in #97 and re-run green)
+and a headless click-through.
+
+- **D-13a (decided 2026-10-06, owner):** 13.6 thresholds raised to the recommendation,
+  4+ vowels / 5+ consonants. The first spec (3+ / 4+) flagged 1,492 of the 152k hu words:
+  foreign letter 912 (mostly real loanwords like TAXI and EXPOZÍCIÓ), 3+ vowels 379 (mostly
+  compounds), 4+ consonants 257 (loanwords like ABSZTRAKT), consonants only 11
+  (abbreviations). The new defaults leave ~26 run hits, nearly all Latin taxonomy. Still
+  adjustable per scan.
+- **D-13b (decided 2026-10-06, owner): no** bulk resolve in the review queue. The Words
+  tab with the suspicious scan covers the need.
+- **Also decided 2026-10-06:** the privacy page says plainly (in three places) that deleting
+  your data deletes your feedback. Easy mode stays hidden (`ui.show_easy_mode = false`)
+  until the difficulty signal is real (11.21).
+- **Neon branch slots ran out again** during this session: #100/#101's previews got no
+  branch DB (they fail closed, so no production fallback). Prune the per-PR Neon branches
+  once the stack is merged, or enable the integration's auto-delete.
+- **Gotcha recorded:** `words.id` is a bigint, which postgres.js returns as a *string*. The
+  bulk endpoint accepts numeric strings; any new code comparing ids must `Number()` them.
 
 **Verified by the owner on production 2026-10-03:** daily → Share works; a Magic Link admin
 change was made (`admin_audit_log.admin_id` still to be confirmed, since Claude is blocked
@@ -2174,6 +2198,7 @@ from production reads; see the owner action items).
 | 10 — Backlog | à la carte | varies |
 | 11 — Review backlog (2026-09-15) | S each | — |
 | 12 — Launch readiness (2026-09-30) | S each | — |
+| 13 — Owner test-pass findings (2026-10-03) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or
 updates tests in `backend/tests/`; every PR updates the checkbox here. Batches 0 and 1
