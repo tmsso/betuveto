@@ -2116,12 +2116,12 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
 - `[x]` *(PR #96)* **13.4 Feedback link in Settings too**, not only in the help dialog (12.7 removed the
   settings-footer mailto; add a "Visszajelzés küldése" entry that opens the same form).
   Depends on 13.1.
-- `[x]` *(PR #97. `POST /admin/words/bulk`; inactivate/reactivate apply to all selected words, since an inactive live target stays guessable; delete skips live targets: running games' and, since a review follow-up, today's daily puzzle's, a gap the single delete had too. One audit row per changed word. The review queue keeps per-report actions; see D-13b.)* **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
+- `[x]` *(PR #97. `POST /admin/words/bulk`; inactivate/reactivate apply to all selected words, since an inactive live target stays guessable; delete skips live targets: running games' and, since a review follow-up, today's daily puzzle's, a gap the single delete had too. One audit row per changed word. The review queue keeps per-report actions (D-13b: decided no).)* **13.5 Admin word review: multi-select + bulk actions.** Checkboxes on the admin
   words list (and the review queue), select all / none, and one action for all selected
   (inactivate, reactivate, delete where allowed). It must respect the existing rule that a
   live game's target is never yanked. One audit-log row per word, or one row with the id
   list.
-- `[x]` *(PR #98. Read-only `GET /admin/words/suspicious`, ≤200 rows + per-reason totals; heuristics in `lib/suspicious-words.ts`; thresholds as specified. See D-13a.)* **13.6 "Select suspicious" heuristics** in the same admin view, pre-ticking clearly
+- `[x]` *(PR #98. Read-only `GET /admin/words/suspicious`, ≤200 rows + per-reason totals; heuristics in `lib/suspicious-words.ts`; thresholds per D-13a.)* **13.6 "Select suspicious" heuristics** in the same admin view, pre-ticking clearly
   wrong words for review (never auto-applying). Traits requested by the owner: vowels only
   (csak magánhangzó), consonants only (csak mássalhangzó), too short, non-Hungarian
   characters (Q/W/X/Y or anything outside the hu alphabet), 3+ vowels in a row, 4+
@@ -2143,14 +2143,17 @@ early merge on its own. All of it was verified on #98's preview (a branch DB tha
 of production, so it had the real hidden-length config): the full contract suite (98/99; the one failure was a test bug, fixed in #97 and re-run green)
 and a headless click-through.
 
-- **D-13a (open, owner):** 13.6 thresholds. Measured on the hu list (152k words), the
-  specified rules flag 1,492: foreign letter 912 (mostly real loanwords like TAXI and
-  EXPOZÍCIÓ), 3+ vowels 379 (mostly compounds, -iai adjectives), 4+ consonants 257
-  (loanwords like ABSZTRAKT), consonants only 11 (abbreviations). With 4+ vowels and 5+
-  consonants the run rules drop to 26 hits, nearly all Latin taxonomy. The defaults are
-  left as specified; they are one-line constants in `lib/suspicious-words.ts`.
-- **D-13b (open, owner):** bulk *resolve* in the review queue (13.5 mentioned "and the
-  review queue"). Not built: it changes report status, not the word row.
+- **D-13a (decided 2026-10-06, owner):** 13.6 thresholds raised to the recommendation,
+  4+ vowels / 5+ consonants. The first spec (3+ / 4+) flagged 1,492 of the 152k hu words:
+  foreign letter 912 (mostly real loanwords like TAXI and EXPOZÍCIÓ), 3+ vowels 379 (mostly
+  compounds), 4+ consonants 257 (loanwords like ABSZTRAKT), consonants only 11
+  (abbreviations). The new defaults leave ~26 run hits, nearly all Latin taxonomy. Still
+  adjustable per scan.
+- **D-13b (decided 2026-10-06, owner): no** bulk resolve in the review queue. The Words
+  tab with the suspicious scan covers the need.
+- **Also decided 2026-10-06:** the privacy page says plainly (in three places) that deleting
+  your data deletes your feedback. Easy mode stays hidden (`ui.show_easy_mode = false`)
+  until the difficulty signal is real (11.21).
 - **Neon branch slots ran out again** during this session: #100/#101's previews got no
   branch DB (they fail closed, so no production fallback). Prune the per-PR Neon branches
   once the stack is merged, or enable the integration's auto-delete.
