@@ -193,7 +193,7 @@
     "sections": {
       "stored": {
         "heading": "Mit tárolunk",
-        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha visszajelzést küldesz (a súgóból vagy a Beállításokból), az üzenetedet az oldal címével, a böngésződ azonosító szövegével és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa."
+        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha visszajelzést küldesz (a súgóból vagy a Beállításokból), az üzenetedet az oldal címével, a böngésződ azonosító szövegével és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa. Ha törlöd az adataidat (lásd lent), a visszajelzéseid is törlődnek."
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
@@ -284,7 +284,7 @@
     "openFromSettings": "Visszajelzés küldése",
     "label": "Visszajelzés",
     "placeholder": "Mi történt, és mire számítottál?",
-    "privacyNote": "Az üzenetedet az oldal címével, a böngésződ adataival és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa. Nem kell megadnod e-mail-címet.",
+    "privacyNote": "Az üzenetedet az oldal címével, a böngésződ adataival és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa. Nem kell megadnod e-mail-címet. Ha az Adatvédelem oldalon törlöd az adataidat, a visszajelzéseid is törlődnek.",
     "send": "Küldés",
     "sending": "Küldés…",
     "sent": "Köszönjük, megkaptuk!",
