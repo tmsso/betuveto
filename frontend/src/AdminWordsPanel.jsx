@@ -19,7 +19,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
   const [bulkResult, setBulkResult] = useState(null)
   // ROADMAP 13.6: "select suspicious" — the last scan's thresholds and totals. While set,
   // the table shows the scan's words (pre-ticked) and a reasons column.
-  const [suspicionParams, setSuspicionParams] = useState({ min_length: 3, max_vowel_run: 2, max_consonant_run: 3 })
+  const [suspicionParams, setSuspicionParams] = useState({ min_length: 3, max_vowel_run: 3, max_consonant_run: 4 })
   const [suspicious, setSuspicious] = useState(null)
 
   const runSearch = useCallback(async (q) => {

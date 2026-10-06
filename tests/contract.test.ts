@@ -1449,7 +1449,7 @@ describeApi("Betűvető API contract", () => {
 
     const scan = await call("GET", "/api/v1/admin/words/suspicious?wordlist=hu", undefined, adminHeaders);
     expect(scan.status).toBe(200);
-    expect(scan.json.params).toEqual({ minLength: 3, maxVowelRun: 2, maxConsonantRun: 3 });
+    expect(scan.json.params).toEqual({ minLength: 3, maxVowelRun: 3, maxConsonantRun: 4 });
     expect(scan.json.words.length).toBeLessThanOrEqual(200);
     expect(scan.json.total_flagged).toBeGreaterThanOrEqual(scan.json.words.length);
     const counted = Object.values(scan.json.reason_counts as Record<string, number>).reduce((a, b) => a + b, 0);
@@ -1466,7 +1466,7 @@ describeApi("Betűvető API contract", () => {
       undefined,
       adminHeaders,
     );
-    expect(clamped.json.params).toEqual({ minLength: 15, maxVowelRun: 1, maxConsonantRun: 3 });
+    expect(clamped.json.params).toEqual({ minLength: 15, maxVowelRun: 1, maxConsonantRun: 4 });
 
     const unknown = await call("GET", "/api/v1/admin/words/suspicious?wordlist=zz", undefined, adminHeaders);
     expect(unknown.status).toBe(404);

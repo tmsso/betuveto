@@ -21,16 +21,19 @@ export type SuspicionReason =
 export interface SuspicionParams {
   /** Words with fewer letters than this are flagged. */
   minLength: number;
-  /** A run of MORE vowels than this is flagged (default 2 → 3+ in a row). */
+  /** A run of MORE vowels than this is flagged (default 3 → 4+ in a row). */
   maxVowelRun: number;
-  /** A run of MORE consonant sounds than this is flagged (default 3 → 4+ in a row). */
+  /** A run of MORE consonant sounds than this is flagged (default 4 → 5+ in a row). */
   maxConsonantRun: number;
 }
 
+// Owner decision D-13a (2026-10-06): 4+ vowels / 5+ consonants in a row. The first
+// spec (3+ / 4+) flagged ~640 real Hungarian compounds and loanwords on the 152k list;
+// these flag ~26, nearly all Latin taxonomy. Still adjustable per scan in the admin UI.
 export const DEFAULT_SUSPICION_PARAMS: SuspicionParams = {
   minLength: 3,
-  maxVowelRun: 2,
-  maxConsonantRun: 3,
+  maxVowelRun: 3,
+  maxConsonantRun: 4,
 };
 
 interface LanguageRules {

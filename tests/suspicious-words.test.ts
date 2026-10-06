@@ -5,6 +5,9 @@ import { suspicionReasons, tokenize } from "../lib/suspicious-words.js";
 const HU_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÖŐÚÜŰ";
 const EN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const hu = (w: string) => suspicionReasons(w, "hu", HU_ALPHABET);
+// The owner's original thresholds (3+ vowels, 4+ consonants), to test the run logic itself.
+const STRICT = { minLength: 3, maxVowelRun: 2, maxConsonantRun: 3 };
+const huStrict = (w: string) => suspicionReasons(w, "hu", HU_ALPHABET, STRICT);
 
 describe("tokenize (hu)", () => {
   it("treats digraphs and the trigraph as one consonant, longest first", () => {
@@ -42,14 +45,22 @@ describe("suspicionReasons (hu)", () => {
     expect(hu("SÄNGER")).toContain("foreign_letter"); // outside the wordlist alphabet
   });
 
-  it("flags 3+ vowels and 4+ consonant sounds in a row", () => {
-    expect(hu("BAEIK")).toContain("vowel_run");
-    expect(hu("KAKAÓ")).not.toContain("vowel_run");
+  it("flags long vowel and consonant runs (strict thresholds)", () => {
+    expect(huStrict("BAEIK")).toContain("vowel_run");
+    expect(huStrict("KAKAÓ")).not.toContain("vowel_run");
     // Real words can have three vowels in a row (possessives, -ért after a long vowel):
-    // flagged, which is acceptable, since the heuristics only pre-tick words for review.
-    expect(hu("KAKAÓÉRT")).toContain("vowel_run");
-    expect(hu("ABRTKA")).toContain("consonant_run");
-    expect(hu("ABRTA")).not.toContain("consonant_run");
+    // why the default was raised to 4+ (D-13a).
+    expect(huStrict("KAKAÓÉRT")).toContain("vowel_run");
+    expect(huStrict("ABRTKA")).toContain("consonant_run");
+    expect(huStrict("ABRTA")).not.toContain("consonant_run");
+  });
+
+  it("uses 4+ vowels / 5+ consonants by default (D-13a)", () => {
+    for (const word of ["KAKAÓÉRT", "ABSZTRAKT", "ENERGIAELLÁTÁS", "SPORTCSARNOK"]) {
+      expect(hu(word), word).toEqual([]);
+    }
+    expect(hu("BAEIOK")).toContain("vowel_run");
+    expect(hu("ABRTKLA")).toContain("consonant_run");
   });
 
   it("takes the thresholds as parameters", () => {
