@@ -30,7 +30,14 @@ import {
   renamePlayer,
   searchPlayers,
 } from "../../lib/admin-players.js";
-import { bulkWordAction, deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
+import {
+  bulkWordAction,
+  deleteWord,
+  editWord,
+  findSuspiciousWords,
+  searchWords,
+  suspicionParamsFrom,
+} from "../../lib/admin-words.js";
 import { type AdminIdentity, authorizeAdmin } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
 import { allowIdentityMint } from "../../lib/identity-throttle.js";
@@ -519,6 +526,22 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
     if (segments.length === 2 && b === "words") {
       return methodHandler({ GET: requireAdmin(searchWordsRoute) });
+    }
+
+    // ROADMAP 13.6 — read-only scan; the admin acts on the result through words/bulk.
+    if (segments.length === 3 && b === "words" && c === "suspicious") {
+      return methodHandler({
+        GET: requireAdmin((req) =>
+          findSuspiciousWords(
+            stringQuery(req, "wordlist", DEFAULT_WORDLIST_CODE),
+            suspicionParamsFrom({
+              minLength: intQuery(req, "min_length"),
+              maxVowelRun: intQuery(req, "max_vowel_run"),
+              maxConsonantRun: intQuery(req, "max_consonant_run"),
+            }),
+          ),
+        ),
+      });
     }
 
     // ROADMAP 13.5 — before the `words/{id}` route, which would 404 on a non-numeric id.
