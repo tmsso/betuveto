@@ -132,7 +132,7 @@ function App() {
     hintLoading, hintMessage, reportedWords, suggestPrompt, suggestLoading, suggestThanks,
     possibleWordsCount, allPossibleWords, showRemainingWords, allPossibleWordsFound,
     displayScore, usedLetters, scoreAtExpiry,
-    setCurrentGuess, setShowRemainingWords,
+    setCurrentGuess, setShowRemainingWords, setUiConfig,
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
     handleUseHint, handleReportWord, handleSuggestWord,
@@ -576,14 +576,30 @@ function App() {
     const init = async () => {
       let initialLength = DEFAULT_TARGET_LENGTH
       try {
-        const [lengths, preferred, preferredLanguage] = await Promise.all([
-          betuAPI.getAvailableLengths(),
+        const [startup, preferred, preferredLanguage] = await Promise.all([
+          betuAPI.getLengthsAndUi(),
           betuAPI.getPreferredLength(),
           betuAPI.getPreferredLanguage(),
         ])
         if (cancelled) return
-        setAvailableLengths(lengths)
+        let lengths = startup.available_lengths
         if (preferred && lengths.includes(preferred)) initialLength = preferred
+
+        // ROADMAP 13.2: the admin's hidden controls, known before the first game. Without
+        // this the settings panel showed every control until a game had started, and the
+        // daily panel asked for the saved length while daily/start forced another one.
+        const ui = startup.ui
+        if (ui) {
+          setUiConfig(ui)
+          if (!ui.show_wordlist_selector && ui.default_wordlist !== DEFAULT_WORDLIST) {
+            setSelectedWordlist(ui.default_wordlist)
+            lengths = await betuAPI.getAvailableLengths(ui.default_wordlist)
+            if (cancelled) return
+          }
+          if (!ui.show_length_selector) initialLength = ui.default_length
+          if (!ui.show_easy_mode) setSelectedEasyMode(false)
+        }
+        setAvailableLengths(lengths)
 
         // UI language (ROADMAP 6.2): player preference first, then the browser's own
         // language, then i18n's configured default (hu) — same fallback order

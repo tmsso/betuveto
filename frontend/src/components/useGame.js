@@ -573,6 +573,9 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     allPossibleWords, showRemainingWords, allPossibleWordsFound, totalScore, displayScore,
     usedLetters,
     setCurrentGuess, setShowRemainingWords,
+    // ROADMAP 13.2: App's startup call carries the admin's control visibility before any
+    // game exists; a later game/start response overwrites it as before.
+    setUiConfig,
     // ROADMAP 7.2.6: a room's reveal (every word on the board) comes from its snapshot.
     applyRevealWords: setAllPossibleWords,
     // actions
