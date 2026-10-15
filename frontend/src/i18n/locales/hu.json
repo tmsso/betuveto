@@ -50,6 +50,7 @@
     "displayNameLabel": "Megjelenített név:",
     "displayNamePlaceholder": "Névtelen játékos",
     "displayNameError": "A név mentése nem sikerült. Próbáld újra.",
+    "displayNameNotAllowed": "Ez a név nem engedélyezett. Válassz másikat.",
     "gameSection": "Játék",
     "languageLabel": "Nyelv:",
     "themeLabel": "Színséma:",
@@ -341,6 +342,7 @@
       "not_found": "Nincs ilyen kódú szoba.",
       "rate_limited": "Túl sok új játékos érkezett a hálózatodról — próbáld később.",
       "invalid_name": "Ez a név nem használható (legfeljebb 20 karakter).",
+      "name_not_allowed": "Ez a név nem engedélyezett. Válassz másikat.",
       "generic": "Valami hiba történt — próbáld újra."
     },
     "gaveUpWaiting": "Feladtad — a megoldást akkor látod, amikor a többiek is végeztek.",

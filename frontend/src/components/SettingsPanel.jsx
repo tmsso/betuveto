@@ -91,8 +91,9 @@ export default function SettingsPanel({
       return
     }
     setNameError(null)
-    onDisplayNameChange(trimmed).catch(() => {
-      setNameError(t('settings.displayNameError'))
+    onDisplayNameChange(trimmed).catch((err) => {
+      // The server's 422 `detail` is a machine code for a blocklisted name (lib/name-filter.ts).
+      setNameError(t(err?.message === 'name_not_allowed' ? 'settings.displayNameNotAllowed' : 'settings.displayNameError'))
       setNameDraft(displayName ?? '')
     })
   }

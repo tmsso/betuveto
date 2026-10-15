@@ -45,3 +45,14 @@ request time.
   assert a licence for this file without a source to point at. If the original author can
   identify the source, update this section; until then, treat it as a legacy asset carried
   forward, not one with confirmed redistribution rights.
+
+## `name-blocklist/hu.txt`, `name-blocklist/en.txt` (display-name filter)
+
+- **Source:** [List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)
+  by Shutterstock and contributors, files `hu` and `en` at commit
+  `5faf2ba42d7b1c0977169ec3611df25a3c08eb13` (fetched 2026-10-15), copied in unmodified.
+- **Licence:** [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
+  (CC BY 4.0). This section is the attribution; the files keep that licence, separate
+  from the project's MIT code licence.
+- **Use:** never read at request time. `npx tsx scripts/build-name-blocklist.ts` compiles
+  them into `lib/name-blocklist.generated.ts`; the match rules live in `lib/name-filter.ts`.

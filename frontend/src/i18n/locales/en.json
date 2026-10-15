@@ -50,6 +50,7 @@
     "displayNameLabel": "Display name:",
     "displayNamePlaceholder": "Anonymous player",
     "displayNameError": "Couldn't save your name. Try again.",
+    "displayNameNotAllowed": "That name isn't allowed. Please pick another.",
     "gameSection": "Game",
     "languageLabel": "Language:",
     "themeLabel": "Theme:",
@@ -341,6 +342,7 @@
       "not_found": "No room with that code.",
       "rate_limited": "Too many new players from your network right now — try again later.",
       "invalid_name": "That name isn't allowed (max. 20 characters).",
+      "name_not_allowed": "That name isn't allowed. Please pick another.",
       "generic": "Something went wrong — please try again."
     },
     "gaveUpWaiting": "You gave up — the answers are revealed when the others finish.",
