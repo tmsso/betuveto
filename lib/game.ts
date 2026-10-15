@@ -310,6 +310,8 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   // each one checks, so the number of guesses that survive the window is genuinely
   // bounded even under true concurrency (which exact one gets rejected isn't strictly
   // first-come-first-served, but the rate is actually capped, which is what matters here).
+  // Served by game_guesses_correct_recent_idx (migrations/0024, ROADMAP 11.10): without it
+  // the planner seq-scans the whole table here, since the time filter is the selective one.
   if (game.player_id) {
     const [{ count }] = await sql<{ count: number }[]>`
       select count(*)::int as count
