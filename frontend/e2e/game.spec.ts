@@ -284,3 +284,16 @@ test('changing a game setting mid-game asks first, even with no words found', as
   await expect(board.getByRole('button').first()).toBeVisible()
   if (changed) await expect(changed.select).toHaveValue(changed.before)
 })
+
+// ROADMAP 13.4 — the feedback form is reachable from the settings panel too. Typed, never
+// sent (CI runs against production).
+test('feedback can be opened and typed from the settings panel', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Beállítások' }).click()
+  const settings = page.getByRole('dialog', { name: 'Beállítások' })
+  await settings.getByRole('button', { name: 'Visszajelzés küldése' }).click()
+  const feedback = settings.getByLabel('Visszajelzés', { exact: true })
+  await feedback.pressSequentially('settings ok')
+  await expect(feedback).toHaveValue('settings ok')
+  await expect(settings.getByRole('button', { name: 'Küldés' })).toBeEnabled()
+})

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { betuAPI } from '../api/client'
 
@@ -11,9 +11,13 @@ const MAX_LENGTH = 2000 // mirrors lib/feedback.ts MAX_FEEDBACK_LENGTH
  * up on the admin dashboard.
  *
  * Collapsed to one button until opened, so the help dialog stays about the rules.
+ * ROADMAP 13.4: also in the settings panel's footer (`compact`), where the collapsed state
+ * is a single "send feedback" link instead of the help dialog's intro sentence.
  */
-export default function FeedbackForm() {
+export default function FeedbackForm({ compact = false }) {
   const { t, i18n } = useTranslation()
+  // useId, not a fixed id: the help dialog and the settings panel each render one.
+  const messageId = useId()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
   // 'idle' | 'sending' | 'sent' | 'rate_limited' | 'error'
@@ -35,27 +39,33 @@ export default function FeedbackForm() {
   }
 
   if (!open) {
+    const openButton = (
+      <button
+        type="button"
+        onClick={() => { setOpen(true); setStatus('idle') }}
+        className={compact
+          ? 'text-xs text-game-muted underline hover:text-game-secondary focus:outline-none focus:ring-2 focus:ring-game-secondary rounded'
+          : 'underline text-game-secondary hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-game-secondary rounded'}
+      >
+        {compact ? t('feedback.openFromSettings') : t('feedback.open')}
+      </button>
+    )
+    if (compact) return openButton
     return (
       <p className="text-sm">
         {t('help.feedbackIntro')}{' '}
-        <button
-          type="button"
-          onClick={() => { setOpen(true); setStatus('idle') }}
-          className="underline text-game-secondary hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-game-secondary rounded"
-        >
-          {t('feedback.open')}
-        </button>
+        {openButton}
       </p>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 text-sm">
-      <label htmlFor="feedback-message" className="font-semibold">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 text-sm w-full">
+      <label htmlFor={messageId} className="font-semibold">
         {t('feedback.label')}
       </label>
       <textarea
-        id="feedback-message"
+        id={messageId}
         value={message}
         onChange={(event) => { setMessage(event.target.value); if (status !== 'sending') setStatus('idle') }}
         maxLength={MAX_LENGTH}

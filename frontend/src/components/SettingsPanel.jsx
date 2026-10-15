@@ -6,6 +6,7 @@ import HighScoresPanel from './HighScoresPanel'
 import StatsPanel from './StatsPanel'
 import DailyPanel from './DailyPanel'
 import RoomPanel from './RoomPanel'
+import FeedbackForm from './FeedbackForm'
 
 /**
  * ROADMAP Batch 10 item 15 — start-screen cleanup. Everything that isn't the core play
@@ -315,7 +316,9 @@ export default function SettingsPanel({
 
         {/* Privacy page + data deletion (ROADMAP "Privacy page + data deletion endpoint").
             A plain link, not a panel — /privacy is its own route (main.jsx). */}
-        <div className="border-t border-game-border pt-3">
+        {/* ROADMAP 13.4: feedback here too, not only in the help dialog. */}
+        <div className="border-t border-game-border pt-3 flex flex-col gap-2 items-start">
+          <FeedbackForm compact />
           <a
             href="/privacy"
             className="text-xs text-game-muted underline hover:text-game-secondary self-start"

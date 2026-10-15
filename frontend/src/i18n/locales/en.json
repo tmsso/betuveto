@@ -281,6 +281,7 @@
   },
   "feedback": {
     "open": "Write to us",
+    "openFromSettings": "Send feedback",
     "label": "Feedback",
     "placeholder": "What happened, and what did you expect?",
     "privacyNote": "Your message is stored with the page address, your browser details and the interface language so the operator can read it. No email address needed.",
