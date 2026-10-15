@@ -8,6 +8,7 @@
  */
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
+import { isDisplayNameAllowed } from "./name-filter.js";
 import { MAX_TARGET_LENGTH, MIN_TARGET_LENGTH } from "./words.js";
 
 const SUPPORTED_LANGUAGES = ["hu", "en"];
@@ -29,6 +30,17 @@ export function normalizeDisplayName(rawName: unknown): { trimmed: string } | { 
     return { error: `display_name must be at most ${DISPLAY_NAME_MAX_LENGTH} characters.` };
   }
   return { trimmed };
+}
+
+/** The player-facing rule (settings, room create/join): normalize, reject blank, then the
+ *  blocklist. A blocked name answers with the machine code `name_not_allowed` as `detail`
+ *  — the frontend maps it to localised copy, like the room error codes. */
+export function validatePlayerDisplayName(rawName: unknown): { trimmed: string } | { error: string } {
+  const result = normalizeDisplayName(rawName);
+  if ("error" in result) return result;
+  if (result.trimmed.length === 0) return { error: "display_name must not be blank." };
+  if (!isDisplayNameAllowed(result.trimmed)) return { error: "name_not_allowed" };
+  return result;
 }
 
 /** No identity yet (never played, or a stale/missing cookie) reads as "no preference
@@ -156,11 +168,8 @@ export async function setDisplayName(
   if (!playerId) {
     return { status: 401, body: { detail: "No player identity. Start a game first." } };
   }
-  const result = normalizeDisplayName(rawName);
+  const result = validatePlayerDisplayName(rawName);
   if ("error" in result) return { status: 422, body: { detail: result.error } };
-  if (result.trimmed.length === 0) {
-    return { status: 422, body: { detail: "display_name must not be blank." } };
-  }
 
   const sql = db();
   await sql`

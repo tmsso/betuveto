@@ -28,7 +28,7 @@ function storeCode(code) {
 }
 
 /** Server `detail` codes → i18n keys under `room.errors`. Anything unknown → generic. */
-const KNOWN_ERRORS = ['room_full', 'room_started', 'room_cancelled', 'not_enough_players', 'not_host', 'rate_limited']
+const KNOWN_ERRORS = ['room_full', 'room_started', 'room_cancelled', 'not_enough_players', 'not_host', 'rate_limited', 'name_not_allowed']
 export function roomErrorKey(err) {
   if (err?.status === 404) return 'room.errors.not_found'
   if (err?.status === 429) return 'room.errors.rate_limited'

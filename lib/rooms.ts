@@ -12,7 +12,7 @@ import { db, wordlistAlphabet, wordlistId } from "./db.js";
 import { type Reply, effectiveScore, epochSeconds, findableWords } from "./game-core.js";
 import { expireRoomIfDue } from "./room-lifecycle.js";
 import { MAX_TARGET_LENGTH, MIN_TARGET_LENGTH, durationForLength, scrambleWord } from "./words.js";
-import { normalizeDisplayName } from "./players.js";
+import { validatePlayerDisplayName } from "./players.js";
 
 // Excludes I/L/O/0/1 — easy to read aloud and to type on a phone without ambiguity.
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -319,11 +319,8 @@ export async function createRoom(
   playerId: string,
   setCookieHeader: string | undefined,
 ): Promise<Reply> {
-  const nameResult = normalizeDisplayName(rawDisplayName);
+  const nameResult = validatePlayerDisplayName(rawDisplayName);
   if ("error" in nameResult) return { status: 422, body: { detail: nameResult.error } };
-  if (nameResult.trimmed.length === 0) {
-    return { status: 422, body: { detail: "display_name must not be blank." } };
-  }
 
   const mode = rawMode === undefined ? "coop" : rawMode;
   if (mode !== "coop" && mode !== "versus") {
@@ -385,11 +382,8 @@ export async function joinRoom(
   playerId: string,
   setCookieHeader: string | undefined,
 ): Promise<Reply> {
-  const nameResult = normalizeDisplayName(rawDisplayName);
+  const nameResult = validatePlayerDisplayName(rawDisplayName);
   if ("error" in nameResult) return { status: 422, body: { detail: nameResult.error } };
-  if (nameResult.trimmed.length === 0) {
-    return { status: 422, body: { detail: "display_name must not be blank." } };
-  }
 
   const sql = db();
   const room = await loadRoomForCode(sql, code);
