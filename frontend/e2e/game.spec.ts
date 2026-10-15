@@ -175,3 +175,72 @@ test('opens the how-to-play panel with the game\'s own rules, and closes it with
   await page.keyboard.press('Escape')
   await expect(help).toHaveCount(0)
 })
+
+// ROADMAP 13.1 — the global game keydown handler used to swallow every letter typed into
+// any field other than the guess box. Types key by key (pressSequentially) on purpose:
+// fill() sets the value without keydown events, which is exactly how 12.7's check missed
+// it. ASCII letters only, since Playwright may not emit keydown for characters off a US
+// layout. Nothing is submitted (CI runs this against production with the pinned CI
+// identity): the feedback form isn't sent, no room is created, and the display name —
+// which saves on blur — is never touched.
+test('typing into other text fields does not leak into the guess', async ({ page }) => {
+  const letters = await startGame(page)
+  const guessInput = page.getByLabel('Tipp beírása')
+
+  await page.getByRole('button', { name: 'Játékszabály' }).click()
+  await page.getByRole('button', { name: 'Írj nekünk' }).click()
+  const feedback = page.getByLabel('Visszajelzés', { exact: true })
+  await feedback.pressSequentially('hello there')
+  await expect(feedback).toHaveValue('hello there')
+  await feedback.press('Backspace')
+  await expect(feedback).toHaveValue('hello ther')
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Küldés' })).toBeEnabled()
+  await page.keyboard.press('Escape')
+  await expect(guessInput).toHaveValue('')
+
+  await page.getByRole('button', { name: 'Beállítások' }).click()
+  const roomName = page.getByLabel('Neved')
+  await roomName.fill('')
+  await roomName.pressSequentially('Anna')
+  await expect(roomName).toHaveValue('Anna')
+  await page.keyboard.press('Escape')
+  await expect(guessInput).toHaveValue('')
+
+  // …and the game keys still work outside those fields: focus is back on the settings
+  // button (a plain button, not a text field), so a board letter goes to the guess.
+  const letter = [...letters].find((c) => /[A-Z]/.test(c))
+  expect(letter, `no ASCII letter on board "${letters}"`).toBeTruthy()
+  await page.keyboard.press(letter!.toLowerCase())
+  await expect(guessInput).toHaveValue(letter)
+})
+
+// ROADMAP 13.1, the other direction: Enter/Space on a focused *play-area* button must still
+// act on the guess. Keverés keeps focus after a click; if Enter pressed it natively, the
+// board would reshuffle and the typed letter would be wiped. A one-letter guess is too
+// short, so a real submit keeps it in the box: nothing is sent to the server.
+test('Enter after clicking Keverés submits the guess, not the button', async ({ page }) => {
+  // Phone width: at >= 640px a typed letter moves focus into the guess box
+  // (handleLetterClick), so Enter would never land on the button there.
+  await page.setViewportSize({ width: 420, height: 900 })
+  const letters = await startGame(page)
+  const guessInput = page.getByLabel('Tipp beírása')
+  const letter = [...letters].find((c) => /[A-Z]/.test(c))
+  expect(letter, `no ASCII letter on board "${letters}"`).toBeTruthy()
+
+  // Wait for the reshuffle itself to land: handleScramble clears the guess when the
+  // response arrives, so typing before that would be wiped by the click, not by Enter.
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/rescramble') && r.ok()),
+    page.getByRole('button', { name: 'Betűk keverése' }).click(),
+  ])
+  await page.waitForTimeout(300) // the body is parsed and state set just after the headers
+  await page.keyboard.press(letter!.toLowerCase())
+  await expect(guessInput).toHaveValue(letter!)
+  // Deterministic: pressing Keverés again would send a second /rescramble request.
+  let rescrambles = 0
+  page.on('request', (r) => { if (r.url().includes('/rescramble')) rescrambles++ })
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(1500)
+  expect(rescrambles, 'Enter pressed Keverés instead of submitting').toBe(0)
+  await expect(guessInput).toHaveValue(letter!)
+})

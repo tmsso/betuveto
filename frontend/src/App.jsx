@@ -777,7 +777,12 @@ function App() {
         )}
         {inRoomRound && room.status === 'playing' && <RoomStrip room={room} />}
 
-        {/* Scrambled letters */}
+        {/* Scrambled letters. ROADMAP 13.1: [data-game-keys] marks the play area (here
+            and around the guess/actions block below). Enter/Space on a focused button in
+            it still submits the guess (useGame's keydown handler) instead of pressing the
+            button; otherwise Enter after clicking Keverés would reshuffle and wipe the
+            typed word. `contents` keeps the wrapper out of the layout. */}
+        <div data-game-keys className="contents">
         <Board
           preGame={preGame}
           gameWordlist={gameWordlist}
@@ -787,6 +792,7 @@ function App() {
           usedLetters={usedLetters}
           onLetterClick={handleLetterClick}
         />
+        </div>
 
         {/* Pre-game start (ROADMAP Batch 10 item 17) — the empty board's only control. It
             reuses handleNewGameClick, so it is literally the "Új játék" action; there is no
@@ -807,7 +813,7 @@ function App() {
         )}
 
         {!preGame && (
-        <>
+        <div data-game-keys className="contents">
         {/* Current guess input area */}
         <GuessInput
           value={currentGuess}
@@ -887,7 +893,7 @@ function App() {
             {hintMessage}
           </div>
         )}
-        </>
+        </div>
         )}
 
         {/* Achievement unlock toast (ROADMAP Batch 10 item 10). Word-agnostic copy — a
