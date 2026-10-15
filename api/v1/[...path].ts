@@ -30,7 +30,7 @@ import {
   renamePlayer,
   searchPlayers,
 } from "../../lib/admin-players.js";
-import { deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
+import { bulkWordAction, deleteWord, editWord, searchWords } from "../../lib/admin-words.js";
 import { type AdminIdentity, authorizeAdmin } from "../../lib/admin.js";
 import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
 import { allowIdentityMint } from "../../lib/identity-throttle.js";
@@ -519,6 +519,13 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
     if (segments.length === 2 && b === "words") {
       return methodHandler({ GET: requireAdmin(searchWordsRoute) });
+    }
+
+    // ROADMAP 13.5 — before the `words/{id}` route, which would 404 on a non-numeric id.
+    if (segments.length === 3 && b === "words" && c === "bulk") {
+      return methodHandler({
+        POST: requireAdmin((req, admin) => bulkWordAction(admin, bodyField(req, "action"), bodyField(req, "ids"))),
+      });
     }
 
     if (segments.length === 3 && b === "words") {

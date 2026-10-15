@@ -91,3 +91,15 @@ export async function logAdminAction(
     values (${admin.adminId}, ${action}, ${sql.json(payload)})
   `;
 }
+
+/** Several audit rows in one insert (ROADMAP 13.5's bulk word actions write one row per
+ *  word, like the single-word routes do, so the log reads the same either way). */
+export async function logAdminActions(
+  admin: AdminIdentity,
+  entries: { action: string; payload: Record<string, string | number | boolean> }[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  const sql = db();
+  const rows = entries.map((e) => ({ admin_id: admin.adminId, action: e.action, payload: sql.json(e.payload) }));
+  await sql`insert into admin_audit_log ${sql(rows, "admin_id", "action", "payload")}`;
+}
