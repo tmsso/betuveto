@@ -244,3 +244,43 @@ test('Enter after clicking Keverés submits the guess, not the button', async ({
   expect(rescrambles, 'Enter pressed Keverés instead of submitting').toBe(0)
   await expect(guessInput).toHaveValue(letter!)
 })
+
+// ROADMAP 13.3 — a selector change used to end a running game silently when no word had
+// been found yet (the confirmation only appeared after the first find). Cancels the
+// dialog, so nothing is saved (the length preference is written only on confirm) — safe
+// in CI against production.
+test('changing a game setting mid-game asks first, even with no words found', async ({ page }) => {
+  await startGame(page)
+  const board = page.getByRole('group', { name: 'Kirakható betűk' })
+
+  await page.getByRole('button', { name: 'Beállítások' }).click()
+  await expect(page.getByRole('dialog', { name: 'Beállítások' })).toBeVisible()
+  // Whichever game selector the admin left visible (production may hide some, ROADMAP
+  // Batch 10 item 14) — all three go through the same confirm funnel.
+  const selects = [page.locator('#settings-length'), page.locator('#settings-wordlist')]
+  let changed: { select: import('@playwright/test').Locator; before: string } | null = null
+  for (const select of selects) {
+    if (!(await select.isVisible())) continue
+    const before = await select.inputValue()
+    const values = await select.locator('option').evaluateAll((opts) => opts.map((o) => (o as HTMLOptionElement).value))
+    const other = values.find((v) => v !== before)
+    if (!other) continue
+    await select.selectOption(other)
+    changed = { select, before }
+    break
+  }
+  if (!changed) {
+    const easy = page.locator('#settings-easy-mode')
+    test.skip(!(await easy.isVisible()), 'every game selector is hidden by the admin config')
+    await easy.click()
+  }
+
+  const confirm = page.getByRole('dialog', { name: 'Biztosan újrakezded?' })
+  await expect(confirm).toBeVisible()
+  await expect(confirm).toContainText('A jelenlegi játék véget ér.')
+  await confirm.getByRole('button', { name: 'Mégsem' }).click()
+
+  await expect(confirm).toBeHidden()
+  await expect(board.getByRole('button').first()).toBeVisible()
+  if (changed) await expect(changed.select).toHaveValue(changed.before)
+})
