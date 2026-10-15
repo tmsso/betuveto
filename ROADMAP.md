@@ -1952,7 +1952,7 @@ or an outright bug). Nothing here blocks Batch 7.*
 - `[x]` *(12.5, PR #80 — field removed)* **11.9 `getState` echoes `guess_count: found_count`.** Mislabelled and unused by the
   frontend (it never calls `GET /game/{id}`); remove the field, or make it a real count of
   `game_guesses`. Pure cleanup.
-- `[ ]` **11.10 Rate-limit query shape.** `guess()`'s anti-cheat count joins every game the
+- `[x]` *(PR #104, migration 0024. EXPLAIN ANALYZE on a production-copy Neon branch instead of production (owner-approved 2026-10-15): the planner seq-scanned the **whole** `game_guesses` table (890 rows, 0.12 ms), not one player's history, because the time filter is the selective one. After `game_guesses_correct_recent_idx (created_at) where correct`, the default planner uses an index scan.)* **11.10 Rate-limit query shape.** `guess()`'s anti-cheat count joins every game the
   player ever played and then filters `created_at >= now() - 1s`; correct, but it is a
   per-player scan that grows with history. A partial index `game_guesses (created_at)
   where correct` keeps it O(recent). Check with `EXPLAIN ANALYZE` on production first
@@ -1997,7 +1997,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   two-browser-context test still arrives with 7.2.6. Don't add a frontend unit-test
   framework just to have one — the pure helpers in `api/client.ts` (`canFormWord`,
   `calculateScore`) duplicate `lib/words.ts`, which is already unit-tested.
-- `[ ]` **11.19** `client.ts` interfaces vs. real responses are still unchecked by `tsc`
+- `[x]` *(PR #103. As built: a contract-suite check, not a tsc one, because handlers return `Reply.body: unknown`. `tests/client-shape.ts` reads client.ts with the TypeScript compiler API, and the suite's `call()` checks every 2xx response of a mapped route for the interface's required fields. Mutation-checked on live responses. It fires when the suite runs against a deployment; see D-14b.)* **11.19** `client.ts` interfaces vs. real responses are still unchecked by `tsc`
   (the only caller is `.jsx`) — the PR #37 lesson stands. Any item above that changes a
   response shape must update `client.ts` by hand.
 
@@ -2012,8 +2012,16 @@ or an outright bug). Nothing here blocks Batch 7.*
   Hungarian Webcorpus frequency data; en: the `word-list` source has none — use a public
   unigram frequency list) imported into a `words.frequency_rank` column would make both
   features real at zero traffic. Licence check first, like `data/README.md` does.
+  *Licence check done 2026-10-15:* `wordfreq` (pypi; code Apache-2.0, **data CC BY-SA 4.0**,
+  Hungarian "small" list only; last release 3.1.1, Nov 2023) is the practical source.
+  hermitdave/FrequencyWords is also CC BY-SA 4.0 (OpenSubtitles). The Hungarian Webcorpus
+  record on meta-share says CC BY, but no working download was found. A rank file derived from
+  wordfreq would be CC BY-SA, which is fine in this MIT repo as a separately-licensed data file
+  with attribution in `data/README.md`. **Bigger gap:** `magyar-szavak.txt` itself still has
+  unknown provenance. Owner decision pending: source + whether to import.
 - **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
   `docs/multiplayer.md` most likely to be asked for after the first real session.
+  *Deferred 2026-10-15 (owner): wait for the owner's first real two-browser room session.*
 - *(Owner 2026-10-01: skip for now, too close to the no-per-word-history rule.)* **11.23 "Did you know" highlight** from `longest_word_found` (kept in `/me/stats` for
   exactly this) — one line on the stats panel, rotating, never a list.
 
@@ -2136,6 +2144,10 @@ and backup encryption approved as their own PRs; feedback by pre-filled email.*
   page (hu locale). **Always run this on Opus** (owner instruction): a native-quality
   editorial pass, not a literal translation check.
 
+**Merged and live 2026-10-15** (owner, merge commits; main's tree identical to #101's).
+Live checks: `words/lengths` returns `ui`, `/admin/words/suspicious` answers 401, and
+the production bundle has `data-game-keys`.
+
 **Built 2026-10-03 (one long session), as stacked PRs #93 ← … ← #101:** 13.1–13.7, plus
 #100, an `npm audit fix` without `--force` (dev tooling only; root 22 → 13 advisories,
 frontend 19 → 5; production dependencies at 0 before and after). #93 was flagged for an
@@ -2163,6 +2175,43 @@ and a headless click-through.
 **Verified by the owner on production 2026-10-03:** daily → Share works; a Magic Link admin
 change was made (`admin_audit_log.admin_id` still to be confirmed, since Claude is blocked
 from production reads; see the owner action items).
+
+---
+
+## Batch 14 — Wider-audience tail (2026-10-15)
+
+*A /long-batch with no stated goal. The owner took the default goal: tidy the tail before the
+first real room session. Independent PRs off main, not a stack: #102, #103, #104, plus this
+docs PR. 11.10 and 11.19 are recorded in Batch 11.*
+
+- `[x]` *(PR #102)* **14.1 Display-name blocklist** (the UGC gap from the store-readiness
+  analysis). Display names are the only player-written text other players see. PATCH
+  /me/preferences, room create and room join answer `422 {detail: "name_not_allowed"}`,
+  shown as localised copy. The admin rename tool is exempt, so it can fix false positives.
+  Lists: LDNOOBW hu + en (CC BY 4.0, vendored at a pinned commit, attribution in
+  `data/README.md`). Match rule in `lib/name-filter.ts`, chosen by measuring against our
+  own wordlists:
+  - substring matching hit 269 hu + 735 en real words, so it was rejected;
+  - 5+-letter entries match as word prefixes, which catches Hungarian endings, unless they
+    begin a real dictionary word (then exact only);
+  - short entries match whole words only;
+  - leetspeak is folded and spaced-out spellings are collapsed.
+  **Known limitation:** short roots with endings ("faszom") pass, because their prefixes
+  collide with real words. A scan of the production players (read-only, on a branch copy)
+  blocked 0 of the 5 existing named players.
+- **D-14a (open, owner):** contract-suite runs on per-PR previews hit the identity-mint
+  throttle (`identity_mints_per_ip_per_hour`, default 30; one full run mints more). Earlier
+  sessions set it to 0 on the throwaway branch DB, but the auto-mode classifier now blocks
+  that write. Options:
+  - a permission rule for host-allow-listed branch-DB config writes;
+  - the owner runs a one-liner per branch;
+  - relax the throttle when `VERCEL_ENV=preview` (a security-behaviour change).
+
+  Until decided, preview verification runs targeted test subsets inside the hourly window.
+- **D-14b (open, owner):** CI's `npm test` has no `API_BASE_URL`, so the contract suite
+  (and with it 11.19's shape check) only runs when someone points it at a deployment.
+  Option: a read-only CI job against production, or one against the PR's preview once it
+  is ready. The suite is already production-safe by design.
 
 ---
 
@@ -2198,6 +2247,8 @@ from production reads; see the owner action items).
 | 10 — Backlog | à la carte | varies |
 | 11 — Review backlog (2026-09-15) | S each | — |
 | 12 — Launch readiness (2026-09-30) | S each | — |
+| 13 — Owner test-pass findings (2026-10-03) | S each | 12 |
+| 14 — Wider-audience tail (2026-10-15) | S each | 13 |
 | 13 — Owner test-pass findings (2026-10-03) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or
