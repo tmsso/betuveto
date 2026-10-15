@@ -32,6 +32,7 @@ import {
   signatureOf,
 } from "../lib/words.js";
 import { ACHIEVEMENT_KEYS } from "../lib/achievements.js";
+import { clientShapeViolations } from "./client-shape.js";
 
 // Not BASE_URL: that is a Vite/Vitest reserved variable (the app's public base path), so
 // Vitest would overwrite whatever the shell set with "/".
@@ -111,6 +112,13 @@ async function call(
     json = JSON.parse(text);
   } catch {
     throw new Error(`${method} ${route} -> ${response.status}, non-JSON body: ${text.slice(0, 200)}`);
+  }
+  // ROADMAP 11.19: every successful response must still carry what client.ts declares.
+  if (response.ok) {
+    const missing = clientShapeViolations(method, route, json);
+    if (missing.length > 0) {
+      throw new Error(`${method} ${route} is missing fields client.ts requires: ${missing.slice(0, 10).join(", ")}`);
+    }
   }
   return { status: response.status, json, headers: response.headers };
 }
