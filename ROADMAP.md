@@ -2199,6 +2199,15 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
   **Known limitation:** short roots with endings ("faszom") pass, because their prefixes
   collide with real words. A scan of the production players (read-only, on a branch copy)
   blocked 0 of the 5 existing named players.
+- `[x]` **14.2 Custom domain `betuveto.tmsso.com`** (2026-10-24). Attached to the Vercel project
+  with a DNS-only CNAME at Cloudflare (a proxied record would block Vercel's certificate
+  issuance). `betuveto.vercel.app` keeps serving the same app and database, so nothing is
+  redirected: the anon cookie is host-bound, and a redirect would strand testers' progress.
+  Code: the `og:url`/`og:image` tags use the new domain, and the production guards in
+  `tests/contract.test.ts` and `frontend/e2e/rooms.spec.ts` now cover **both** hosts.
+  **Owner step:** add `https://betuveto.tmsso.com` as a trusted domain in the Neon Auth
+  console, then check the admin Magic Link login from the new address.
+  **Open:** a vercel.app → new-domain redirect needs an identity-transfer step first.
 - **D-14a (open, owner):** contract-suite runs on per-PR previews hit the identity-mint
   throttle (`identity_mints_per_ip_per_hour`, default 30; one full run mints more). Earlier
   sessions set it to 0 on the throwaway branch DB, but the auto-mode classifier now blocks
