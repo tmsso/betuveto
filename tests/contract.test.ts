@@ -706,7 +706,7 @@ describeApi("Betűvető API contract", () => {
   });
 
   // --- Display-name preference (ROADMAP 7.2.0) -------------------------------
-  it("round-trips a player's display_name through PATCH/GET, and rejects an over-long or blank name", async () => {
+  it("round-trips a player's display_name through PATCH/GET, and rejects an over-long, blank or blocklisted name", async () => {
     const minted = await call("POST", "/api/game/start?target_length=7");
     const cookieValue = minted.headers.get("set-cookie")!.split(";", 1)[0];
     const auth = { Cookie: cookieValue };
@@ -726,6 +726,13 @@ describeApi("Betűvető API contract", () => {
 
     const blank = await call("PATCH", "/api/v1/me/preferences", { display_name: "   " }, auth);
     expect(blank.status).toBe(422);
+
+    // Blocklisted (lib/name-filter.ts): rejected with the machine code, stored name untouched.
+    const blocked = await call("PATCH", "/api/v1/me/preferences", { display_name: "K u r v a" }, auth);
+    expect(blocked.status).toBe(422);
+    expect(blocked.json.detail).toBe("name_not_allowed");
+    const unchanged = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(unchanged.json.display_name).toBe("Kis Béla");
   });
 
   it("treats writing a preference with no identity as unauthorized, reading as null", async () => {
@@ -2180,7 +2187,7 @@ describeApi("Betűvető API contract", () => {
     }
   }, 20000); // up to ~10 sequential round trips (both modes) — longer than the default.
 
-  it("rejects an unrecognised mode and a blank or over-long display_name", async () => {
+  it("rejects an unrecognised mode and a blank, over-long or blocklisted display_name", async () => {
     const badMode = await call("POST", "/api/v1/rooms", { display_name: "Anna", mode: "ffa" });
     expect(badMode.status).toBe(422);
 
@@ -2189,6 +2196,10 @@ describeApi("Betűvető API contract", () => {
 
     const longName = await call("POST", "/api/v1/rooms", { display_name: "x".repeat(21) });
     expect(longName.status).toBe(422);
+
+    const blockedName = await call("POST", "/api/v1/rooms", { display_name: "Fasz" });
+    expect(blockedName.status).toBe(422);
+    expect(blockedName.json.detail).toBe("name_not_allowed");
   });
 
   it("404s an unknown room code on join and on the snapshot", async () => {
