@@ -76,10 +76,12 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 // Skip rather than fail when no deployment is configured: the unit tests still run.
 const describeApi = BASE_URL ? describe : describe.skip;
 
-// The canonical production alias. A test that has to mutate a *visible* setting (e.g.
+// The production aliases (the custom domain and the original vercel.app one serve the same
+// deployment and database). A test that has to mutate a *visible* setting (e.g.
 // hiding the length selector for the forcing check below) skips against production —
 // preview deployments have their own isolated Neon DB and no real players.
-const IS_PRODUCTION = BASE_URL === "https://betuveto.vercel.app";
+const PRODUCTION_URLS = ["https://betuveto.tmsso.com", "https://betuveto.vercel.app"];
+const IS_PRODUCTION = PRODUCTION_URLS.includes((BASE_URL ?? "").replace(/\/+$/, ""));
 
 interface StartResult {
   game_id: string;

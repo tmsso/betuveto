@@ -33,11 +33,11 @@ test.skip(!URL, 'ROOM_E2E_URL not set — room E2E runs against a deployed previ
 // neither directly nor through the local preview server, whose /api proxy falls back to
 // production when E2E_API_TARGET is unset (vite.config.js). Learned the hard way: an empty
 // E2E_API_TARGET once sent a run's rooms to production.
-const PRODUCTION = 'betuveto.vercel.app'
+const PRODUCTIONS = ['betuveto.tmsso.com', 'betuveto.vercel.app']
 if (URL) {
   const viaLocalProxy = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(URL)
   const apiTarget = viaLocalProxy ? process.env.E2E_API_TARGET : URL
-  if (!apiTarget || apiTarget.includes(PRODUCTION)) {
+  if (!apiTarget || PRODUCTIONS.some((host) => apiTarget.includes(host))) {
     throw new Error(
       `rooms.spec.ts refuses to run against production (API target: ${apiTarget || 'unset → production'}).`,
     )
