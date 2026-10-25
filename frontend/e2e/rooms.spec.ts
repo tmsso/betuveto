@@ -161,9 +161,9 @@ test('room round (coop): joiner chrome, rules text, reload resumes, leave, left-
   await expect(host.getByTestId('leave-game')).toHaveCount(0)
   await guest.getByRole('button', { name: /Beállítások/ }).click()
   const guestSettings = guest.getByRole('dialog')
-  await expect(guestSettings.getByLabel('Nyelv:')).toBeVisible() // UI language stays
+  await expect(guestSettings.getByLabel('Felület nyelvének kiválasztása')).toBeVisible() // UI language stays
   await expect(guestSettings.getByRole('button', { name: 'Szoba létrehozása' })).toHaveCount(0)
-  await expect(guestSettings.getByLabel(/szóhossz|Szóhossz/)).toHaveCount(0)
+  await expect(guestSettings.locator('#settings-length, #settings-wordlist')).toHaveCount(0)
   await guestSettings.getByRole('button', { name: 'Beállítások bezárása' }).click()
 
   // 15.3: the rules dialog describes this room, not just single-player.
