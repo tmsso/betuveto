@@ -10,9 +10,24 @@ import FeedbackForm from './FeedbackForm'
  *
  * Numbers that an admin can change (minimum word length, hint cost) come in as props
  * from the active game's rules, so the text never contradicts the game.
+ *
+ * ROADMAP 15.3: the text also follows the player's current context — `context` is one of
+ * single | daily | roomCoopPrivate | roomCoopShared | roomVersus — so a room player reads
+ * the rules of *their* room (shared deadline, who scores, what leaving does) rather than
+ * the single-player rules alone.
  * Dialog semantics + focus handling mirror <SettingsPanel>.
  */
-export default function HelpPanel({ isOpen, onClose, minWordLength, hintCost }) {
+const ROOM_CONTEXTS = ['roomCoopPrivate', 'roomCoopShared', 'roomVersus']
+
+export default function HelpPanel({
+  isOpen,
+  onClose,
+  minWordLength,
+  hintCost,
+  context = 'single',
+  isHost = false,
+  soloBonusSeconds = 5,
+}) {
   const { t } = useTranslation()
   const closeButtonRef = useRef(null)
   const previouslyFocusedRef = useRef(null)
@@ -37,13 +52,24 @@ export default function HelpPanel({ isOpen, onClose, minWordLength, hintCost }) 
 
   if (!isOpen) return null
 
+  const inRoom = ROOM_CONTEXTS.includes(context)
   const items = [
     t('help.goal'),
     t('help.words', { count: minWordLength }),
     t('help.scoring'),
     t('help.buttons', { cost: hintCost }),
+    ...(context === 'daily' ? [t('help.daily')] : []),
+    ...(inRoom
+      ? [
+          t('help.room.common'),
+          t(`help.room.${context}`),
+          t(isHost ? 'help.room.leaveHost' : 'help.room.leave', { seconds: soloBonusSeconds }),
+        ]
+      : []),
     t('help.curation'),
-    t('help.more'),
+    // The Settings drawer shrinks inside a room, so the single-player tour of it would
+    // promise controls the player cannot reach.
+    t(inRoom ? 'help.moreRoom' : 'help.more'),
   ]
 
   return (

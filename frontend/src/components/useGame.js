@@ -155,7 +155,9 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
       hintCost: response.rules?.hint_cost ?? DEFAULT_RULES.hintCost,
       minWordLength: response.rules?.min_word_length ?? DEFAULT_RULES.minWordLength,
     })
-    setFoundWords([])
+    // Room games only: a reload/reconnect hands back the player's own progress (ROADMAP 15,
+    // D-15c). Single-player and daily start responses carry neither field → fresh board.
+    setFoundWords(response.found_words ?? [])
     setCurrentGuess('')
     setGuessCount(0)
     setJustFoundWord(null)
@@ -169,7 +171,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     setIsTimeUp(false)
     setScoreAtExpiry(0)
     setCompletionBonus(0)
-    setHintPenalty(0)
+    setHintPenalty(response.hint_cost_total ?? 0)
     setHintMessage(null)
     // The full solution list is no longer served while a game is active (it would leak
     // the answers). Only the count is known up front; the list is fetched at game end.
@@ -578,6 +580,9 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     setUiConfig,
     // ROADMAP 7.2.6: a room's reveal (every word on the board) comes from its snapshot.
     applyRevealWords: setAllPossibleWords,
+    // ROADMAP 15.4: the server moves a room's deadline (+5 s when the player is left
+    // alone); the polled snapshot carries the new one and the countdown follows it.
+    syncEndsAt: setEndsAt,
     // actions
     beginFromStartResponse, enterPreGame, endGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,

@@ -2021,7 +2021,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   unknown provenance. Owner decision pending: source + whether to import.
 - **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
   `docs/multiplayer.md` most likely to be asked for after the first real session.
-  *Deferred 2026-10-15 (owner): wait for the owner's first real two-browser room session.*
+  *Deferred 2026-10-15 (owner): wait for the owner's first real two-browser room session.* That session is now under way: see Batch 15, which overlaps (leave / left alone / D4).
 - *(Owner 2026-10-01: skip for now, too close to the no-per-word-history rule.)* **11.23 "Did you know" highlight** from `longest_word_found` (kept in `/me/stats` for
   exactly this) — one line on the stats panel, rotating, never a list.
 
@@ -2224,6 +2224,69 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
 
 ---
 
+## Batch 15 — Room test notes (owner, 2026-10-25)
+
+*From the owner's planned dual-player test. Recorded as stated; nothing built yet. The
+D-15 forks were all decided on 2026-10-25 (see below).
+Related: 11.22 (host hand-off, deferred until a real room session, which this is) and D4
+(host leaving cancels the room) overlap with 15.2 and 15.4; settle them together.*
+
+- `[ ]` **15.1 Co-op visibility option, set by the host at room creation.** Two variants of
+  co-op: **shared** (everyone sees the words already found) or **private** (everyone plays
+  their own game without seeing others' words; the room still ends once the union of finds
+  covers the board, which is today's behaviour). In *both* variants everyone sees every
+  player's points and the number of words left to find. Needs a migration (a
+  `rooms.visibility`-style column), so it falls under the migration deploy-ordering rule.
+  Shared mode deliberately relaxes docs/multiplayer.md §1 ("never which words until the
+  game ends"); that doc and D9 must say so.
+- `[ ]` **15.2 In co-op, non-hosts see "Leave game" instead of the settings button.**
+  Cost to settle first: `SettingsPanel` also holds theme, sound, language, stats and the
+  leaderboards, so replacing the button takes those away from joiners for the whole room
+  (D-15e).
+- `[ ]` **15.3 "Játékszabály" shows the rules that actually apply to each player.**
+  `HelpPanel` is static text plus two numbers (min word length, hint cost). It should
+  describe the current context: single / daily / co-op shared / co-op private / versus,
+  including the shared deadline, the time-bonus split, and what leaving does.
+- `[ ]` **15.4 "Left alone" prompt.** When every other member has left or given up, the
+  remaining player gets a dialog: continue as an individual game, or finish. The timer keeps
+  running while it is shown; the player gets +5 s for the interruption.
+- **15.2 and 15.4 are one feature:** a mid-play "Leave game" is what creates "left alone".
+  Define leave once. Cheapest fit to today's model (`leaveRoom` returns 409 while playing):
+  **leave = give up + exit**, the leaver's finds still count toward the co-op union.
+- **Build constraints found while scoping (not decisions):**
+  - **D9 leak.** If the room finished when the others are done, the leavers would get the
+    reveal (remaining words, target) while the last player is still playing. The room must
+    stay unrevealed until the lone player's game ends, then reveal as usual.
+  - **Shared deadline vs. +5 s.** Lazy expiry finalises every member game at `rooms.ends_at`.
+    A per-player extension is killed unless expiry respects the per-game deadline (or the
+    room deadline moves, safe only when exactly one member is still active). Granting it
+    needs an idempotency guard so it can't be repeated.
+  - **Presence.** `online` is lobby-only and `done` means the member's game is terminal; there
+    is no in-game presence, so "dropped connection = left" would be new infrastructure.
+  - **Shared mode and races.** If a found word is claimed once, two simultaneous correct
+    guesses need a unique `(room, word)` claim, not today's per-game uniqueness.
+- **Decided (owner, 2026-10-25):**
+  - **D-15a** Shared (reveal) mode: words already visible score nothing for anyone else; the
+    first finder scores, and a repeat is refused ("already found by Anna"). Private
+    (no-reveal) mode keeps "a word found by two players counts for both".
+  - **D-15b** 15.2 and 15.4 also apply to versus rooms; 15.1 stays co-op only. *(default)*
+  - **D-15c** A dropped connection does **not** count as "left"; the player can reconnect and
+    resume their game (verify the snapshot-based resume works after a reload, in both
+    modes). Only an explicit leave or give-up counts. The room deadline still bounds a
+    player who never returns.
+  - **D-15d** The +5 s is granted once, when the prompt appears. *(default)*
+  - **D-15e** A joiner's settings panel keeps only what cannot stop or change the game:
+    theme, sound, UI language (independent of the wordlist, migrations/0010) and feedback.
+    It hides the game section (length / wordlist / easy mode), the daily panel and the room
+    panel. "Leave game" is its own button. *(Assumption, easy to flip: the read-only stats
+    and leaderboards views stay, since they cannot affect the round.)*
+  - **D-15f** The continued solo game stays off the single-player leaderboards. *(default)*
+  - **D-15g** "Finish game" = give-up, same as the existing button. *(default)*
+- **Status:** all D-15 forks answered; 15.1–15.4 are unblocked. The owner's feedback-form
+  check passed on 2026-10-25.
+
+---
+
 ## Challenged / rejected ideas (and why)
 
 | Original idea | Verdict | Reasoning |
@@ -2258,6 +2321,7 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
 | 12 — Launch readiness (2026-09-30) | S each | — |
 | 13 — Owner test-pass findings (2026-10-03) | S each | 12 |
 | 14 — Wider-audience tail (2026-10-15) | S each | 13 |
+| 15 — Room test notes (2026-10-25) | M (one migration, leave flow, rules text) | 7.2 |
 | 13 — Owner test-pass findings (2026-10-03) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or

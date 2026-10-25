@@ -278,7 +278,17 @@
     "buttons": "🔀 reshuffles the letters · 💡 reveals the first letter of a word you haven't found yet (costs {{cost}} points) · 🏳️ gives up and shows every word.",
     "curation": "⚑ next to a word reports it as wrong. If a real word is rejected, you can suggest adding it to the dictionary.",
     "more": "⚙️ Settings: board length, dictionary language, the daily puzzle (the same board for everyone, with a streak), leaderboards and your stats.",
-    "feedbackIntro": "Something broken, confusing or missing?"
+    "feedbackIntro": "Something broken, confusing or missing?",
+    "daily": "🗓️ Daily puzzle: everyone gets the same board today. One result counts per day, and you can build a streak.",
+    "moreRoom": "⚙️ Settings holds the display options (language, theme, sound) and the leaderboards; while a room game is on, the settings that would affect the game are hidden.",
+    "room": {
+      "common": "👥 Room game: everyone gets the same board and one shared deadline. Shuffling and hints are yours alone. The answers are revealed once the room game is over.",
+      "roomCoopPrivate": "🤝 Together, hidden: everyone plays their own game, and the others cannot see which words you found — only your points and how many words are left. If two players find the same word, both score it. If you find every word between you, the game ends and you split the time bonus equally.",
+      "roomCoopShared": "🤝 Together, words visible: everyone sees the words found so far, and a word only scores for whoever found it first — no need to type one that is already found. Everyone sees the points and how many words are left. If you find every word between you, the game ends and you split the time bonus equally.",
+      "roomVersus": "⚔️ Against each other: the player with the most points wins. You see the others' points and milestones, not their words. There is no shared time bonus.",
+      "leave": "🚪 \"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption.",
+      "leaveHost": "🏳️ Giving up ends your own game while the others play on. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption."
+    }
   },
   "feedback": {
     "open": "Write to us",
@@ -366,6 +376,17 @@
       "all_cleared": "Found every word",
       "hint_used": "Used a hint",
       "gave_up": "Gave up"
+    },
+    "leaveGame": "Leave game",
+    "leaveConfirmTitle": "Leave the game?",
+    "leaveConfirm": "Your own game ends and the others play on. You will not see the answers.",
+    "leaveConfirmButton": "Leave",
+    "solo": {
+      "title": "You are on your own",
+      "message": "The others have left. Carry on alone, or finish the game? The clock keeps running meanwhile.",
+      "bonus": "You got +{{seconds}} seconds for the interruption.",
+      "continue": "Carry on alone",
+      "finish": "Finish game"
     }
   }
 }

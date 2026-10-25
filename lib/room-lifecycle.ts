@@ -17,6 +17,10 @@ import { effectiveScore, finalizeExpiry, finalizeWordStats, loadGame } from "./g
 
 export type RoomEndReason = "cleared" | "all_done" | "expired";
 
+/** ROADMAP 15.4 (D-15d): seconds added once to the last active member's clock when everyone
+ *  else has left or given up, to make up for the "continue alone?" prompt eating into it. */
+export const SOLO_BONUS_SECONDS = 5;
+
 /**
  * Ends a room exactly once. Race-safe the same way finalizeExpiry is: only the invocation
  * whose `status = 'playing'` UPDATE actually matches a row goes on to touch the member
@@ -91,6 +95,44 @@ export async function checkAllDone(sql: Sql, roomId: string, config: GameConfig)
      where room_id = ${roomId} and status = 'active' and ends_at > now()
   `;
   if (live === 0) await finishRoom(sql, roomId, "all_done", config);
+  // One member left and the rest quit: that member is now alone (ROADMAP 15.4).
+  else if (live === 1) await grantSoloBonusIfAlone(sql, roomId);
+}
+
+/**
+ * ROADMAP 15.4: exactly one member still has a live game and at least one other member
+ * left or gave up — that member is "left alone". Grants the +5 s interruption bonus, once
+ * per room. Both clocks move together: lazy expiry finalises every member game at
+ * `rooms.ends_at`, so extending only the member's own game would be cut short by it. That
+ * is safe to do room-wide because nobody else has a live game left to be affected.
+ *
+ * A member who merely finished (a personal full clear in versus) does not count as "quit":
+ * the bonus compensates for a prompt, and nobody gets prompted just for trailing a winner.
+ * Idempotent: the `solo_bonus_at is null` guard lets only the first caller through.
+ */
+export async function grantSoloBonusIfAlone(sql: Sql, roomId: string): Promise<boolean> {
+  const [state] = await sql<{ live: number; quit: number }[]>`
+    select count(*) filter (where status = 'active' and ends_at > now())::int as live,
+           count(*) filter (where status = 'given_up')::int as quit
+      from games
+     where room_id = ${roomId}
+  `;
+  if (state.live !== 1 || state.quit === 0) return false;
+  const bonus = `${SOLO_BONUS_SECONDS} seconds`;
+  return sql.begin(async (tx) => {
+    const [granted] = await tx<{ id: string }[]>`
+      update rooms
+         set solo_bonus_at = now(), ends_at = ends_at + ${bonus}::interval
+       where id = ${roomId} and status = 'playing' and solo_bonus_at is null and ends_at > now()
+       returning id
+    `;
+    if (!granted) return false;
+    await tx`
+      update games set ends_at = ends_at + ${bonus}::interval
+       where room_id = ${roomId} and status = 'active'
+    `;
+    return true;
+  });
 }
 
 /** Co-op only (ROADMAP 7.2.4): has the union of every member's finds covered the board?

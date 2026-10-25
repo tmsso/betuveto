@@ -10,7 +10,8 @@ import type { Sql } from "postgres";
 import { getConfig, getUiConfig } from "./config.js";
 import { db, wordlistAlphabet, wordlistId } from "./db.js";
 import { type Reply, effectiveScore, epochSeconds, findableWords } from "./game-core.js";
-import { expireRoomIfDue } from "./room-lifecycle.js";
+import { giveUp } from "./game.js";
+import { SOLO_BONUS_SECONDS, expireRoomIfDue, grantSoloBonusIfAlone } from "./room-lifecycle.js";
 import { MAX_TARGET_LENGTH, MIN_TARGET_LENGTH, durationForLength, scrambleWord } from "./words.js";
 import { validatePlayerDisplayName } from "./players.js";
 
@@ -45,6 +46,9 @@ interface RoomRow {
   ends_at: Date | null;
   end_reason: string | null;
   bonus_per_member: number | null;
+  // ROADMAP 15.4: the "left alone" bonus / acknowledgement timestamps (migration 0025).
+  solo_bonus_at: Date | null;
+  solo_ack_at: Date | null;
 }
 
 interface RoomPlayerRow {
@@ -81,7 +85,7 @@ async function loadRoomForCode(sql: Sql, rawCode: string): Promise<RoomRow | nul
     select r.id, r.code, r.host_player_id, r.wordlist_id, wl.code as wordlist,
            r.target_length, r.mode, r.status, r.next_room_code, r.created_at,
            r.target_word, r.scrambled_letters, r.possible_count, r.started_at, r.ends_at,
-           r.end_reason, r.bonus_per_member
+           r.end_reason, r.bonus_per_member, r.solo_bonus_at, r.solo_ack_at
       from rooms r
       join wordlists wl on wl.id = r.wordlist_id
      where r.code = ${code}
@@ -152,6 +156,20 @@ function memberBadges(m: RoomPlayerRow, possibleCount: number | null): string[] 
   return badges;
 }
 
+/**
+ * ROADMAP 15.4: is the caller the last member still playing, with at least one other member
+ * having left or given up? (A member who merely finished — a personal full clear in versus —
+ * does not count as having quit, so the winner's rivals are not prompted.) Once true it stays
+ * true: a terminal game never becomes live again.
+ */
+function isLeftAlone(members: RoomPlayerRow[], callerId: string, roomStatus: string, now: number): boolean {
+  if (roomStatus !== "playing") return false;
+  const you = members.find((m) => m.player_id === callerId);
+  if (!you?.game_id || memberDone(you, now)) return false;
+  const others = members.filter((m) => m.player_id !== callerId);
+  return others.length > 0 && others.every((m) => memberDone(m, now)) && others.some((m) => m.game_status === "given_up");
+}
+
 /** Ranking (docs/multiplayer.md §1): score desc, then found_count desc, then the earlier
  *  finisher; members equal on all three share a rank (1, 1, 3 — standard competition
  *  ranking). Returns rank by player_id. */
@@ -204,6 +222,18 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
     })),
     next_room_code: room.next_room_code,
   };
+
+  // ROADMAP 15.4: the "continue alone?" prompt. `alone` flips on the moment the last other
+  // member leaves or gives up; `acknowledged` keeps the prompt from coming back after the
+  // player chose to continue (including on another device after a reload).
+  if (room.status === "playing") {
+    snapshot.solo = {
+      alone: isLeftAlone(members, callerId, room.status, now),
+      bonus_seconds: SOLO_BONUS_SECONDS,
+      bonus_granted: room.solo_bonus_at !== null,
+      acknowledged: room.solo_ack_at !== null,
+    };
+  }
 
   // Words found by *anyone*, as one count — co-op only: in versus it would tell you how
   // much of the board your opponents hold (docs/multiplayer.md §6).
@@ -262,8 +292,16 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
       getUiConfig(),
       wordlistAlphabet(room.wordlist),
     ]);
+    // Reconnect support (ROADMAP 15, D-15c): a dropped player who reloads must get their own
+    // progress back, not an empty board — the client rebuilds its found list and hint
+    // penalty from these. Own words only, so nothing here leaks.
+    const ownWords = await sql<{ word: string }[]>`
+      select word from game_guesses where game_id = ${you.game_id} and correct order by created_at
+    `;
     snapshot.your_game = {
       game_id: you.game_id,
+      found_words: ownWords.map((row) => row.word),
+      hint_cost_total: you.hint_cost_total,
       wordlist: room.wordlist,
       alphabet,
       scrambled_letters: you.scrambled_letters,
@@ -432,9 +470,18 @@ export async function leaveRoom(code: string, playerId: string | null): Promise<
   const room = await loadRoomForCode(sql, code);
   if (!room) return { status: 404, body: { detail: "Unknown room." } };
 
-  // Lobby only. Once a round is playing, "leaving" is giving up your own game (the normal
-  // give_up route) — there's no separate half-state for it.
-  if (room.status === "playing") return { status: 409, body: { detail: "room_started" } };
+  // Mid-round (ROADMAP 15.2): leaving is giving up your own game. The other members play
+  // on, your finds still count toward the team, and — D9 — you get no reveal for leaving
+  // (the client drops you back to solo play). giveUp() also runs the everyone-done check
+  // and, if you were the second-to-last player, grants the remaining one their +5 s.
+  if (room.status === "playing") {
+    const [member] = await sql<{ game_id: string | null }[]>`
+      select game_id from room_players where room_id = ${room.id} and player_id = ${playerId}
+    `;
+    if (!member) return { status: 404, body: { detail: "Unknown room." } };
+    if (member.game_id) await giveUp(member.game_id);
+    return { status: 200, body: { ok: true } };
+  }
   if (room.status === "lobby") {
     if (room.host_player_id === playerId) {
       // D4: the host leaving cancels the room (v1: no hand-off).
@@ -470,7 +517,36 @@ export async function getRoomSnapshot(code: string, playerId: string | null): Pr
     if (refreshed) return { status: 200, body: await buildSnapshot(sql, refreshed, playerId) };
   }
 
+  // ROADMAP 15.4: usually the leaver's own request already granted the +5 s (giveUp ->
+  // checkAllDone); this catches the remaining ways of becoming the last one standing and
+  // is a no-op once granted. Re-read so this very response carries the extended deadline.
+  if (room.status === "playing" && (await grantSoloBonusIfAlone(sql, room.id))) {
+    const refreshed = await loadRoomForCode(sql, room.code);
+    if (refreshed) return { status: 200, body: await buildSnapshot(sql, refreshed, playerId) };
+  }
+
   return { status: 200, body: await buildSnapshot(sql, room, playerId) };
+}
+
+/**
+ * POST /rooms/{code}/continue_solo — the lone player's "keep playing on my own" answer
+ * (ROADMAP 15.4). Only records that the prompt was answered; the game itself is untouched
+ * and the room stays a room game (off the single-player leaderboards, D-15f). "Finish" is
+ * the ordinary give-up route, so it needs no endpoint.
+ */
+export async function continueSolo(code: string, playerId: string | null): Promise<Reply> {
+  if (!playerId) return { status: 401, body: { detail: "No player identity. Start a game first." } };
+
+  const sql = db();
+  const room = await loadRoomForCode(sql, code);
+  if (!room) return { status: 404, body: { detail: "Unknown room." } };
+  const members = await loadMembers(sql, room.id);
+  if (!members.some((m) => m.player_id === playerId)) return { status: 404, body: { detail: "Unknown room." } };
+  if (!isLeftAlone(members, playerId, room.status, Date.now())) {
+    return { status: 409, body: { detail: "not_alone" } };
+  }
+  await sql`update rooms set solo_ack_at = now() where id = ${room.id} and solo_ack_at is null`;
+  return { status: 200, body: { ok: true } };
 }
 
 /**

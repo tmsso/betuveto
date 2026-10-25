@@ -11,6 +11,7 @@ import RoomLobby from './components/RoomLobby'
 import RoomInvite from './components/RoomInvite'
 import RoomStrip from './components/RoomStrip'
 import RoomResults from './components/RoomResults'
+import RoomSoloPrompt from './components/RoomSoloPrompt'
 import { useRoom } from './components/useRoom'
 import Board from './components/Board'
 import GuessInput from './components/GuessInput'
@@ -136,7 +137,7 @@ function App() {
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
     handleUseHint, handleReportWord, handleSuggestWord,
-    hintCost, minWordLength, isRoomGame, endGame, applyRevealWords,
+    hintCost, minWordLength, isRoomGame, endGame, applyRevealWords, syncEndsAt,
   } = game
 
   // Game-start orchestration (which endpoint to hit, syncing the "next game" selectors to
@@ -416,14 +417,34 @@ function App() {
   const roomGameRef = useRef(null)
   const roomRevealRef = useRef(null)
   const room = rooms.room
+  // Also the reconnect path (ROADMAP 15, D-15c): after a reload or a dropped connection the
+  // snapshot is the only source of truth, so a round that is still playing — or has finished
+  // in the meantime — is rebuilt from it, found words and hint penalty included. A game that
+  // is already over for this player is closed again by the effect right below.
   useEffect(() => {
     const yours = room?.your_game
-    if (room?.status !== 'playing' || !yours?.game_active || roomGameRef.current === yours.game_id) return
+    if (!yours || !['playing', 'finished'].includes(room.status) || roomGameRef.current === yours.game_id) return
     roomGameRef.current = yours.game_id
     betuAPI.setActiveGame(yours.game_id)
     beginFromStartResponse(yours, { room: true })
     setIsSettingsOpen(false)
   }, [room, beginFromStartResponse])
+
+  // Rebuilt after a reconnect but this player's game had already ended (gave up, ran out of
+  // time) while the room plays on: show it as over, awaiting the room's reveal.
+  useEffect(() => {
+    const yours = room?.your_game
+    if (room?.status !== 'playing' || !isRoomGame || isTimeUp || !yours || yours.game_active) return
+    if (roomGameRef.current !== yours.game_id) return
+    endGame('given_up')
+  }, [room, isRoomGame, isTimeUp, endGame])
+
+  // ROADMAP 15.4: the server can move the shared deadline (+5 s when this player is left
+  // alone); the countdown follows the polled value instead of the one from game start.
+  const serverEndsAt = room?.status === 'playing' ? room.your_game?.ends_at : undefined
+  useEffect(() => {
+    if (serverEndsAt && isRoomGame && !isTimeUp) syncEndsAt(serverEndsAt)
+  }, [serverEndsAt, isRoomGame, isTimeUp, syncEndsAt])
 
   // …and when the room is over: end this player's game if the room ended it for them (a
   // co-op collective clear, with their bonus share), and show every word from the
@@ -457,6 +478,50 @@ function App() {
   }, [rooms, room, displayName, enterPreGame])
 
   const inRoomRound = Boolean(room && isRoomGame && ['playing', 'finished'].includes(room.status))
+
+  // ROADMAP 15.2 / D-15e: while the player is in a room's lobby or round (or the snapshot is
+  // still loading after a reload), the settings drawer shrinks to what cannot stop the game.
+  const roomActive = Boolean(rooms.code) && (!room || ['lobby', 'playing'].includes(room.status))
+  // Non-hosts get a "Leave game" button. The host keeps give-up (in a round) and "close
+  // room" (in the lobby), which already do what leaving would.
+  const showLeaveGame = Boolean(room && !room.is_host && ['lobby', 'playing'].includes(room.status))
+  const handleLeaveGameClick = useCallback(() => {
+    if (room?.status !== 'playing') {
+      rooms.leave()
+      return
+    }
+    setPendingConfirm({
+      title: t('room.leaveConfirmTitle'),
+      message: t('room.leaveConfirm'),
+      confirmLabel: t('room.leaveConfirmButton'),
+      run: leaveRoomToSolo,
+    })
+  }, [room?.status, rooms, t, leaveRoomToSolo])
+
+  // ROADMAP 15.4: the "left alone" prompt. `soloAnsweredCode` hides it the moment the player
+  // answers, ahead of the server's `acknowledged` flag coming back on the next snapshot.
+  const [soloAnsweredCode, setSoloAnsweredCode] = useState(null)
+  const showSoloPrompt = Boolean(
+    room && room.status === 'playing' && isRoomGame && !isTimeUp &&
+    room.solo?.alone && !room.solo.acknowledged && soloAnsweredCode !== room.code,
+  )
+  const handleSoloContinue = useCallback(async () => {
+    setSoloAnsweredCode(room.code)
+    await rooms.continueSolo()
+  }, [room?.code, rooms])
+  const handleSoloFinish = useCallback(() => {
+    setSoloAnsweredCode(room.code)
+    handleGiveUp()
+  }, [room?.code, handleGiveUp])
+
+  // ROADMAP 15.3: which rules the "Játékszabály" dialog shows.
+  const helpContext = (() => {
+    if (room && (room.status === 'lobby' || inRoomRound)) {
+      if (room.mode === 'versus') return 'roomVersus'
+      return room.visibility === 'shared' ? 'roomCoopShared' : 'roomCoopPrivate'
+    }
+    return isDailyGame ? 'daily' : 'single'
+  })()
 
   const dismissInvite = useCallback(() => {
     setInviteCode(null)
@@ -697,6 +762,17 @@ function App() {
             <span aria-hidden="true">⚙️</span>
             <span>{t('settings.open')}</span>
           </button>
+          {showLeaveGame && (
+            <button
+              type="button"
+              onClick={handleLeaveGameClick}
+              data-testid="leave-game"
+              className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-red-50 dark:hover:bg-red-950/40 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            >
+              <span aria-hidden="true">🚪</span>
+              <span>{t('room.leaveGame')}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1072,6 +1148,7 @@ function App() {
         dailyLoading={dailyLoading}
         isDailyGame={isDailyGame}
         onPlayDaily={handlePlayDaily}
+        inRoom={roomActive}
         roomPanel={{
           displayName,
           busy: rooms.busy,
@@ -1087,7 +1164,19 @@ function App() {
         onClose={() => setIsHelpOpen(false)}
         minWordLength={minWordLength}
         hintCost={hintCost}
+        context={helpContext}
+        isHost={Boolean(room?.is_host)}
+        soloBonusSeconds={room?.solo?.bonus_seconds}
       />
+
+      {showSoloPrompt && (
+        <RoomSoloPrompt
+          bonusSeconds={room.solo.bonus_seconds}
+          busy={rooms.busy}
+          onContinue={handleSoloContinue}
+          onFinish={handleSoloFinish}
+        />
+      )}
 
       <ConfirmationModal
         isOpen={pendingConfirm !== null}

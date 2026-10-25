@@ -131,3 +131,76 @@ for (const mode of ['coop', 'versus'] as const) {
     await expect(guest.getByTestId('room-lobby')).toContainText('Anna')
   })
 }
+
+// ROADMAP 15.2 / 15.3 / 15.4 / D-15c: the joiner's trimmed-down chrome, the per-context
+// rules text, reconnecting after a reload, leaving mid-round, and the left-alone prompt.
+test('room round (coop): joiner chrome, rules text, reload resumes, leave, left-alone prompt', async ({ browser }) => {
+  test.setTimeout(150_000)
+  const dictionary = await loadDictionary()
+  const host = await newPlayer(browser)
+  const guest = await newPlayer(browser)
+
+  await host.goto(URL!)
+  await host.getByRole('button', { name: /Beállítások/ }).click()
+  const settings = host.getByRole('dialog')
+  await settings.getByLabel('Neved').fill('Anna')
+  await settings.getByRole('button', { name: 'Szoba létrehozása' }).click()
+  const lobby = host.getByTestId('room-lobby')
+  const code = (await lobby.getByLabel(/^Szobakód:/).textContent())!.trim()
+
+  await guest.goto(`${URL}/?room=${code}`)
+  const invite = guest.getByTestId('room-invite')
+  await invite.getByLabel('Neved').fill('Béla')
+  await invite.getByRole('button', { name: 'Csatlakozás' }).click()
+  await expect(lobby).toContainText('Béla', { timeout: 10_000 })
+  await host.getByRole('button', { name: 'Indítás' }).click()
+  const [hostLetters, guestLetters] = await Promise.all([boardLetters(host), boardLetters(guest)])
+
+  // 15.2 / D-15e: only the joiner has "Játék elhagyása", and the drawer holds no game controls.
+  await expect(guest.getByTestId('leave-game')).toBeVisible()
+  await expect(host.getByTestId('leave-game')).toHaveCount(0)
+  await guest.getByRole('button', { name: /Beállítások/ }).click()
+  const guestSettings = guest.getByRole('dialog')
+  await expect(guestSettings.getByLabel('Nyelv:')).toBeVisible() // UI language stays
+  await expect(guestSettings.getByRole('button', { name: 'Szoba létrehozása' })).toHaveCount(0)
+  await expect(guestSettings.getByLabel(/szóhossz|Szóhossz/)).toHaveCount(0)
+  await guestSettings.getByRole('button', { name: 'Beállítások bezárása' }).click()
+
+  // 15.3: the rules dialog describes this room, not just single-player.
+  await guest.getByRole('button', { name: /Játékszabály/ }).click()
+  await expect(guest.getByRole('dialog')).toContainText('Szobajáték')
+  await expect(guest.getByRole('dialog')).toContainText('Együtt, rejtve')
+  await guest.getByRole('button', { name: 'Bezárás' }).click()
+
+  // D-15c: a find, then a reload — the player comes back to the same game with the score intact.
+  const found = await findAcceptedWord(guest, dictionary, guestLetters)
+  expect(found).not.toBeNull()
+  const score = guest.getByLabel(/^Pontszám:/)
+  const scoreBefore = await score.getAttribute('aria-label')
+  await guest.reload()
+  await boardLetters(guest)
+  await expect(guest.getByTestId('room-strip')).toBeVisible({ timeout: 15_000 })
+  await expect(score).toHaveAttribute('aria-label', scoreBefore!)
+  await expect(guest.getByText(found!, { exact: false }).first()).toBeVisible()
+
+  // The host finds one too, then the guest leaves for good.
+  expect(await findAcceptedWord(host, dictionary, hostLetters)).not.toBeNull()
+  await guest.getByTestId('leave-game').click()
+  await guest.getByRole('dialog').getByRole('button', { name: 'Elhagyom' }).click()
+  await expect(guest.getByTestId('leave-game')).toHaveCount(0)
+  await expect(guest.getByRole('button', { name: /Új játék/ }).first()).toBeVisible()
+
+  // 15.4: the host is now alone and is asked; the question carries the +5 s note.
+  const prompt = host.getByTestId('room-solo-prompt')
+  await expect(prompt).toBeVisible({ timeout: 15_000 })
+  await expect(prompt).toContainText('+5 másodpercet')
+  await prompt.getByRole('button', { name: 'Folytatom egyedül' }).click()
+  await expect(prompt).toHaveCount(0)
+  // Answered once: it does not come back on the next polls, and the round is still on.
+  await host.waitForTimeout(7000)
+  await expect(prompt).toHaveCount(0)
+  await expect(host.getByTestId('room-strip')).toBeVisible()
+
+  await giveUp(host)
+  await expect(host.getByTestId('room-results')).toBeVisible({ timeout: 15_000 })
+})
