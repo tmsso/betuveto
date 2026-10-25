@@ -14,7 +14,7 @@ export default function RoomStrip({ room }) {
     <div className="mb-4 rounded-lg border border-game-border px-3 py-2 text-sm" data-testid="room-strip">
       {room.mode === 'coop' && room.room_found_count !== undefined && (
         <p className="mb-1 text-center font-semibold">
-          {t('room.teamProgress', { found: room.room_found_count, total: possible })}
+          {t('room.teamProgress', { found: room.room_found_count, total: possible, left: Math.max(0, possible - room.room_found_count) })}
         </p>
       )}
       <ul className="flex flex-col gap-0.5" aria-label={t('room.membersLabel')}>

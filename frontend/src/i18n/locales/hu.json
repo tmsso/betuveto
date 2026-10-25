@@ -224,7 +224,8 @@
     "header": "Talált szavak:",
     "points": "{{points}} pont",
     "reportAriaLabel": "{{word}} jelentése hibás szóként",
-    "reportTitle": "Jelentés hibás szóként"
+    "reportTitle": "Jelentés hibás szóként",
+    "teamHeader": "Csapattársak szavai"
   },
   "dictionary": {
     "lookupAriaLabel": "{{word}} keresése a Wikiszótárban (új lapon nyílik meg)",
@@ -266,7 +267,9 @@
     "reportFailed": "Hiba történt a szó jelentésekor.",
     "reportLimit": "Ma már sok szót jelentettél — köszönjük! Holnap folytathatod.",
     "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
-    "suggestFailed": "Hiba történt a javaslat küldésekor."
+    "suggestFailed": "Hiba történt a javaslat küldésekor.",
+    "foundByTeammate": "{{name}} már megtalálta ezt a szót.",
+    "foundByTeammateAnon": "Ezt a szót már megtalálta valaki."
   },
   "help": {
     "open": "Játékszabály",
@@ -356,7 +359,7 @@
       "generic": "Valami hiba történt — próbáld újra."
     },
     "gaveUpWaiting": "Feladtad — a megoldást akkor látod, amikor a többiek is végeztek.",
-    "teamProgress": "Csapat: {{found}} / {{total}} szó",
+    "teamProgress": "Csapat: {{found}} / {{total}} szó · még {{left}} hátra",
     "points": "{{points}} p",
     "wordsCount": "{{count}} szó",
     "resultsTitle": "A szoba eredménye",
@@ -387,6 +390,17 @@
       "bonus": "Az üzenetért +{{seconds}} másodpercet kaptál.",
       "continue": "Folytatom egyedül",
       "finish": "Befejezem"
+    },
+    "visibilityLabel": "Szavak láthatósága",
+    "visibility": {
+      "private": {
+        "name": "Rejtett szavak",
+        "explain": "Mindenki a saját játékát játssza; a többiek csak a pontokat és a hátralévő szavak számát látják. Ugyanazt a szót ketten is megtalálhatják."
+      },
+      "shared": {
+        "name": "Látható szavak",
+        "explain": "Mindenki látja a megtalált szavakat. Egy szó csak az első megtalálójának ér pontot."
+      }
     }
   }
 }

@@ -39,7 +39,7 @@ import {
   findableWords,
   loadGame,
 } from "./game-core.js";
-import { afterRoomGuess, checkAllDone, isRoomStillPlaying } from "./room-lifecycle.js";
+import { afterRoomGuess, checkAllDone, claimRoomWord, isRoomStillPlaying, releaseRoomWord } from "./room-lifecycle.js";
 
 export {
   type GameRow,
@@ -271,6 +271,28 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
 
   const score = scoreFor(word);
 
+  // Shared-visibility co-op rooms (ROADMAP 15.1 / D-15a): a word a teammate already found
+  // scores nothing for anyone else. Decided before the insert below so a refused word never
+  // leaves a guess row behind. `own` and `claimed` fall through to the normal path.
+  let roomClaim: Awaited<ReturnType<typeof claimRoomWord>> = { kind: "not_shared" };
+  if (game.room_id) {
+    roomClaim = await claimRoomWord(sql, game.room_id, game.id, word);
+    if (roomClaim.kind === "taken") {
+      return {
+        status: 200,
+        body: {
+          valid: true,
+          can_form: true,
+          already_guessed: false,
+          score: 0,
+          result: "found_by_teammate",
+          found_by: roomClaim.by,
+          game_ended: false,
+        },
+      };
+    }
+  }
+
   // Insert-first dedupe: the unique index on (game_id, word) where correct makes the
   // "already guessed?" check atomic, so a double-submitted word cannot score twice even
   // if two invocations race.
@@ -321,6 +343,7 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
     `;
     if (count > config.guess_rate_limit_per_second) {
       await sql`delete from game_guesses where id = ${inserted[0].id}`;
+      if (game.room_id && roomClaim.kind === "claimed") await releaseRoomWord(sql, game.room_id, game.id, word);
       // A code, not display text (ROADMAP 6.2) — the frontend keys its copy off the 429.
       return { status: 429, body: { detail: "rate_limited" } };
     }

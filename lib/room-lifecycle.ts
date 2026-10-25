@@ -168,6 +168,46 @@ export async function afterRoomGuess(
   return !(await isRoomStillPlaying(sql, roomId));
 }
 
+/**
+ * ROADMAP 15.1 (D-15a): in a co-op room created with `visibility = 'shared'`, a word scores
+ * only for whoever found it first, and everyone sees it. This is the arbiter: the
+ * (room_id, word) primary key on room_word_claims makes "first" atomic when two members
+ * submit the same word at the same instant (game_guesses is unique per game, not per room).
+ *
+ *   not_shared — not a shared co-op room; guess proceeds exactly as before
+ *   claimed    — this member now owns the word; guess proceeds
+ *   own        — this member already owns it; guess proceeds (and reports "already guessed")
+ *   taken      — a teammate owns it; the guess is refused, `by` is their display name
+ */
+export type WordClaim = { kind: "not_shared" | "claimed" | "own" } | { kind: "taken"; by: string | null };
+
+export async function claimRoomWord(sql: Sql, roomId: string, gameId: string, word: string): Promise<WordClaim> {
+  const [room] = await sql<{ mode: string; visibility: string }[]>`
+    select mode, visibility from rooms where id = ${roomId}
+  `;
+  if (!room || room.mode !== "coop" || room.visibility !== "shared") return { kind: "not_shared" };
+  const inserted = await sql`
+    insert into room_word_claims (room_id, word, game_id) values (${roomId}, ${word}, ${gameId})
+    on conflict do nothing
+    returning game_id
+  `;
+  if (inserted.length > 0) return { kind: "claimed" };
+  const [owner] = await sql<{ game_id: string; display_name: string | null }[]>`
+    select c.game_id, p.display_name
+      from room_word_claims c
+      join games g on g.id = c.game_id
+      left join players p on p.id = g.player_id
+     where c.room_id = ${roomId} and c.word = ${word}
+  `;
+  return owner.game_id === gameId ? { kind: "own" } : { kind: "taken", by: owner.display_name };
+}
+
+/** Undoes a claim whose guess was then rolled back (the anti-cheat rate limit deletes the
+ *  guess row; the word must become findable again for everyone). */
+export async function releaseRoomWord(sql: Sql, roomId: string, gameId: string, word: string): Promise<void> {
+  await sql`delete from room_word_claims where room_id = ${roomId} and word = ${word} and game_id = ${gameId}`;
+}
+
 /** D9 (owner decision 2026-09-30): while the room is still playing, no member gets the
  *  answers — not from give_up, not from possible_words. Otherwise a member could give up,
  *  read every word (and the target) and feed them to a teammate or a second identity.

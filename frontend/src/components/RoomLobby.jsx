@@ -34,7 +34,8 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
   return (
     <div className="mb-6 flex flex-col items-center gap-4 text-center" data-testid="room-lobby">
       <p className="text-sm text-game-muted">
-        {room.mode === 'versus' ? '⚔️' : '👥'} {t(`room.mode.${room.mode}.name`)} · {t('room.lengthInfo', { length: room.target_length })}
+        {room.mode === 'versus' ? '⚔️' : '👥'} {t(`room.mode.${room.mode}.name`)}
+        {room.mode === 'coop' && ` (${t(`room.visibility.${room.visibility ?? 'private'}.name`)})`} · {t('room.lengthInfo', { length: room.target_length })}
       </p>
       <div>
         <p className="text-xs uppercase tracking-wide text-game-muted">{t('room.codeLabel')}</p>

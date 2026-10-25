@@ -224,7 +224,8 @@
     "header": "Words found:",
     "points": "{{points}} pts",
     "reportAriaLabel": "Report {{word}} as wrong",
-    "reportTitle": "Report as wrong"
+    "reportTitle": "Report as wrong",
+    "teamHeader": "Teammates' words"
   },
   "dictionary": {
     "lookupAriaLabel": "Look up {{word}} in Wiktionary (opens in a new tab)",
@@ -266,7 +267,9 @@
     "reportFailed": "Something went wrong reporting the word.",
     "reportLimit": "You have reported a lot of words today — thanks! Try again tomorrow.",
     "suggestRateLimited": "Too many suggestions today, try tomorrow.",
-    "suggestFailed": "Something went wrong sending the suggestion."
+    "suggestFailed": "Something went wrong sending the suggestion.",
+    "foundByTeammate": "{{name}} already found that word.",
+    "foundByTeammateAnon": "Someone already found that word."
   },
   "help": {
     "open": "How to play",
@@ -356,7 +359,7 @@
       "generic": "Something went wrong — please try again."
     },
     "gaveUpWaiting": "You gave up — the answers are revealed when the others finish.",
-    "teamProgress": "Team: {{found}} / {{total}} words",
+    "teamProgress": "Team: {{found}} / {{total}} words · {{left}} left",
     "points": "{{points}} pts",
     "wordsCount": "{{count}} words",
     "resultsTitle": "Room results",
@@ -387,6 +390,17 @@
       "bonus": "You got +{{seconds}} seconds for the interruption.",
       "continue": "Carry on alone",
       "finish": "Finish game"
+    },
+    "visibilityLabel": "Word visibility",
+    "visibility": {
+      "private": {
+        "name": "Hidden words",
+        "explain": "Everyone plays their own game; the others only see your points and how many words are left. Two players can find the same word."
+      },
+      "shared": {
+        "name": "Visible words",
+        "explain": "Everyone sees the words found. A word only scores for whoever found it first."
+      }
     }
   }
 }

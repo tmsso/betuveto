@@ -13,6 +13,8 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
   const { t } = useTranslation()
   const [name, setName] = useState(displayName ?? '')
   const [mode, setMode] = useState('coop')
+  // ROADMAP 15.1: the co-op variant. Only offered for co-op; the server ignores it for versus.
+  const [visibility, setVisibility] = useState('private')
   const [code, setCode] = useState('')
   const [nameMissing, setNameMissing] = useState(false)
 
@@ -72,7 +74,28 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
               </label>
             ))}
           </fieldset>
-          <button type="button" disabled={busy} onClick={() => withName((n) => onCreate(n, mode))} className={buttonClass}>
+          {mode === 'coop' && (
+            <fieldset className="flex flex-col gap-1.5 text-sm">
+              <legend className="text-game-muted font-semibold mb-1">{t('room.visibilityLabel')}</legend>
+              {['private', 'shared'].map((value) => (
+                <label key={value} className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="room-visibility"
+                    value={value}
+                    checked={visibility === value}
+                    onChange={() => setVisibility(value)}
+                    className="mt-1 accent-game-secondary"
+                  />
+                  <span>
+                    <span className="font-semibold">{t(`room.visibility.${value}.name`)}</span>
+                    <span className="block text-xs text-game-muted">{t(`room.visibility.${value}.explain`)}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <button type="button" disabled={busy} onClick={() => withName((n) => onCreate(n, mode, mode === 'coop' ? visibility : undefined))} className={buttonClass}>
             {t('room.create')}
           </button>
 

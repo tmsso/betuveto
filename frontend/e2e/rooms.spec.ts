@@ -132,6 +132,48 @@ for (const mode of ['coop', 'versus'] as const) {
   })
 }
 
+// ROADMAP 15.1 / D-15a: shared-visibility co-op — the other player sees the found word, and
+// typing it yourself is refused with who found it.
+test('room round (coop, visible words): teammates see found words and cannot re-score them', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const dictionary = await loadDictionary()
+  const host = await newPlayer(browser)
+  const guest = await newPlayer(browser)
+
+  await host.goto(URL!)
+  await host.getByRole('button', { name: /Beállítások/ }).click()
+  const settings = host.getByRole('dialog')
+  await settings.getByLabel('Neved').fill('Anna')
+  await settings.getByLabel(/Látható szavak/).check()
+  await settings.getByRole('button', { name: 'Szoba létrehozása' }).click()
+  const lobby = host.getByTestId('room-lobby')
+  await expect(lobby).toContainText('Látható szavak')
+  const code = (await lobby.getByLabel(/^Szobakód:/).textContent())!.trim()
+
+  await guest.goto(`${URL}/?room=${code}`)
+  const invite = guest.getByTestId('room-invite')
+  await invite.getByLabel('Neved').fill('Béla')
+  await invite.getByRole('button', { name: 'Csatlakozás' }).click()
+  await expect(lobby).toContainText('Béla', { timeout: 10_000 })
+  await host.getByRole('button', { name: 'Indítás' }).click()
+  const [hostLetters] = await Promise.all([boardLetters(host), boardLetters(guest)])
+
+  await guest.getByRole('button', { name: /Játékszabály/ }).click()
+  await expect(guest.getByRole('dialog')).toContainText('Együtt, látható szavakkal')
+  await guest.getByRole('button', { name: 'Bezárás' }).click()
+
+  const found = await findAcceptedWord(host, dictionary, hostLetters)
+  expect(found).not.toBeNull()
+  await expect(guest.getByTestId('team-words')).toContainText(found!, { timeout: 10_000 })
+  await expect(guest.getByTestId('team-words')).toContainText('Anna')
+  await expect(guest.getByTestId('room-strip')).toContainText('hátra')
+
+  await guest.getByLabel('Tipp beírása').fill(found!)
+  await guest.getByLabel('Tipp beküldése').click()
+  await expect(guest.getByText('Anna már megtalálta ezt a szót.')).toBeVisible()
+  await expect(guest.getByLabel(/^Pontszám: 0/)).toBeVisible()
+})
+
 // ROADMAP 15.2 / 15.3 / 15.4 / D-15c: the joiner's trimmed-down chrome, the per-context
 // rules text, reconnecting after a reload, leaving mid-round, and the left-alone prompt.
 test('room round (coop): joiner chrome, rules text, reload resumes, leave, left-alone prompt', async ({ browser }) => {

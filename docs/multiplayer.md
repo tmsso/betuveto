@@ -322,3 +322,32 @@ an unambiguous alphabet · room cap 8 · min 2 to start · no late join after st
 are single-round, rematch = new room with a pointer · lobby rooms idle >30 min are reported
 as `cancelled` by the snapshot (no sweeper process; lazy, like game expiry) · the target is
 a uniform random pick, never personalised.
+
+## 8. Batch 15 additions (owner's first dual-player test, 2026-10-25)
+
+Decisions D-15a–g are recorded in ROADMAP Batch 15. What they changed in the contract:
+
+- **Co-op visibility (`rooms.visibility`, host's choice at creation, co-op only).**
+  `private` is everything above. `shared` deliberately relaxes §1's "never which words
+  until the game ends": the snapshot carries `found_words: [{word, by, is_you}]`, and a word
+  scores **only for whoever found it first** (D-15a). The arbiter is the `(room_id, word)`
+  primary key on `room_word_claims`; a refused guess answers `result: "found_by_teammate"`
+  with `found_by`. Versus is always `private`. In both variants the strip shows every
+  member's points and the team's words found / left.
+- **Leave game.** `POST /rooms/{code}/leave` mid-round now gives up the caller's own game
+  (it used to 409). The others play on, the leaver's finds still count toward a co-op
+  clear, and D9 holds: the leaver gets no reveal (the client drops them back to solo play).
+- **Left alone.** When exactly one member has a live game and at least one other left or
+  gave up, the room deadline *and* that member's game move +5 s, once
+  (`rooms.solo_bonus_at`, a guarded UPDATE; both clocks move because lazy expiry finalises
+  every member game at `rooms.ends_at`). The snapshot's `solo` block drives the "continue
+  alone or finish?" dialog; `POST /rooms/{code}/continue_solo` records the answer
+  (`rooms.solo_ack_at`), and "finish" is the ordinary give-up. A member who merely finished
+  (a personal full clear in versus) does not count as having quit. The continued game stays
+  a room game, so it stays off the single-player leaderboards (D3 / D-15f).
+- **Reconnect (D-15c).** A dropped connection is not "left". The snapshot's `your_game`
+  carries the caller's own `found_words` and `hint_cost_total`, so a reload rebuilds the
+  board with the score intact; only the room deadline bounds a player who never returns.
+- **Rules text.** The "Játékszabály" dialog follows the player's context (single, daily,
+  co-op private/shared, versus; host vs joiner).
+
