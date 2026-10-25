@@ -2610,7 +2610,7 @@ describeApi("Betűvető API contract", () => {
     expect(bad.status).toBe(422);
   }, 60_000);
 
-  it("shared co-op: a word scores once, teammates see it and who found it; private rooms stay hidden", async () => {
+  it("shared co-op: a word scores once, and teammates see it and who found it", async () => {
     if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const room = await startedSmallRoom("coop", "shared");
     const [first, second] = room.words;
@@ -2637,8 +2637,12 @@ describeApi("Betűvető API contract", () => {
     // A different word is still the guest's to find.
     const theirs = await guessAs(room.guestGame.game_id, second, room.guestCookie);
     expect(theirs.json.result).toBe("correct");
+  }, 180_000);
 
-    // Private co-op: the same situation counts for both and no list is exposed.
+  // Its own test: each startedSmallRoom retry mints two players, and two of them in one test
+  // would run into the 12.6 identity throttle on a fresh branch database.
+  it("private co-op: the same word counts for both members and no word list is exposed", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const priv = await startedSmallRoom("coop", "private");
     const word = priv.words[0];
     expect((await guessAs(priv.hostGame.game_id, word, priv.hostCookie)).json.result).toBe("correct");
