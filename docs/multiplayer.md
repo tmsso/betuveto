@@ -332,7 +332,8 @@ Decisions D-15a–g are recorded in ROADMAP Batch 15. What they changed in the c
   until the game ends": the snapshot carries `found_words: [{word, by, is_you}]`, and a word
   scores **only for whoever found it first** (D-15a). The arbiter is the `(room_id, word)`
   primary key on `room_word_claims`; a refused guess answers `result: "found_by_teammate"`
-  with `found_by`. Versus is always `private`. In both variants the strip shows every
+  with `found_by` (and `already_guessed: true`, so a client from before 15.1 does not show it
+  as a find). A hint never points at a word a teammate already claimed. Versus is always `private`. In both variants the strip shows every
   member's points and the team's words found / left.
 - **Leave game.** `POST /rooms/{code}/leave` mid-round now gives up the caller's own game
   (it used to 409). The others play on, the leaver's finds still count toward a co-op

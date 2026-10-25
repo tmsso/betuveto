@@ -2624,6 +2624,7 @@ describeApi("Betűvető API contract", () => {
     expect(taken.json.result).toBe("found_by_teammate");
     expect(taken.json.found_by).toBe("Host");
     expect(taken.json.score).toBe(0);
+    expect(taken.json.already_guessed).toBe(true); // a pre-15.1 client must not show it as a find
     // The finder retyping their own word is the ordinary "already guessed".
     const again = await guessAs(room.hostGame.game_id, first, room.hostCookie);
     expect(again.json.already_guessed).toBe(true);
@@ -2649,6 +2650,22 @@ describeApi("Betűvető API contract", () => {
     await pause();
     expect((await guessAs(priv.guestGame.game_id, word, priv.guestCookie)).json.result).toBe("correct");
     expect((await snapshot(priv.code, priv.guestCookie)).json.found_words).toBeUndefined();
+  }, 180_000);
+
+  it("shared co-op: a hint never points at a word a teammate already found", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const room = await startedSmallRoom("coop", "shared");
+    // The host claims every word but the shortest; only that one is left for the guest to hint.
+    const ordered = [...room.words].sort((a, b) => letterCount(b) - letterCount(a));
+    const left = ordered[ordered.length - 1];
+    for (const word of ordered.slice(0, -1)) {
+      expect((await guessAs(room.hostGame.game_id, word, room.hostCookie)).json.result).toBe("correct");
+      await pause();
+    }
+    const hint = await call("POST", `/api/game/${room.guestGame.game_id}/hint`, undefined, { Cookie: room.guestCookie });
+    expect(hint.status).toBe(200);
+    expect(hint.json.word_length).toBe(letterCount(left));
+    expect(hint.json.letter).toBe(Array.from(left)[0]);
   }, 180_000);
 
   it("shared co-op: two members submitting the same word at once score it exactly once", async () => {

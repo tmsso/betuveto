@@ -283,7 +283,10 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
         body: {
           valid: true,
           can_form: true,
-          already_guessed: false,
+          // true on purpose: a client from before 15.1 (a cached PWA bundle) only knows this
+          // field and treats valid + can_form + !already_guessed as a successful find, which
+          // would show points the player never got. New clients branch on `result` first.
+          already_guessed: true,
           score: 0,
           result: "found_by_teammate",
           found_by: roomClaim.by,

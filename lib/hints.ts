@@ -30,6 +30,15 @@ export async function useHint(gameId: string): Promise<Reply> {
     select word from game_guesses where game_id = ${game.id} and correct
   `;
   const found = new Set(foundRows.map((row) => row.word));
+  // Shared-visibility rooms (ROADMAP 15.1): a word a teammate already claimed cannot be
+  // scored by this player, so a hint must not spend their points pointing at it. The claims
+  // table only ever holds rows for shared co-op rooms, so this is a no-op everywhere else.
+  if (game.room_id) {
+    const claimed = await sql<{ word: string }[]>`
+      select word from room_word_claims where room_id = ${game.room_id}
+    `;
+    for (const row of claimed) found.add(row.word);
+  }
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   const unfound = possible.filter((word) => !found.has(word));
 
