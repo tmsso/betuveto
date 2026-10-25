@@ -2264,17 +2264,23 @@ describeApi("Betűvető API contract", () => {
     targetLength = 5,
     mode: "coop" | "versus" = "coop",
     visibility?: "private" | "shared",
+    reuse?: { hostCookie: string; guestCookie: string },
   ) {
-    const { status, json, headers } = await call("POST", "/api/v1/rooms", {
-      display_name: "Host",
-      mode,
-      target_length: targetLength,
-      ...(visibility ? { visibility } : {}),
-    });
+    const { status, json, headers } = await call(
+      "POST",
+      "/api/v1/rooms",
+      {
+        display_name: "Host",
+        mode,
+        target_length: targetLength,
+        ...(visibility ? { visibility } : {}),
+      },
+      reuse ? { Cookie: reuse.hostCookie } : undefined,
+    );
     expect(status).toBe(200);
-    const hostCookie = headers.get("set-cookie")!.split(";", 1)[0];
+    const hostCookie = reuse?.hostCookie ?? headers.get("set-cookie")!.split(";", 1)[0];
     const code = json.code as string;
-    const guest = await joinRoomWithCookie(code, "Guest");
+    const guest = await joinRoomWithCookie(code, "Guest", reuse?.guestCookie);
     expect(guest.status).toBe(200);
     return { code, hostCookie, guestCookie: guest.cookie };
   }
@@ -2365,8 +2371,12 @@ describeApi("Betűvető API contract", () => {
   /** A started two-player room whose whole board the local dictionary can reproduce,
    *  small enough to clear in a few requests. */
   async function startedSmallRoom(mode: "coop" | "versus", visibility?: "private" | "shared") {
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const lobby = await twoPlayerLobby(5, mode, visibility);
+    // The same two identities play every retry (a player can sit in many rooms): minting
+    // two fresh players per attempt used to run into the 12.6 identity throttle.
+    let identities: { hostCookie: string; guestCookie: string } | undefined;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const lobby = await twoPlayerLobby(5, mode, visibility, identities);
+      identities = { hostCookie: lobby.hostCookie, guestCookie: lobby.guestCookie };
       await call("POST", `/api/v1/rooms/${lobby.code}/start`, {}, { Cookie: lobby.hostCookie });
       const hostGame = (await snapshot(lobby.code, lobby.hostCookie)).json.your_game;
       const guestGame = (await snapshot(lobby.code, lobby.guestCookie)).json.your_game;
@@ -2375,7 +2385,7 @@ describeApi("Betűvető API contract", () => {
         return { ...lobby, hostGame, guestGame, words };
       }
     }
-    throw new Error("No small, locally reproducible room board after 20 tries.");
+    throw new Error("No small, locally reproducible room board after 60 tries.");
   }
 
   const guessAs = (gameId: string, word: string, cookie: string) =>
