@@ -278,7 +278,17 @@
     "buttons": "🔀 újrakeveri a betűket · 💡 megmutatja egy még meg nem talált szó első betűjét ({{cost}} pontba kerül) · 🏳️ feladja a játékot, és megmutatja az összes szót",
     "curation": "⚑ A szó melletti zászlóval jelezheted, hogy a szó hibás. Ha a játék nem fogad el egy létező szót, beküldheted, hogy felvegyük a szótárba.",
     "more": "⚙️ A Beállításokban választhatsz szóhosszt és szótárnyelvet, és itt találod a napi rejtvényt (mindenki ugyanazt a táblát kapja, és sorozatot gyűjthetsz), a közös játékot barátokkal, a ranglistákat és a statisztikáidat.",
-    "feedbackIntro": "Valami nem működik, zavaros vagy hiányzik?"
+    "feedbackIntro": "Valami nem működik, zavaros vagy hiányzik?",
+    "daily": "🗓️ Napi rejtvény: ma mindenki ugyanazt a táblát kapja. Naponta egy eredmény számít, és sorozatot gyűjthetsz.",
+    "moreRoom": "⚙️ A Beállításokban a megjelenést (nyelv, színséma, hang) és a ranglistákat találod – a szoba játéka közben a játékot érintő beállítások rejtve vannak.",
+    "room": {
+      "common": "👥 Szobajáték: mindenki ugyanazt a táblát kapja, és egyetlen közös határidő van. A betűk megkeverése és a segítség csak a tiéd. A megoldásokat akkor látod, amikor a szoba játéka véget ért.",
+      "roomCoopPrivate": "🤝 Együtt, rejtve: mindenki a saját játékát játssza, a többiek nem látják, mely szavakat találtad meg – csak a pontjaidat és azt, hány szó van még hátra. Ha ugyanazt a szót ketten is megtalálják, mindkettőnek pont jár. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
+      "roomCoopShared": "🤝 Együtt, látható szavakkal: a megtalált szavakat mindenki látja, és egy szó csak az első megtalálójának ér pontot – a már megtalált szót nem kell újra beírni. Mindenki látja a pontokat és azt, hány szó van még hátra. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
+      "roomVersus": "⚔️ Egymás ellen: a legtöbb pontot szerző játékos nyer. A többiek pontjait és mérföldköveit látod, a szavaikat nem. Nincs közös időbónusz.",
+      "leave": "🚪 A „Játék elhagyása” gombbal kilépsz: a saját játékod véget ér, a többiek folytatják, te pedig nem látod a megoldásokat. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz.",
+      "leaveHost": "🏳️ A feladással a saját játékod ér véget, a többiek folytatják. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz."
+    }
   },
   "feedback": {
     "open": "Írj nekünk",
@@ -366,6 +376,17 @@
       "all_cleared": "Minden szót megtalált",
       "hint_used": "Segítséget kért",
       "gave_up": "Feladta"
+    },
+    "leaveGame": "Játék elhagyása",
+    "leaveConfirmTitle": "Elhagyod a játékot?",
+    "leaveConfirm": "A saját játékod véget ér, a többiek folytatják. A megoldásokat nem látod.",
+    "leaveConfirmButton": "Elhagyom",
+    "solo": {
+      "title": "Egyedül maradtál",
+      "message": "A többiek kiléptek. Folytatod egyedül, vagy befejezed a játékot? Az idő közben is telik.",
+      "bonus": "Az üzenetért +{{seconds}} másodpercet kaptál.",
+      "continue": "Folytatom egyedül",
+      "finish": "Befejezem"
     }
   }
 }

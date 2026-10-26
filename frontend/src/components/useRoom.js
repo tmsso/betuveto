@@ -146,15 +146,27 @@ export function useRoom() {
     return snapshot
   }), [run])
 
-  // Lobby: tells the server (a leaving host cancels the room, D4). Any other state: just
-  // stop following the room locally — during play, "leaving" is giving up (give_up route).
+  // Lobby: tells the server (a leaving host cancels the room, D4). Mid-round (ROADMAP 15.2):
+  // tells the server too, which ends this player's own game while the others play on. Any
+  // other state: just stop following the room locally.
+  // Stops following the room *before* the request, so a poll that answers while the request
+  // is in flight can't put the room (and a fresh copy of the game) back on screen.
   const leave = useCallback(async () => {
     const current = codeRef.current
-    if (current && room?.status === 'lobby') {
+    const status = room?.status
+    clear()
+    if (current && (status === 'lobby' || status === 'playing')) {
       await betuAPI.leaveRoom(current).catch((err) => console.error('Error leaving room:', err))
     }
-    clear()
   }, [room?.status, clear])
+
+  // ROADMAP 15.4: answer "continue on my own" and pick up the acknowledged state at once.
+  const continueSolo = useCallback(async () => {
+    const current = codeRef.current
+    if (!current) return
+    await betuAPI.continueSolo(current).catch((err) => console.error('Error continuing alone:', err))
+    await refresh()
+  }, [refresh])
 
   // Host: create the rematch lobby and move there (already a member of it).
   const rematch = useCallback(() => run(async () => {
@@ -164,5 +176,5 @@ export function useRoom() {
     return snapshot
   }), [run, enter])
 
-  return { code, room, busy, error, setError, refresh, create, join, start, leave, rematch }
+  return { code, room, busy, error, setError, refresh, create, join, start, leave, rematch, continueSolo }
 }

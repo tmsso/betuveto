@@ -46,6 +46,10 @@ export interface StartGameResult {
   };
   /** ROADMAP 12.5 — admin-editable rules the client mirrors (hint label, "too short"). */
   rules?: { hint_cost: number; min_word_length: number };
+  /** Room games only (ROADMAP 15, D-15c): the caller's own progress, so a reload or a
+   *  reconnect rebuilds the found list and hint penalty instead of starting from empty. */
+  found_words?: string[];
+  hint_cost_total?: number;
   /** Present only on a daily-puzzle game (ROADMAP Batch 10 item 1). `already_graded` marks
    *  a replay whose result won't count toward the streak / leaderboard. */
   daily?: {
@@ -202,6 +206,13 @@ export interface RoomSnapshot {
   your_game?: StartGameResult;
   /** Co-op only: distinct words found by anyone in the room. */
   room_found_count?: number;
+  /** Playing rooms only (ROADMAP 15.4): the "left alone" prompt state for the caller. */
+  solo?: {
+    alone: boolean;
+    bonus_seconds: number;
+    bonus_granted: boolean;
+    acknowledged: boolean;
+  };
   /** Finished rooms only. */
   reveal?: {
     target_word: string;
@@ -582,6 +593,11 @@ class BetuAPIClient {
 
   async leaveRoom(code: string): Promise<{ ok: boolean }> {
     return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}/leave`, { method: 'POST' }));
+  }
+
+  /** ROADMAP 15.4: the lone player's "continue on my own" answer (finishing is give-up). */
+  async continueSolo(code: string): Promise<{ ok: boolean }> {
+    return roomJson(await fetch(`${this.baseUrl}/v1/rooms/${encodeURIComponent(code)}/continue_solo`, { method: 'POST' }));
   }
 
   async startRoom(code: string): Promise<RoomSnapshot> {

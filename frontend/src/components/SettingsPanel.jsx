@@ -18,6 +18,12 @@ import FeedbackForm from './FeedbackForm'
  * accessibility pass): role="dialog", focus moves in on open and back to the trigger on
  * close, Escape closes. onClose is read through a ref so the game clock's 500ms
  * re-renders don't re-fire the focus effect (same latest-ref reasoning as the modal).
+ *
+ * `inRoom` (ROADMAP 15.2 / D-15e): while the player is in a room's lobby or round, only
+ * the settings that cannot stop or replace the game stay — display, language, theme,
+ * sound, the read-only leaderboard / stats views, feedback. The game section (length,
+ * wordlist, easy mode), the daily puzzle and the room panel start or leave a game, so
+ * they are hidden, and the privacy page opens in a new tab instead of navigating away.
  */
 export default function SettingsPanel({
   isOpen,
@@ -58,6 +64,7 @@ export default function SettingsPanel({
   isDailyGame,
   onPlayDaily,
   roomPanel,
+  inRoom = false,
 }) {
   const { t } = useTranslation()
   const closeButtonRef = useRef(null)
@@ -121,7 +128,7 @@ export default function SettingsPanel({
   const showLength = uiConfig?.show_length_selector ?? true
   const showWordlist = uiConfig?.show_wordlist_selector ?? true
   const showEasyMode = uiConfig?.show_easy_mode ?? true
-  const showGameSection = showLength || showWordlist || showEasyMode
+  const showGameSection = !inRoom && (showLength || showWordlist || showEasyMode)
 
   const fieldRow = 'flex items-center justify-between gap-3 text-sm'
   const selectClass =
@@ -266,16 +273,18 @@ export default function SettingsPanel({
         )}
 
         {/* Daily puzzle (ROADMAP Batch 10 item 1) */}
-        <DailyPanel
-          daily={daily}
-          loading={dailyLoading}
-          isDailyGame={isDailyGame}
-          onPlayDaily={onPlayDaily}
-          controlsDisabled={controlsDisabled}
-        />
+        {!inRoom && (
+          <DailyPanel
+            daily={daily}
+            loading={dailyLoading}
+            isDailyGame={isDailyGame}
+            onPlayDaily={onPlayDaily}
+            controlsDisabled={controlsDisabled}
+          />
+        )}
 
         {/* Multiplayer rooms (ROADMAP 7.2.5) */}
-        {roomPanel && <RoomPanel {...roomPanel} />}
+        {roomPanel && !inRoom && <RoomPanel {...roomPanel} />}
 
         {/* Leaderboard */}
         <div className="flex flex-col gap-2">
@@ -322,6 +331,7 @@ export default function SettingsPanel({
           <FeedbackForm compact />
           <a
             href="/privacy"
+            {...(inRoom ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="text-xs text-game-muted underline hover:text-game-secondary self-start"
           >
             {t('privacy.title')}

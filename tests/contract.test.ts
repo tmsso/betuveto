@@ -2488,6 +2488,109 @@ describeApi("Betűvető API contract", () => {
     expect(rejoin.json.room.member_count).toBe(2);
   }, 60_000);
 
+  // --- Multiplayer rooms — leave, left alone, reconnect (ROADMAP 15.2 / 15.4 / D-15c) ---
+  /** Finds the first word of `game` the dictionary accepts; returns it (or throws). */
+  async function scoreOne(game: any, cookie: string): Promise<string> {
+    for (const word of findable(game).slice(0, 8)) {
+      const { json } = await guessAs(game.game_id, word, cookie);
+      if (json.result === "correct") return word;
+      await pause();
+    }
+    throw new Error("No findable word was accepted.");
+  }
+
+  it("leaving mid-round gives up only the leaver's game, reveals nothing, and rejects strangers", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const { code, hostCookie, guestCookie } = await twoPlayerLobby();
+    await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    const guestGame = (await snapshot(code, guestCookie)).json.your_game;
+    const found = await scoreOne(guestGame, guestCookie);
+
+    const stranger = await createRoomWithCookie("Stranger");
+    const refused = await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: stranger.cookie });
+    expect(refused.status).toBe(404);
+
+    const left = await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: guestCookie });
+    expect(left.status).toBe(200);
+    expect(left.json.ok).toBe(true);
+
+    const view = (await snapshot(code, hostCookie)).json;
+    expect(view.status).toBe("playing"); // the host plays on
+    expect(view.reveal).toBeUndefined(); // D9: nobody learns the answers early
+    const guestRow = view.members.find((m: any) => !m.is_host);
+    expect(guestRow.done).toBe(true);
+    expect(guestRow.badges).toContain("gave_up");
+    expect(view.room_found_count).toBe(1); // the leaver's find still counts for the team
+    expect(found.length).toBeGreaterThan(0);
+  }, 120_000);
+
+  it("a reconnecting player gets their own found words and hint penalty back in the snapshot", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const { code, hostCookie } = await twoPlayerLobby();
+    await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    const before = (await snapshot(code, hostCookie)).json.your_game;
+    expect(before.found_words).toEqual([]);
+    expect(before.hint_cost_total).toBe(0);
+
+    const found = await scoreOne(before, hostCookie);
+    const hint = await call("POST", `/api/game/${before.game_id}/hint`, undefined, { Cookie: hostCookie });
+    expect(hint.status).toBe(200);
+
+    const after = (await snapshot(code, hostCookie)).json.your_game;
+    expect(after.found_words).toEqual([found]);
+    expect(after.hint_cost_total).toBe(hint.json.cost);
+  }, 120_000);
+
+  it("left alone: the last player gets +5 s once, can acknowledge, and finishing ends the room", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const { code, hostCookie, guestCookie } = await twoPlayerLobby();
+    await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
+    const before = (await snapshot(code, hostCookie)).json;
+    expect(before.solo.alone).toBe(false);
+    expect(before.solo.bonus_seconds).toBe(5);
+
+    // Nobody has left, so there is nothing to continue.
+    const early = await call("POST", `/api/v1/rooms/${code}/continue_solo`, undefined, { Cookie: hostCookie });
+    expect(early.status).toBe(409);
+    expect(early.json.detail).toBe("not_alone");
+
+    await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: guestCookie });
+
+    const alone = (await snapshot(code, hostCookie)).json;
+    expect(alone.status).toBe("playing");
+    expect(alone.solo).toMatchObject({ alone: true, bonus_granted: true, acknowledged: false });
+    expect(alone.ends_at).toBeCloseTo(before.ends_at + 5, 0);
+    expect(alone.your_game.ends_at).toBeCloseTo(before.ends_at + 5, 0);
+    // The member's own game row moved too, or lazy expiry would still cut it at the old time.
+    const state = await call("GET", `/api/game/${alone.your_game.game_id}`);
+    expect(state.json.ends_at).toBeCloseTo(before.ends_at + 5, 0);
+
+    // Granted at most once, however often the snapshot is read.
+    const again = (await snapshot(code, hostCookie)).json;
+    expect(again.ends_at).toBe(alone.ends_at);
+
+    // The leaver is not "alone"; only the player still in the round may answer.
+    expect((await snapshot(code, guestCookie)).json.solo.alone).toBe(false);
+    const notAlone = await call("POST", `/api/v1/rooms/${code}/continue_solo`, undefined, { Cookie: guestCookie });
+    expect(notAlone.status).toBe(409);
+
+    const ack = await call("POST", `/api/v1/rooms/${code}/continue_solo`, undefined, { Cookie: hostCookie });
+    expect(ack.status).toBe(200);
+    const acked = (await snapshot(code, hostCookie)).json;
+    expect(acked.solo.acknowledged).toBe(true);
+    expect(acked.status).toBe("playing");
+
+    // "Finish" is the ordinary give-up; being the last player out, it reveals and ends the room.
+    const finish = await call("POST", `/api/game/${alone.your_game.game_id}/give_up`, undefined, { Cookie: hostCookie });
+    expect(finish.json.target_word).toBeTruthy();
+    const over = (await snapshot(code, hostCookie)).json;
+    expect(over.status).toBe("finished");
+    expect(over.reveal.end_reason).toBe("all_done");
+    // The solo continuation stays a room game (D-15f): off the single-player leaderboards.
+    const best = await call("GET", "/api/v1/scores/top?length=5", undefined, { Cookie: hostCookie });
+    expect(best.json.your_best).toBeNull();
+  }, 120_000);
+
   // --- Multiplayer rooms — admin (ROADMAP 7.2.7) -------------------------------
   it("shows rooms on the admin dashboard and the room in a member game's drill-down", async () => {
     if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only

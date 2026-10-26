@@ -71,7 +71,7 @@ import {
 } from "../../lib/players.js";
 import { getMyAchievements } from "../../lib/achievements.js";
 import { deleteMe } from "../../lib/account.js";
-import { createRoom, getRoomSnapshot, joinRoom, leaveRoom, rematchRoom, startRoom } from "../../lib/rooms.js";
+import { continueSolo, createRoom, getRoomSnapshot, joinRoom, leaveRoom, rematchRoom, startRoom } from "../../lib/rooms.js";
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
@@ -501,6 +501,8 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
           });
         case "leave":
           return methodHandler({ POST: (req) => leaveRoom(code, playerId(req)) });
+        case "continue_solo":
+          return methodHandler({ POST: (req) => continueSolo(code, playerId(req)) });
         case "rematch":
           return methodHandler({ POST: (req) => rematchRoom(code, playerId(req)) });
         case "start":
