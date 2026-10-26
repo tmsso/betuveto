@@ -650,6 +650,14 @@ feature for a Hungarian word game. Ship it before the admin UI so the queue has 
        manual. Installing the marketplace integration instead was considered and rejected —
        it would also change how `DATABASE_URL` itself is provisioned on a project that
        already works, a real infra change for convenience this doesn't need.
+     - **Update 2026-10-26 — the above is out of date for the database variables.** The Vercel
+       project is linked to Neon through the marketplace integration (`filter_project_envs`
+       shows `DATABASE_URL`/`DATABASE_URL_UNPOOLED` carrying an integration configuration id
+       for Production, a per-branch Preview database each, and `DATABASE_URL_UNPOOLED` for
+       Development). Confirmed in practice: after the production password reset Vercel picked
+       up the new value and only a redeploy was needed. Still set by hand: the Development
+       `DATABASE_URL` and all `NEON_AUTH_*` / `VITE_NEON_AUTH_URL` values. `POSTGRES_URL` is
+       unset, so `DATABASE_URL` is what `lib/db.ts` uses.
      - **Data lands in `neon_auth.*`** inside this project's own Neon database, not a
        separate managed store — consistent with the "one Postgres, no separate auth
        store" shape the rest of this app already has.
@@ -1925,8 +1933,8 @@ or an outright bug). Nothing here blocks Batch 7.*
   10 functions" — it has been one dispatcher since Batch 4.2; "Neon also provides the auth
   in Batch 2" — identity is the signed cookie; Node 18+ — Vite 7 needs ≥ 20.19; word counts
   predating the 2026-07-30 purge; no mention of the E2E job) and `.env.example`
-  (`POSTGRES_URL` "injected by the Neon integration" — this project has no marketplace
-  integration, `DATABASE_URL` is set by hand; see ROADMAP 5.2's correction).
+  (`POSTGRES_URL` "injected by the Neon integration" — the integration is linked but
+  injects `DATABASE_URL`, not `POSTGRES_URL`; see the 2026-10-26 update under ROADMAP 5.2's correction).
 
 **Correctness / consistency (small, do any time)**
 - `[x]` *(12.5, PR #80)* **11.5 Admin-editable knobs are still hardcoded in the client.** `HINT_COST = 10`
