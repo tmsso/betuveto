@@ -96,6 +96,9 @@ export interface GameResult {
   min_length?: number;
   /** Room games only (ROADMAP 7.2.4): this guess ended the whole room. */
   room_finished?: boolean;
+  /** Only when result === 'found_by_teammate' (shared-visibility room, ROADMAP 15.1): the
+   *  finder's display name, null if they have none. */
+  found_by?: string | null;
 }
 
 export interface GameState {
@@ -165,6 +168,8 @@ export interface MyAchievements {
 
 // --- Multiplayer rooms (ROADMAP 7.2, contract: docs/multiplayer.md §4) ----------------
 export type RoomMode = 'coop' | 'versus';
+/** Co-op variant chosen at creation (ROADMAP 15.1); versus rooms are always 'private'. */
+export type RoomVisibility = 'private' | 'shared';
 export type RoomBadge =
   | 'full_word' | 'half_cleared' | 'three_quarters_cleared' | 'all_cleared' | 'hint_used' | 'gave_up';
 
@@ -194,6 +199,7 @@ export interface RoomSnapshot {
   code: string;
   status: 'lobby' | 'playing' | 'finished' | 'cancelled';
   mode: RoomMode;
+  visibility: RoomVisibility;
   wordlist: string;
   target_length: number;
   is_host: boolean;
@@ -206,6 +212,8 @@ export interface RoomSnapshot {
   your_game?: StartGameResult;
   /** Co-op only: distinct words found by anyone in the room. */
   room_found_count?: number;
+  /** Playing or finished shared co-op rooms only (ROADMAP 15.1): the words found so far and by whom. */
+  found_words?: { word: string; by: string | null; is_you: boolean }[];
   /** Playing rooms only (ROADMAP 15.4): the "left alone" prompt state for the caller. */
   solo?: {
     alone: boolean;
@@ -571,7 +579,7 @@ class BetuAPIClient {
   }
 
   // --- Multiplayer rooms (ROADMAP 7.2) ---------------------------------------------
-  async createRoom(opts: { display_name: string; mode: RoomMode; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
+  async createRoom(opts: { display_name: string; mode: RoomMode; visibility?: RoomVisibility; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
     return roomJson(await fetch(`${this.baseUrl}/v1/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

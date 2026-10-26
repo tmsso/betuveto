@@ -386,12 +386,13 @@ function App() {
 
   // Rooms (ROADMAP 7.2.5). Creating or joining a room leaves any solo game in progress
   // (confirmed first, like every other restart) and shows the lobby on the pre-game board.
-  const handleCreateRoom = useCallback((name, mode) => {
+  const handleCreateRoom = useCallback((name, mode, visibility) => {
     requestRestart(async () => {
       enterPreGame()
       const snapshot = await rooms.create({
         display_name: name,
         mode,
+        ...(visibility ? { visibility } : {}),
         wordlist: selectedWordlist,
         target_length: selectedLength,
       })
@@ -478,6 +479,12 @@ function App() {
   }, [rooms, room, displayName, enterPreGame])
 
   const inRoomRound = Boolean(room && isRoomGame && ['playing', 'finished'].includes(room.status))
+
+  // ROADMAP 15.1: in a shared co-op room, the words teammates found. Own words stay in
+  // `foundWords` (they are scored and reportable); these are shown read-only next to them.
+  const teamWords = (inRoomRound && room.visibility === 'shared' ? room.found_words ?? [] : [])
+    .filter((entry) => !entry.is_you)
+  const teamWordSet = new Set(teamWords.map((entry) => entry.word))
 
   // ROADMAP 15.2 / D-15e: while the player is in a room's lobby or round (or the snapshot is
   // still loading after a reload), the settings drawer shrinks to what cannot stop the game.
@@ -1049,8 +1056,27 @@ function App() {
           </div>
         )}
 
+        {/* Teammates' words (ROADMAP 15.1) — only in shared-visibility co-op rooms. */}
+        {teamWords.length > 0 && (
+          <div className="mt-6 border-t-2 border-game-border pt-4" data-testid="team-words">
+            <h3 className="text-lg font-bold text-game-primary mb-3 text-center">{t('foundWords.teamHeader')}</h3>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {[...teamWords].sort((a, b) => a.word.localeCompare(b.word, gameWordlist)).map((entry) => (
+                <span
+                  key={entry.word}
+                  className="inline-flex items-center gap-1.5 bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm"
+                  title={entry.by ?? undefined}
+                >
+                  {entry.word}
+                  {entry.by && <span className="text-xs font-normal opacity-70">{entry.by}</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Remaining Words Dropdown (Only after game end) */}
-        {isTimeUp && allPossibleWords.length > foundWords.length && (
+        {isTimeUp && allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length > 0 && (
             <div className="mt-6 pt-4 border-t border-dashed border-gray-200 dark:border-slate-700">
                 <button
                   onClick={() => setShowRemainingWords(!showRemainingWords)}
@@ -1058,13 +1084,13 @@ function App() {
                 >
                   {showRemainingWords
                     ? t('remainingWords.hide')
-                    : t('remainingWords.show', { count: allPossibleWords.length - foundWords.length })}
+                    : t('remainingWords.show', { count: allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length })}
                 </button>
 
                 {showRemainingWords && (
                     <div className="mt-4 flex flex-wrap gap-2 justify-center">
                         {allPossibleWords
-                            .filter(word => !foundWords.includes(word))
+                            .filter(word => !foundWords.includes(word) && !teamWordSet.has(word))
                             .sort((a, b) => a.localeCompare(b, gameWordlist))
                             .map((word, index) => (
                                 <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-slate-800 text-game-muted px-2 py-1 rounded border border-gray-200 dark:border-slate-700">

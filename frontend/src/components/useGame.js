@@ -389,6 +389,16 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         return
       }
 
+      // ROADMAP 15.1 / D-15a: a shared-visibility room already has this word on the board.
+      if (response.result === 'found_by_teammate') {
+        showTemporaryError(response.found_by
+          ? t('errors.foundByTeammate', { name: response.found_by })
+          : t('errors.foundByTeammateAnon'))
+        play('reject')
+        setCurrentGuess('')
+        return
+      }
+
       if (response.valid && response.can_form) {
         if (!response.already_guessed) {
           if (!isTimeUp) {

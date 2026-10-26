@@ -2124,6 +2124,7 @@ describeApi("Betűvető API contract", () => {
     room: {
       status: string;
       mode: string;
+      visibility: string;
       wordlist: string;
       target_length: number;
       is_host: boolean;
@@ -2259,16 +2260,27 @@ describeApi("Betűvető API contract", () => {
   // fresh players and rooms (and would trip the 12.6 identity throttle). Run them against
   // a preview whose DATABASE_URL is a branch DB, never production's.
   /** Host + one guest in a fresh lobby of the given length (5 = small, quick boards). */
-  async function twoPlayerLobby(targetLength = 5, mode: "coop" | "versus" = "coop") {
-    const { status, json, headers } = await call("POST", "/api/v1/rooms", {
-      display_name: "Host",
-      mode,
-      target_length: targetLength,
-    });
+  async function twoPlayerLobby(
+    targetLength = 5,
+    mode: "coop" | "versus" = "coop",
+    visibility?: "private" | "shared",
+    reuse?: { hostCookie: string; guestCookie: string },
+  ) {
+    const { status, json, headers } = await call(
+      "POST",
+      "/api/v1/rooms",
+      {
+        display_name: "Host",
+        mode,
+        target_length: targetLength,
+        ...(visibility ? { visibility } : {}),
+      },
+      reuse ? { Cookie: reuse.hostCookie } : undefined,
+    );
     expect(status).toBe(200);
-    const hostCookie = headers.get("set-cookie")!.split(";", 1)[0];
+    const hostCookie = reuse?.hostCookie ?? headers.get("set-cookie")!.split(";", 1)[0];
     const code = json.code as string;
-    const guest = await joinRoomWithCookie(code, "Guest");
+    const guest = await joinRoomWithCookie(code, "Guest", reuse?.guestCookie);
     expect(guest.status).toBe(200);
     return { code, hostCookie, guestCookie: guest.cookie };
   }
@@ -2358,9 +2370,13 @@ describeApi("Betűvető API contract", () => {
   // --- Multiplayer rooms — ending, bonus, badges, reveal (ROADMAP 7.2.4 / 7.2.4b / D9) ---
   /** A started two-player room whose whole board the local dictionary can reproduce,
    *  small enough to clear in a few requests. */
-  async function startedSmallRoom(mode: "coop" | "versus") {
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const lobby = await twoPlayerLobby(5, mode);
+  async function startedSmallRoom(mode: "coop" | "versus", visibility?: "private" | "shared") {
+    // The same two identities play every retry (a player can sit in many rooms): minting
+    // two fresh players per attempt used to run into the 12.6 identity throttle.
+    let identities: { hostCookie: string; guestCookie: string } | undefined;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const lobby = await twoPlayerLobby(5, mode, visibility, identities);
+      identities = { hostCookie: lobby.hostCookie, guestCookie: lobby.guestCookie };
       await call("POST", `/api/v1/rooms/${lobby.code}/start`, {}, { Cookie: lobby.hostCookie });
       const hostGame = (await snapshot(lobby.code, lobby.hostCookie)).json.your_game;
       const guestGame = (await snapshot(lobby.code, lobby.guestCookie)).json.your_game;
@@ -2369,7 +2385,7 @@ describeApi("Betűvető API contract", () => {
         return { ...lobby, hostGame, guestGame, words };
       }
     }
-    throw new Error("No small, locally reproducible room board after 20 tries.");
+    throw new Error("No small, locally reproducible room board after 60 tries.");
   }
 
   const guessAs = (gameId: string, word: string, cookie: string) =>
@@ -2590,6 +2606,108 @@ describeApi("Betűvető API contract", () => {
     const best = await call("GET", "/api/v1/scores/top?length=5", undefined, { Cookie: hostCookie });
     expect(best.json.your_best).toBeNull();
   }, 120_000);
+
+  // --- Multiplayer rooms — co-op word visibility (ROADMAP 15.1 / D-15a) ---------
+  it("co-op visibility is chosen at creation, defaults to private, and is always private in versus", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const byDefault = await createRoomWithCookie("Host");
+    expect(byDefault.result.room.visibility).toBe("private");
+    const shared = await call("POST", "/api/v1/rooms", { display_name: "Host", visibility: "shared" });
+    expect(shared.json.room.visibility).toBe("shared");
+    const versus = await call("POST", "/api/v1/rooms", { display_name: "Host", mode: "versus", visibility: "shared" });
+    expect(versus.json.room.visibility).toBe("private"); // not offered in versus
+    const bad = await call("POST", "/api/v1/rooms", { display_name: "Host", visibility: "public" });
+    expect(bad.status).toBe(422);
+  }, 60_000);
+
+  it("shared co-op: a word scores once, and teammates see it and who found it", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const room = await startedSmallRoom("coop", "shared");
+    const [first, second] = room.words;
+
+    const mine = await guessAs(room.hostGame.game_id, first, room.hostCookie);
+    expect(mine.json.result).toBe("correct");
+    await pause();
+
+    // The teammate typing the same word scores nothing and is told who has it.
+    const taken = await guessAs(room.guestGame.game_id, first, room.guestCookie);
+    expect(taken.json.result).toBe("found_by_teammate");
+    expect(taken.json.found_by).toBe("Host");
+    expect(taken.json.score).toBe(0);
+    expect(taken.json.already_guessed).toBe(true); // a pre-15.1 client must not show it as a find
+    // The finder retyping their own word is the ordinary "already guessed".
+    const again = await guessAs(room.hostGame.game_id, first, room.hostCookie);
+    expect(again.json.already_guessed).toBe(true);
+
+    const view = (await snapshot(room.code, room.guestCookie)).json;
+    expect(view.visibility).toBe("shared");
+    expect(view.found_words).toEqual([{ word: first, by: "Host", is_you: false }]);
+    expect(view.members.find((m: any) => m.is_you).found_count).toBe(0);
+    expect(view.room_found_count).toBe(1);
+
+    // A different word is still the guest's to find.
+    const theirs = await guessAs(room.guestGame.game_id, second, room.guestCookie);
+    expect(theirs.json.result).toBe("correct");
+  }, 180_000);
+
+  // Its own test: each startedSmallRoom retry mints two players, and two of them in one test
+  // would run into the 12.6 identity throttle on a fresh branch database.
+  it("private co-op: the same word counts for both members and no word list is exposed", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const priv = await startedSmallRoom("coop", "private");
+    const word = priv.words[0];
+    expect((await guessAs(priv.hostGame.game_id, word, priv.hostCookie)).json.result).toBe("correct");
+    await pause();
+    expect((await guessAs(priv.guestGame.game_id, word, priv.guestCookie)).json.result).toBe("correct");
+    expect((await snapshot(priv.code, priv.guestCookie)).json.found_words).toBeUndefined();
+  }, 180_000);
+
+  it("shared co-op: a hint never points at a word a teammate already found", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const room = await startedSmallRoom("coop", "shared");
+    // The host claims every word but the shortest; only that one is left for the guest to hint.
+    const ordered = [...room.words].sort((a, b) => letterCount(b) - letterCount(a));
+    const left = ordered[ordered.length - 1];
+    for (const word of ordered.slice(0, -1)) {
+      expect((await guessAs(room.hostGame.game_id, word, room.hostCookie)).json.result).toBe("correct");
+      await pause();
+    }
+    const hint = await call("POST", `/api/game/${room.guestGame.game_id}/hint`, undefined, { Cookie: room.guestCookie });
+    expect(hint.status).toBe(200);
+    expect(hint.json.word_length).toBe(letterCount(left));
+    expect(hint.json.letter).toBe(Array.from(left)[0]);
+  }, 180_000);
+
+  it("shared co-op: two members submitting the same word at once score it exactly once", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const room = await startedSmallRoom("coop", "shared");
+    const word = room.words[0];
+    const results = await Promise.all([
+      guessAs(room.hostGame.game_id, word, room.hostCookie),
+      guessAs(room.guestGame.game_id, word, room.guestCookie),
+    ]);
+    const outcomes = results.map((r) => r.json.result).sort();
+    expect(outcomes).toEqual(["correct", "found_by_teammate"]);
+    expect((await snapshot(room.code, room.hostCookie)).json.room_found_count).toBe(1);
+  }, 120_000);
+
+  it("shared co-op: dividing the words between members still clears the room with an equal bonus", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
+    const room = await startedSmallRoom("coop", "shared");
+    for (const [i, word] of room.words.entries()) {
+      const res =
+        i % 2 === 0
+          ? await guessAs(room.hostGame.game_id, word, room.hostCookie)
+          : await guessAs(room.guestGame.game_id, word, room.guestCookie);
+      expect(res.json.result).toBe("correct");
+      await pause();
+    }
+    const view = (await snapshot(room.code, room.hostCookie)).json;
+    expect(view.status).toBe("finished");
+    expect(view.reveal.room_cleared).toBe(true);
+    expect(view.reveal.remaining_words).toEqual([]);
+    expect(view.found_words).toHaveLength(view.possible_count);
+  }, 180_000);
 
   // --- Multiplayer rooms — admin (ROADMAP 7.2.7) -------------------------------
   it("shows rooms on the admin dashboard and the room in a member game's drill-down", async () => {

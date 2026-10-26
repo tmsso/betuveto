@@ -35,6 +35,7 @@ interface RoomRow {
   wordlist: string;
   target_length: number;
   mode: string;
+  visibility: string;
   status: string;
   next_room_code: string | null;
   created_at: string;
@@ -83,7 +84,7 @@ async function loadRoomForCode(sql: Sql, rawCode: string): Promise<RoomRow | nul
   const code = rawCode.trim().toUpperCase();
   const [room] = await sql<RoomRow[]>`
     select r.id, r.code, r.host_player_id, r.wordlist_id, wl.code as wordlist,
-           r.target_length, r.mode, r.status, r.next_room_code, r.created_at,
+           r.target_length, r.mode, r.visibility, r.status, r.next_room_code, r.created_at,
            r.target_word, r.scrambled_letters, r.possible_count, r.started_at, r.ends_at,
            r.end_reason, r.bonus_per_member, r.solo_bonus_at, r.solo_ack_at
       from rooms r
@@ -202,6 +203,7 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
     code: room.code,
     status: room.status,
     mode: room.mode,
+    visibility: room.visibility,
     wordlist: room.wordlist,
     target_length: room.target_length,
     is_host: room.host_player_id === callerId,
@@ -244,6 +246,24 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
        where g.room_id = ${room.id} and gg.correct
     `;
     snapshot.room_found_count = found;
+  }
+
+  // Shared co-op rooms (ROADMAP 15.1): everyone sees the words found so far and who found
+  // them. Private rooms and versus never send this — there it would leak (docs/multiplayer.md §1).
+  if (room.mode === "coop" && room.visibility === "shared" && (room.status === "playing" || room.status === "finished")) {
+    const claims = await sql<{ word: string; player_id: string | null; display_name: string | null }[]>`
+      select c.word, g.player_id, p.display_name
+        from room_word_claims c
+        join games g on g.id = c.game_id
+        left join players p on p.id = g.player_id
+       where c.room_id = ${room.id}
+       order by c.created_at
+    `;
+    snapshot.found_words = claims.map((claim) => ({
+      word: claim.word,
+      by: claim.display_name,
+      is_you: claim.player_id === callerId,
+    }));
   }
 
   // The reveal — finished rooms only (D5: nothing stays hidden after the game; D9: nothing
@@ -330,13 +350,14 @@ async function insertLobbyRoom(
   listId: number,
   targetLength: number,
   mode: string,
+  visibility: string,
 ): Promise<{ id: string; code: string } | null> {
   for (let attempt = 0; attempt < CODE_GENERATION_ATTEMPTS; attempt++) {
     const candidate = generateCode();
     try {
       const [inserted] = await sql<{ id: string }[]>`
-        insert into rooms (code, host_player_id, wordlist_id, target_length, mode)
-        values (${candidate}, ${hostId}, ${listId}, ${targetLength}, ${mode})
+        insert into rooms (code, host_player_id, wordlist_id, target_length, mode, visibility)
+        values (${candidate}, ${hostId}, ${listId}, ${targetLength}, ${mode}, ${visibility})
         returning id
       `;
       await sql`insert into room_players (room_id, player_id) values (${inserted.id}, ${hostId})`;
@@ -356,6 +377,7 @@ export async function createRoom(
   rawTargetLength: number,
   playerId: string,
   setCookieHeader: string | undefined,
+  rawVisibility?: unknown,
 ): Promise<Reply> {
   const nameResult = validatePlayerDisplayName(rawDisplayName);
   if ("error" in nameResult) return { status: 422, body: { detail: nameResult.error } };
@@ -364,6 +386,13 @@ export async function createRoom(
   if (mode !== "coop" && mode !== "versus") {
     return { status: 422, body: { detail: "mode must be 'coop' or 'versus'." } };
   }
+  // ROADMAP 15.1: only co-op has the shared/private choice; versus is always private (a
+  // shared list there would show how much of the board the others hold).
+  const requestedVisibility = rawVisibility === undefined ? "private" : rawVisibility;
+  if (requestedVisibility !== "private" && requestedVisibility !== "shared") {
+    return { status: 422, body: { detail: "visibility must be 'private' or 'shared'." } };
+  }
+  const visibility = mode === "coop" ? requestedVisibility : "private";
 
   // ROADMAP Batch 10 item 14 hidden-selector forcing, same pattern as lib/daily.ts's
   // resolveDailyAxes and lib/game.ts's startGame — a hidden control is a fixed axis for
@@ -397,7 +426,7 @@ export async function createRoom(
     on conflict (id) do update set display_name = excluded.display_name
   `;
 
-  const created = await insertLobbyRoom(sql, playerId, listId, targetLength, mode);
+  const created = await insertLobbyRoom(sql, playerId, listId, targetLength, mode, visibility);
   if (!created) {
     return { status: 503, body: { detail: "Could not generate a unique room code, try again." } };
   }
@@ -653,7 +682,9 @@ export async function rematchRoom(code: string, playerId: string | null): Promis
   if (room.status !== "finished") return { status: 409, body: { detail: "room_not_finished" } };
   if (room.next_room_code) return { status: 200, body: { code: room.next_room_code } };
 
-  const created = await insertLobbyRoom(sql, playerId, room.wordlist_id, room.target_length, room.mode);
+  const created = await insertLobbyRoom(
+    sql, playerId, room.wordlist_id, room.target_length, room.mode, room.visibility,
+  );
   if (!created) return { status: 503, body: { detail: "Could not generate a unique room code, try again." } };
   // Guarded so two concurrent rematch clicks can't leave the old room pointing at a
   // different lobby than the one returned: the loser cancels its own spare room and

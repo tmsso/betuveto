@@ -2226,12 +2226,12 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
 
 ## Batch 15 — Room test notes (owner, 2026-10-25)
 
-*From the owner's planned dual-player test. Recorded as stated; nothing built yet. The
+*From the owner's planned dual-player test. Recorded as stated; built in PRs #107 (15.2–15.4, migration 0025) and #108 (15.1). The as-built contract is in docs/multiplayer.md §8. The
 D-15 forks were all decided on 2026-10-25 (see below).
 Related: 11.22 (host hand-off, deferred until a real room session, which this is) and D4
 (host leaving cancels the room) overlap with 15.2 and 15.4; settle them together.*
 
-- `[ ]` **15.1 Co-op visibility option, set by the host at room creation.** Two variants of
+- `[x]` *(PR #108)* **15.1 Co-op visibility option, set by the host at room creation.** Two variants of
   co-op: **shared** (everyone sees the words already found) or **private** (everyone plays
   their own game without seeing others' words; the room still ends once the union of finds
   covers the board, which is today's behaviour). In *both* variants everyone sees every
@@ -2239,15 +2239,15 @@ Related: 11.22 (host hand-off, deferred until a real room session, which this is
   `rooms.visibility`-style column), so it falls under the migration deploy-ordering rule.
   Shared mode deliberately relaxes docs/multiplayer.md §1 ("never which words until the
   game ends"); that doc and D9 must say so.
-- `[ ]` **15.2 In co-op, non-hosts see "Leave game" instead of the settings button.**
+- `[x]` *(PR #107)* **15.2 In co-op, non-hosts see "Leave game" instead of the settings button.**
   Cost to settle first: `SettingsPanel` also holds theme, sound, language, stats and the
   leaderboards, so replacing the button takes those away from joiners for the whole room
   (D-15e).
-- `[ ]` **15.3 "Játékszabály" shows the rules that actually apply to each player.**
+- `[x]` *(PR #107)* **15.3 "Játékszabály" shows the rules that actually apply to each player.**
   `HelpPanel` is static text plus two numbers (min word length, hint cost). It should
   describe the current context: single / daily / co-op shared / co-op private / versus,
   including the shared deadline, the time-bonus split, and what leaving does.
-- `[ ]` **15.4 "Left alone" prompt.** When every other member has left or given up, the
+- `[x]` *(PR #107)* **15.4 "Left alone" prompt.** When every other member has left or given up, the
   remaining player gets a dialog: continue as an individual game, or finish. The timer keeps
   running while it is shown; the player gets +5 s for the interruption.
 - **15.2 and 15.4 are one feature:** a mid-play "Leave game" is what creates "left alone".
@@ -2282,7 +2282,7 @@ Related: 11.22 (host hand-off, deferred until a real room session, which this is
     and leaderboards views stay, since they cannot affect the round.)*
   - **D-15f** The continued solo game stays off the single-player leaderboards. *(default)*
   - **D-15g** "Finish game" = give-up, same as the existing button. *(default)*
-- **Status:** all D-15 forks answered; 15.1–15.4 are unblocked. The owner's feedback-form
+- **Status:** all D-15 forks answered and built. The owner's feedback-form
   check passed on 2026-10-25.
 
 ---
