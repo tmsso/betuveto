@@ -23,7 +23,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, type TestContext } from "vitest";
 import {
   canFormWord,
   durationForLength,
@@ -151,8 +151,21 @@ function loadDictionary(raw: string): { words: string[]; bySignature: Map<string
   return { words, bySignature: bySig };
 }
 
+// The admin can hide the length / wordlist selectors, and the server then forces the default
+// (ROADMAP 13.2). A deployment whose database copies production's config (every PR preview)
+// therefore ignores the `target_length` / `wordlist` these tests send. Probed once in beforeAll.
+const selectors = { length: true, wordlist: true };
+
+/** Skip a test that can only run when the admin has left the given selector visible. */
+function requireSelector(ctx: TestContext, which: keyof typeof selectors): void {
+  if (!selectors[which]) ctx.skip(`the ${which} selector is hidden on this deployment`);
+}
+
 beforeAll(async () => {
   if (!BASE_URL) return;
+  const probe = await call("GET", "/api/words/lengths");
+  selectors.length = probe.json?.ui?.show_length_selector !== false;
+  selectors.wordlist = probe.json?.ui?.show_wordlist_selector !== false;
   const hu = loadDictionary(
     await readFile(path.join(REPO_ROOT, "data", "magyar-szavak.txt"), "utf-8"),
   );
@@ -413,7 +426,8 @@ describeApi("Betűvető API contract", () => {
   });
 
   // --- Input validation & unknown games ------------------------------------
-  it("rejects an out-of-range target length", async () => {
+  it("rejects an out-of-range target length", async (ctx) => {
+    requireSelector(ctx, "length");
     expect((await call("POST", "/api/game/start?target_length=4")).status).toBe(422);
     expect((await call("POST", "/api/game/start?target_length=11")).status).toBe(422);
   });
@@ -449,7 +463,8 @@ describeApi("Betűvető API contract", () => {
   }, 30_000);
 
   // --- Full board clear + completion bonus (ROADMAP 3.2) --------------------
-  it("awards a server-computed time-remaining bonus for fully clearing the board", async () => {
+  it("awards a server-computed time-remaining bonus for fully clearing the board", async (ctx) => {
+    requireSelector(ctx, "length");
     // A length-5 board keeps the guess loop short (median possible_count is 5, see the
     // comment on startUntil), and the default 180s duration leaves plenty of clock left,
     // so the bonus should always land nonzero.
@@ -589,7 +604,8 @@ describeApi("Betűvető API contract", () => {
     for (const word of findableWords) expect(enDictionary).toContain(word);
   });
 
-  it("keeps leaderboards wordlist-scoped: a hu score and an en score for the same player don't cross-contaminate (ROADMAP 6.1)", async () => {
+  it("keeps leaderboards wordlist-scoped: a hu score and an en score for the same player don't cross-contaminate (ROADMAP 6.1)", async (ctx) => {
+    requireSelector(ctx, "wordlist");
     const hu = await completeSmallGame();
     // Reuse the same identity cookie so "your_best" is genuinely testing scoping, not just
     // two different anonymous players.
@@ -627,7 +643,8 @@ describeApi("Betűvető API contract", () => {
     expect(json.available_lengths).toEqual([5, 6, 7, 8, 9, 10]);
   });
 
-  it("scales the timer with target length (ROADMAP 2.3: 120 + 15 * (length - 5))", async () => {
+  it("scales the timer with target length (ROADMAP 2.3: 120 + 15 * (length - 5))", async (ctx) => {
+    requireSelector(ctx, "length");
     const short = await start(5);
     const long = await start(10);
     expect(short.duration_seconds).toBe(durationForLength(5));
@@ -816,7 +833,8 @@ describeApi("Betűvető API contract", () => {
     expect(json.your_best).toBeNull();
   });
 
-  it("a fully-cleared game's score shows up as your_best on /api/v1/scores/top", async () => {
+  it("a fully-cleared game's score shows up as your_best on /api/v1/scores/top", async (ctx) => {
+    requireSelector(ctx, "length");
     // Anchored on your_best rather than top-10 membership: the preview DB is a shared,
     // persistent Neon instance, so a fresh score could rank outside the top 10 (or drop
     // out of it later) without this test being wrong — your_best is this player's alone.
@@ -925,7 +943,8 @@ describeApi("Betűvető API contract", () => {
     ).toBe(true);
   });
 
-  it("finishing a game with a found word unlocks first_word (and full_clear on a real clear)", async () => {
+  it("finishing a game with a found word unlocks first_word (and full_clear on a real clear)", async (ctx) => {
+    requireSelector(ctx, "length");
     // A small board played to the end as one identity. Whether it actually clears depends
     // on the local wordlist file agreeing with the live `words` table (a divergence this
     // repo has hit — PR #27/#47), so the full-clear assertions are gated on the last
