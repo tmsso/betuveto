@@ -31,6 +31,12 @@ export async function allowIdentityMint(req: VercelRequest): Promise<boolean> {
   const secret = process.env.ANON_SESSION_SECRET;
   const address = clientAddress(req);
   if (!secret || !address) return true;
+  // D-14a (ROADMAP Batch 14): a Vercel *preview* runs on a throwaway per-branch database
+  // behind the deployment-protection wall, and the contract suite legitimately mints more
+  // fresh players in one run than the hourly cap allows. Production and local runs are
+  // unaffected. (If a preview ever fell back to the production database, only holders of
+  // the protection-bypass secret could reach it, so the exposure stays small.)
+  if (process.env.VERCEL_ENV === "preview") return true;
 
   const { identity_mints_per_ip_per_hour: cap } = await getConfig();
   if (cap <= 0) return true; // 0 disables the throttle
