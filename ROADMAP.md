@@ -2216,7 +2216,7 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
   **Owner step:** add `https://betuveto.tmsso.com` as a trusted domain in the Neon Auth
   console, then check the admin Magic Link login from the new address.
   **Open:** a vercel.app → new-domain redirect needs an identity-transfer step first.
-- **D-14a (open, owner):** contract-suite runs on per-PR previews hit the identity-mint
+- **D-14a (DECIDED 2026-10-27, owner took the recommendation: relax the cap on previews only; built, `allowIdentityMint` returns early when `VERCEL_ENV=preview`):** contract-suite runs on per-PR previews hit the identity-mint
   throttle (`identity_mints_per_ip_per_hour`, default 30; one full run mints more). Earlier
   sessions set it to 0 on the throwaway branch DB, but the auto-mode classifier now blocks
   that write. Options:
@@ -2225,7 +2225,7 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
   - relax the throttle when `VERCEL_ENV=preview` (a security-behaviour change).
 
   Until decided, preview verification runs targeted test subsets inside the hourly window.
-- **D-14b (open, owner):** CI's `npm test` has no `API_BASE_URL`, so the contract suite
+- **D-14b (DECIDED 2026-10-27, owner took the recommendation: run it against the PR preview; built as the `contract` CI job. Needs the repo secret `VERCEL_AUTOMATION_BYPASS_SECRET`, skips with a notice without it, and skips PRs that add a migration):** CI's `npm test` has no `API_BASE_URL`, so the contract suite
   (and with it 11.19's shape check) only runs when someone points it at a deployment.
   Option: a read-only CI job against production, or one against the PR's preview once it
   is ready. The suite is already production-safe by design.
