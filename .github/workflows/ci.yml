@@ -28,6 +28,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # ROADMAP 16.8: fail on any new high/critical advisory in production dependencies
+      # (known, assessed ones are allow-listed with reasons in the script).
+      - name: Dependency audit
+        run: node scripts/audit-gate.mjs .
+
   frontend:
     name: Frontend (lint + build)
     runs-on: ubuntu-latest
@@ -52,6 +57,9 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      - name: Dependency audit
+        run: node scripts/audit-gate.mjs frontend
 
   e2e:
     # ROADMAP Batch 10 item 5: one smoke test (start game -> guess a word -> see score),
