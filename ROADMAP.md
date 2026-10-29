@@ -2014,7 +2014,7 @@ or an outright bug). Nothing here blocks Batch 7.*
   text/emoji card behind a Share button on the daily panel (Web Share API with clipboard
   fallback). Word-agnostic by construction, so it respects the no-word-history rule, and
   it is the retention loop the daily was built for.
-- **11.21 Corpus-frequency difficulty signal** (already noted in `lib/word-stats.ts`): the
+- `[x]` *(built 2026-10-29, migration 0026; frequency import is an owner-run step)* **11.21 Corpus-frequency difficulty signal** (already noted in `lib/word-stats.ts`): the
   live-play `MIN_ATTEMPTS_FOR_DIFFICULTY` gate is structurally unreachable at this traffic,
   so easy mode and "hardest words" are inert. A word-frequency list (hu: e.g. the
   Hungarian Webcorpus frequency data; en: the `word-list` source has none — use a public

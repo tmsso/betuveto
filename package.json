@@ -12,6 +12,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:import": "tsx scripts/import-wordlist.ts",
     "db:verify": "tsx scripts/verify-db.ts",
+    "db:frequency": "tsx scripts/import-frequency.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

@@ -185,6 +185,7 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
                 <th className="py-2 px-2">{t('common.dict')}</th>
                 <th className="py-2 px-2">{t('dash.successRate')}</th>
                 <th className="py-2 px-2">{t('dash.attempts')}</th>
+                <th className="py-2 px-2" title={t('dash.zipfHint')}>{t('dash.zipf')}</th>
               </tr>
             </thead>
             <tbody>
@@ -194,6 +195,7 @@ export default function AdminDashboardPanel({ authHeaders, onAuthError }) {
                   <td className="py-2 px-2">{w.wordlist}</td>
                   <td className="py-2 px-2">{Math.round(w.success_rate * 100)}%</td>
                   <td className="py-2 px-2">{w.times_solved + w.times_failed}</td>
+                  <td className="py-2 px-2">{w.zipf == null ? '–' : w.zipf.toFixed(1)}</td>
                 </tr>
               ))}
             </tbody>

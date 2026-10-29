@@ -138,10 +138,19 @@ export async function pickPersonalizedWord(
 // most-attempted word sat at 1 attempt the day this shipped. getHardestWords() and
 // pickEasyWord() are therefore both effectively inert right now (empty / always falling
 // back), not merely slow to warm up — this will not visibly self-correct on its own
-// timescale. Revisit before relying on either: lower this threshold (weakens the
-// anti-noise guarantee above), or seed difficulty from a different signal entirely (e.g.
-// word frequency/rarity in the source corpus) rather than waiting on live-play volume.
+// timescale.
+//
+// ROADMAP 11.21 (2026-10-29) answers this with a second signal that works at zero traffic:
+// corpus word frequency (`words.zipf`, migrations/0026). pickEasyWord uses proven live
+// success first, then falls back to common words; the admin hardest-words table shows each
+// word's frequency next to its measured success rate. The attempts threshold itself is
+// unchanged, so the anti-noise guarantee above still holds.
 export const MIN_ATTEMPTS_FOR_DIFFICULTY = 5;
+/** Zipf frequency at or above which a word counts as "everyday" for easy mode (wordfreq's
+ *  scale: about 3.5 = an ordinary word a native speaker meets weekly; 1 = very rare).
+ *  Chosen from the coverage check on 2026-10-29: at 3.5 each target length 5-10 keeps roughly
+ *  700-1,500 Hungarian and 900-2,000 English candidates. */
+export const EASY_MIN_ZIPF = 3.5;
 export const EASY_MODE_SUCCESS_THRESHOLD = 0.6;
 
 export interface WordDifficultyRow {
@@ -150,6 +159,8 @@ export interface WordDifficultyRow {
   times_failed: number;
   times_solved: number;
   success_rate: number;
+  /** Corpus frequency (words.zipf); null when the frequency list does not know the word. */
+  zipf: number | null;
 }
 
 /** Words with the lowest aggregate success rate, across all players, scoped per wordlist
@@ -161,9 +172,11 @@ export async function getHardestWords(limit: number): Promise<WordDifficultyRow[
     select ws.word, wl.code as wordlist,
            sum(ws.times_failed)::int as times_failed,
            sum(ws.times_solved)::int as times_solved,
-           (sum(ws.times_solved)::float / (sum(ws.times_solved) + sum(ws.times_failed))) as success_rate
+           (sum(ws.times_solved)::float / (sum(ws.times_solved) + sum(ws.times_failed))) as success_rate,
+           min(w.zipf)::float as zipf
       from word_stats ws
       join wordlists wl on wl.id = ws.wordlist_id
+      left join words w on w.wordlist_id = ws.wordlist_id and w.word = ws.word
      group by ws.wordlist_id, ws.word, wl.code
     having sum(ws.times_solved) + sum(ws.times_failed) >= ${MIN_ATTEMPTS_FOR_DIFFICULTY}
      order by success_rate asc, times_failed desc, ws.word
@@ -171,33 +184,37 @@ export async function getHardestWords(limit: number): Promise<WordDifficultyRow[
   `;
 }
 
-/** Picks an active word of the given wordlist+length with a proven high success rate
- *  across every player's past games as its target — the "easy mode" word-selection bias —
- *  excluding this player's own words currently in mastery cooldown (see
- *  pickPersonalizedWord above; "shouldn't come up again for ~100 turns" is a global rule,
- *  not specific to the default/non-easy path). Returns null when nothing yet qualifies;
- *  callers fall back to pickPersonalizedWord. As of 2026-07-30, per MIN_ATTEMPTS_FOR_
- *  DIFFICULTY's own comment above, this is the effectively-always-null branch at this
- *  project's traffic — correct to keep, but not worth further query optimisation here;
- *  pickPersonalizedWord is the one that actually runs on every game start. */
+/** Picks an active word of the given wordlist+length as an "easy mode" target, excluding this
+ *  player's own words currently in mastery cooldown (see pickPersonalizedWord above;
+ *  "shouldn't come up again for ~100 turns" is a global rule, not specific to the
+ *  default/non-easy path). Two signals, strongest first:
+ *   1. a proven high success rate across every player's past games (needs
+ *      MIN_ATTEMPTS_FOR_DIFFICULTY attempts, which this project's traffic rarely reaches);
+ *   2. an everyday word by corpus frequency (words.zipf >= EASY_MIN_ZIPF, ROADMAP 11.21),
+ *      which works from day one.
+ *  Returns null only when neither yields a word (e.g. frequencies not imported yet); callers
+ *  then fall back to pickPersonalizedWord. */
 export async function pickEasyWord(
   sql: Sql,
   wordlistId: number,
   length: number,
   playerId: string,
 ): Promise<string | null> {
-  const [row] = await sql<{ word: string }[]>`
+  const notInCooldown = sql`
+    w.word not in (
+      select word from word_stats
+       where player_id = ${playerId} and wordlist_id = ${wordlistId}
+         and mastered_at_game_number is not null
+         and (select count(*)::int from games where player_id = ${playerId}) - mastered_at_game_number
+               < ${MASTERY_COOLDOWN_GAMES}
+    )
+  `;
+  const [proven] = await sql<{ word: string }[]>`
     select w.word
       from words w
       join word_stats ws on ws.wordlist_id = w.wordlist_id and ws.word = w.word
      where w.wordlist_id = ${wordlistId} and w.length = ${length} and w.active
-       and w.word not in (
-         select word from word_stats
-          where player_id = ${playerId} and wordlist_id = ${wordlistId}
-            and mastered_at_game_number is not null
-            and (select count(*)::int from games where player_id = ${playerId}) - mastered_at_game_number
-                  < ${MASTERY_COOLDOWN_GAMES}
-       )
+       and ${notInCooldown}
      group by w.word
     having sum(ws.times_solved) + sum(ws.times_failed) >= ${MIN_ATTEMPTS_FOR_DIFFICULTY}
        and sum(ws.times_solved)::float / (sum(ws.times_solved) + sum(ws.times_failed))
@@ -205,7 +222,18 @@ export async function pickEasyWord(
      order by random()
      limit 1
   `;
-  return row?.word ?? null;
+  if (proven) return proven.word;
+
+  const [common] = await sql<{ word: string }[]>`
+    select w.word
+      from words w
+     where w.wordlist_id = ${wordlistId} and w.length = ${length} and w.active
+       and w.zipf >= ${EASY_MIN_ZIPF}
+       and ${notInCooldown}
+     order by random()
+     limit 1
+  `;
+  return common?.word ?? null;
 }
 
 interface StatsRow {

@@ -56,3 +56,26 @@ request time.
   from the project's MIT code licence.
 - **Use:** never read at request time. `npx tsx scripts/build-name-blocklist.ts` compiles
   them into `lib/name-blocklist.generated.ts`; the match rules live in `lib/name-filter.ts`.
+
+## `frequency-hu.tsv`, `frequency-en.tsv` (word frequency for easy mode)
+
+- **What:** one `word<TAB>zipf` line per word that `wordfreq` knows (16,259 of the Hungarian
+  list, 102,229 of the English one). Zipf is `wordfreq`'s log scale: about 1 is very rare, 3.5 an
+  everyday word, 7 the most common. Words missing from a file are simply unranked (most
+  inflected Hungarian forms), which the game treats as "rare".
+- **Source:** [`wordfreq`](https://github.com/rspeer/wordfreq) 3.1.1 by Robyn Speer
+  (code Apache-2.0), queried with `scripts/build-frequency.py` (`zipf_frequency` for `hu`, the
+  "small" list, and `en`). Citation: Robyn Speer. (2022). *rspeer/wordfreq: v3.0 (v3.0.2)*.
+  Zenodo. https://doi.org/10.5281/zenodo.7199437
+- **Licence:** `wordfreq`'s data files are distributed under
+  [Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+  (CC BY-SA 4.0). The two TSV files are derived from that data and **keep CC BY-SA 4.0**,
+  separate from the project's MIT code licence (accepted by the owner, 2026-10-29). The
+  upstream data in turn draws on the Leeds Internet Corpus, Wikipedia, ParaCrawl, OPUS
+  OpenSubtitles 2018 (credit: OpenSubtitles), SUBTLEX word lists (Marc Brysbaert et al.) and
+  Google Books Ngrams, as listed in `wordfreq`'s own README.
+- **Use:** never read at request time. `npm run db:frequency -- --code hu|en` writes the values
+  into `words.zipf` (migration 0026); easy mode and the admin hardest-words table read that column.
+- **Coverage (checked 2026-10-29):** about 13% of the Hungarian list and 41% of the English list
+  is ranked overall, but that includes the words that matter: at Zipf >= 3.5 there are
+  roughly 700-1,500 Hungarian and 900-2,000 English candidates per target length 5-10.
