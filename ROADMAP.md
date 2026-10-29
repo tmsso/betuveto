@@ -2360,7 +2360,9 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   allow-list: the SDK upgrade to 0.6/0.7 beta was **not** done, because both still pull
   better-auth 1.7.6 (fixes 1 of 12 findings) and previews can't test the admin login; the
   remaining high/critical advisories are better-auth server-side flaws (Neon hosts that server)
-  and zod (not in the bundle). Sentry: no replay, no `sendDefaultPii`. `main` branch protection
+  and zod (admin chunk only, validates Neon Auth responses). Live Report-Only sweep found one
+  violation: zod's `new Function("")` feature probe on `/admin`; zod catches it and falls back, so
+  enforcing is safe (one console line remains). CI's E2E can't see it (no auth URL in CI builds). Sentry: no replay, no `sendDefaultPii`. `main` branch protection
   on (required CI checks, no reviews, admins exempt). Still open: IP/2FA posture for `/admin`;
   check what the Vercel→Sentry log drain forwards (IP addresses?).
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
