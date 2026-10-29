@@ -307,3 +307,20 @@ for (const path of ['/privacy', '/terms', '/admin']) {
     await page.waitForLoadState('networkidle')
   })
 }
+
+// ROADMAP 16.1 — the terms page is its own route, linked from Settings next to Privacy, and
+// the two static pages link to each other. Read-only: nothing is written.
+test('terms of use is reachable from settings and links back to privacy', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Beállítások' }).click()
+  const settings = page.getByRole('dialog', { name: 'Beállítások' })
+  await settings.getByRole('link', { name: 'Felhasználási feltételek' }).click()
+
+  await expect(page).toHaveURL(/\/terms$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Felhasználási feltételek' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tisztességes játék' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Adatvédelem' }).click()
+  await expect(page).toHaveURL(/\/privacy$/)
+  await expect(page.getByRole('link', { name: 'Felhasználási feltételek' })).toBeVisible()
+})

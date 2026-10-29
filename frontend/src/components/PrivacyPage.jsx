@@ -83,6 +83,10 @@ export default function PrivacyPage() {
             </>
           )}
         </section>
+
+        <a href="/terms" className="mt-8 inline-block text-sm text-game-secondary hover:underline">
+          {t('terms.title')}
+        </a>
       </div>
     </div>
   )

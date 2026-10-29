@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import ReportNameButton from './ReportNameButton.jsx'
 import { buildDailyShareText, shareDailyResult } from './dailyShare'
 
 /**
@@ -107,6 +108,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
                 <li key={index} className="flex items-baseline gap-2">
                   <span className="text-game-muted tabular-nums w-5 text-right">{index + 1}.</span>
                   <span className="flex-1 truncate">{entry.display_name ?? t('highScores.anonymous')}</span>
+                  <ReportNameButton name={entry.display_name} place="daily" />
                   <span aria-hidden="true">{entry.completed ? '✅' : '⏳'}</span>
                   <span className="tabular-nums font-semibold">{entry.final_score}</span>
                 </li>

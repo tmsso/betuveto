@@ -35,6 +35,13 @@ export default defineConfig({
         globIgnores: ['**/AdminApp-*.js'],
       },
       manifest: {
+        // ROADMAP 16.3/16.4: an explicit id pins the app's identity for installers and the
+        // Play (TWA) package. '/' is exactly what browsers derived from start_url before,
+        // so existing home-screen installs keep matching instead of being orphaned.
+        id: '/',
+        start_url: '/',
+        scope: '/',
+        categories: ['games', 'education'],
         name: 'Betűvető',
         short_name: 'Betűvető',
         description: 'Magyar szójáték — rakj ki minél több szót a betűkből!',

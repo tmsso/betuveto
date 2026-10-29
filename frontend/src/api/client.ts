@@ -562,6 +562,22 @@ class BetuAPIClient {
     return response.json();
   }
 
+  /** ROADMAP 16.2 — report a display name seen on a leaderboard or in a room. Throws with
+   *  `.status` (404 unknown name, 429 daily cap shared with feedback). */
+  async reportName(name: string, place: 'leaderboard' | 'daily' | 'room', pageUrl: string, uiLanguage?: string): Promise<{ sent: boolean }> {
+    const response = await fetch('/api/v1/report-name', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, place, page_url: pageUrl, ui_language: uiLanguage }),
+    });
+    if (!response.ok) {
+      throw Object.assign(new Error(`Failed to report name (${response.status})`), {
+        status: response.status,
+      });
+    }
+    return response.json();
+  }
+
   async suggestWord(word: string): Promise<{ suggested: boolean; already_present: boolean }> {
     const response = await fetch('/api/v1/words/suggest', {
       method: 'POST',

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import ReportNameButton from './ReportNameButton.jsx'
 
 /** The shareable invite link for a room (the `?room=CODE` deep link, ROADMAP 7.2.5). */
 function roomLink(code) {
@@ -71,6 +72,7 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
             <span className="font-semibold truncate">{m.display_name ?? t('highScores.anonymous')}</span>
             {m.is_host && <span title={t('room.host')} aria-label={t('room.host')}>👑</span>}
             {m.is_you && <span className="text-xs text-game-muted">({t('room.you')})</span>}
+            {!m.is_you && <span className="ml-auto"><ReportNameButton name={m.display_name} place="room" /></span>}
           </li>
         ))}
       </ul>
