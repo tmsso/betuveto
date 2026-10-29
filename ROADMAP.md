@@ -2311,23 +2311,39 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
 (`betuveto.tmsso.com`) and the in-app account deletion + privacy page already exist. Items marked
 **owner** need the owner's accounts or judgement; the rest are Claude-buildable.*
 
-- `[ ]` **16.1 Terms of use page** (`/terms`, hu + en, linked next to the privacy link). Stores
-  often expect one; the wording needs the owner's sign-off. Small.
+- `[x]` **16.1 Terms of use page** (`/terms`, hu + en, linked next to the privacy link). Stores
+  often expect one; the wording needs the owner's sign-off. Small. **Built 2026-10-29 (PR #116):**
+  static route like /privacy, names no person ("the project"/"the operator"), contact = in-app
+  feedback. *Wording still awaits the owner's sign-off.*
 - `[ ]` **16.2 Player-facing "report this name"** for display names shown on leaderboards and in
   rooms. The profanity filter is in (Batch 13/14 name filter); stores want a report path for
   user-generated content too. Reuse the existing report queue + admin triage. Small–medium.
-- `[ ]` **16.3 Lighthouse PWA audit** (9.1's pending half), by hand against betuveto.tmsso.com, then
-  fix what it flags. Needs a real browser.
+  **Built 2026-10-29 (PR #117):** a ⚑ next to named entries on the all-time and daily leaderboards
+  and in the room lobby → `POST /api/v1/report-name`. Stored as a feedback row
+  (`[name report] "<name>" (<place>)`), no migration; the admin resolves it in Feedback and renames
+  in Players. Shares feedback's 5/day cap. Verified on the preview with two players.
+- `[~]` **16.3 Lighthouse PWA audit** (9.1's pending half), by hand against betuveto.tmsso.com, then
+  fix what it flags. Needs a real browser. **2026-10-29:** Lighthouse 12 has no PWA category any
+  more; Chromium's own installability check (`Page.getInstallabilityErrors`) on the live site
+  reports no errors, a valid manifest and an active service worker. Lighthouse mobile: performance
+  92, accessibility 95, best practices 100, SEO 100. Manifest now has an explicit `id: '/'`
+  (PR #118). Only finding: white button text on the accent blue is 3.15:1; PR #121 darkens it to
+  #2272b8 (5.0:1), **awaiting the owner's OK** (visible colour change). Dark-mode buttons
+  (~2.5:1) need their own token, not done.
 - `[ ]` **16.4 Bubblewrap project, signed AAB, TWA scope.** Scope `/` with `/admin` excluded.
   Use Play App Signing; the upload key goes in the password manager (the lost backup key is the
   cautionary tale). *(owner: Play developer account, one-time $25.)*
 - `[ ]` **16.5 `/.well-known/assetlinks.json`** on the domain (Digital Asset Links), using the
   SHA-256 fingerprint of the Play App Signing key, so it can only be finished after 16.4 has
   produced a Play Console app. Needs a `vercel.json` header/route check so the file is served
-  as JSON without a redirect.
+  as JSON without a redirect. **Plumbing done 2026-10-29 (PR #118):** the file is served as `[]`
+  with `application/json`, 200 and no redirect (checked with curl on the preview); the real
+  statement waits for the signing fingerprint. Steps in `docs/play-store.md`.
 - `[ ]` **16.6 Play Console paperwork** *(owner, Claude drafts text from the privacy page)*:
   Data safety form, IARC content rating questionnaire, store listing (hu + en descriptions,
-  screenshots, icon).
+  screenshots, icon). **Drafts in `docs/play-store.md` (2026-10-29),** derived from the schema,
+  not only the privacy page. Play requires a public developer email on the listing (Help
+  10840893): the owner needs a dedicated address, kept only in Play Console.
 - `[ ]` **16.7 Closed test: >= 12 opted-in testers for 14 consecutive days** before production
   access (new personal accounts since 2023-11-13; Play Console Help 14151465, verified
   2026-10-02, re-check at the time). A TWA shares Chrome's cookies, so existing testers keep their
@@ -2337,7 +2353,19 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   secret if not yet confirmed; `@neondatabase/auth` is still beta (11.15); confirm Sentry
   scrubs PII and has no session replay; consider an IP/2FA posture for `/admin`; `npm audit`
   in CI. Done already: rate limits, security headers, encrypted backups with a restorable
-  key, Neon production password rotated (2026-10-26).
+  key, Neon production password rotated (2026-10-26). **2026-10-29:** CSP `script-src 'self';
+  object-src 'none'; base-uri 'self'` shipped as **Report-Only** (PR #119; inline theme script
+  moved to `/theme-init.js`; E2E fails on any violation); flip to enforcing after the owner's
+  clean-console day incl. the admin Magic Link login. `npm audit` gate in CI (PR #120) with an
+  allow-list: the SDK upgrade to 0.6/0.7 beta was **not** done, because both still pull
+  better-auth 1.7.6 (fixes 1 of 12 findings) and previews can't test the admin login; the
+  remaining high/critical advisories are better-auth server-side flaws (Neon hosts that server)
+  and zod (admin chunk only, validates Neon Auth responses). Live Report-Only sweep found one
+  violation: zod's `new Function("")` feature probe on `/admin`; zod catches it and falls back, so
+  enforcing is safe (one console line remains). CI's E2E can't see it (no auth URL in CI builds). Sentry: no replay, no `sendDefaultPii`. `main` branch protection
+  on (required CI checks, no reviews, admins exempt). No Vercel log drains exist (checked); the
+  privacy page now names Sentry and lists rooms, reports and suggestions. Still open: IP/2FA
+  posture for `/admin`; Sentry's "prevent storing IP addresses" setting (owner).
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be

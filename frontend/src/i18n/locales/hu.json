@@ -200,15 +200,15 @@
     "sections": {
       "stored": {
         "heading": "Mit tárolunk",
-        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha visszajelzést küldesz (a súgóból vagy a Beállításokból), az üzenetedet az oldal címével, a böngésződ azonosító szövegével és a felület nyelvével együtt tároljuk, hogy az üzemeltető elolvashassa. Ha törlöd az adataidat (lásd lent), a visszajelzéseid is törlődnek."
+        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a szobákat, amelyekhez csatlakoztál, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha szót jelentesz vagy javasolsz, visszajelzést küldesz (a súgóból vagy a Beállításokból), vagy egy játékos nevét jelented, azt is tároljuk; a visszajelzések és a névjelentések mellé az oldal címét, a böngésződ azonosító szövegét és a felület nyelvét is elmentjük, hogy az üzemeltető elolvashassa őket. Ha törlöd az adataidat (lásd lent), ezek is törlődnek."
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
-        "body": "Nincs fiók, jelszó vagy e-mail-cím: a játék ilyet nem is kér. Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Hibadiagnosztikai adatokat csak akkor gyűjtünk, ha az üzemeltető ezt bekapcsolta, és ezek soha nem tartalmazzák a tippjeidet vagy a pontszámaidat."
+        "body": "Nincs fiók, jelszó vagy e-mail-cím: a játék ilyet nem is kér. Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Ha valami hiba történik, technikai részleteket (böngésző, oldalcím, hibaüzenet) tartalmazó hibajelentés kerül a hibakövető szolgáltatásunkhoz; ez soha nem tartalmazza a tippjeidet vagy a pontszámaidat."
       },
       "hosting": {
         "heading": "Hol tároljuk",
-        "body": "A játék a Vercel platformon fut, az adatokat pedig egy EU-ban üzemeltetett Neon PostgreSQL-adatbázis tárolja. Mindkét szolgáltató adatfeldolgozóként jár el."
+        "body": "A játék a Vercel platformon fut, az adatokat pedig egy EU-ban üzemeltetett Neon PostgreSQL-adatbázis tárolja. A hibajelentések a Sentryhez kerülnek. Mindhárom szolgáltató adatfeldolgozóként jár el."
       },
       "retention": {
         "heading": "Megőrzés",
@@ -262,7 +262,7 @@
       },
       "contact": {
         "heading": "Kapcsolat",
-        "body": "Kérdésed vagy problémád van, vagy jelentenél egy nevet? Használd a visszajelzési űrlapot a súgóban vagy a Beállításokban."
+        "body": "Kérdésed vagy problémád van? Használd a visszajelzési űrlapot a súgóban vagy a Beállításokban. Egy játékos nevét a ranglistán vagy a szobában a neve melletti ⚑ jellel jelentheted."
       }
     }
   },

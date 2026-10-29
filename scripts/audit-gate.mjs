@@ -22,14 +22,16 @@ const ALLOWED_BY_DIR = {
     // better-auth server-side flaws. This app only uses the browser client
     // (createAuthClient in frontend/src/neonAuth.js); the auth server is Neon's hosted
     // service. Verified 2026-10-29 that none of the server plugins/adapters (OAuth proxy,
-    // drizzle/kysely adapters) appear in the built bundle.
+    // drizzle/kysely adapters) appear in the built bundle (their names and routes are absent).
     "GHSA-965c-763c-88jm": "better-auth server: OAuth state reusable as a magic link (Neon-hosted server)",
     "GHSA-r4xp-prcw-77qf": "better-auth server: OAuth Proxy plugin (not used; Neon-hosted server)",
     "GHSA-q84f-53jg-9ppm": "better-auth server: device-login approval UI (not used)",
-    // zod: memory exhaustion validating oversized collections. Pulled in by the better-auth
-    // packages; no zod runtime (ZodError, invalid_type) is in the built bundle (checked
-    // 2026-10-29), so the browser never runs it.
-    "GHSA-mrhx-c7xc-m3w5": "zod via better-auth: not in the browser bundle",
+    // zod: memory exhaustion validating oversized constrained collections. zod IS in the
+    // admin chunk (pulled in by the better-auth client; an earlier note here said it wasn't,
+    // which was wrong: the grep markers were minified away). It only validates the Neon Auth
+    // server's own responses on /admin, never player input, so no attacker-sized input
+    // reaches it. Not in the player bundle.
+    "GHSA-mrhx-c7xc-m3w5": "zod via better-auth client: admin-only, validates Neon Auth responses only",
   },
 };
 
@@ -42,7 +44,19 @@ try {
   // npm audit exits non-zero whenever it finds anything; the JSON is still on stdout.
   report = error.stdout;
 }
-const { vulnerabilities = {} } = JSON.parse(report);
+// Fail closed: a registry or network error must not read as "no advisories".
+let parsed;
+try {
+  parsed = JSON.parse(report);
+} catch {
+  console.error(`npm audit did not return JSON (${dir}); cannot judge advisories.`);
+  process.exit(1);
+}
+if (parsed.error || !parsed.vulnerabilities) {
+  console.error(`npm audit failed (${dir}): ${parsed.error?.summary || parsed.error?.code || "no vulnerabilities report"}`);
+  process.exit(1);
+}
+const { vulnerabilities } = parsed;
 
 const found = new Map(); // advisory id -> "severity package: title"
 for (const vuln of Object.values(vulnerabilities)) {

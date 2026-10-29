@@ -200,15 +200,15 @@
     "sections": {
       "stored": {
         "heading": "What we store",
-        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players). To limit automated abuse, when a new player ID is created the game keeps a keyed hash of your IP address (never the address itself) for 24 hours. If you send feedback (from the help screen or Settings), your message is stored with the page address, your browser's user-agent string and the interface language, so the operator can read it. Deleting your data (see below) deletes your feedback too."
+        "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, the rooms you joined, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players). To limit automated abuse, when a new player ID is created the game keeps a keyed hash of your IP address (never the address itself) for 24 hours. If you report a word, suggest a word, send feedback (from the help screen or Settings) or report a player's name, that report or message is stored; feedback and name reports also keep the page address, your browser's user-agent string and the interface language, so the operator can read them. Deleting your data (see below) deletes all of these too."
       },
       "notStored": {
         "heading": "What we don't store",
-        "body": "No account, no password, no email (the game never asks for one). No advertising, and no third-party analytics or tracking. Error diagnostics are collected only if the operator has enabled them, and never include your guesses or scores."
+        "body": "No account, no password, no email (the game never asks for one). No advertising, and no third-party analytics or tracking. When something goes wrong, an error report with technical details (browser, page address, error message) is sent to our error-tracking service; it never includes your guesses or scores."
       },
       "hosting": {
         "heading": "Where it's stored",
-        "body": "The game runs on Vercel and stores data in a Neon PostgreSQL database hosted in the EU. Both act as data processors."
+        "body": "The game runs on Vercel and stores data in a Neon PostgreSQL database hosted in the EU. Error reports go to Sentry. All three act as data processors."
       },
       "retention": {
         "heading": "Retention",
@@ -262,7 +262,7 @@
       },
       "contact": {
         "heading": "Contact",
-        "body": "A question, a problem, or a name to report? Use the feedback form in the help screen or in Settings."
+        "body": "A question or a problem? Use the feedback form in the help screen or in Settings. To report a player's name, use the ⚑ next to it on the leaderboard or in the room."
       }
     }
   },
