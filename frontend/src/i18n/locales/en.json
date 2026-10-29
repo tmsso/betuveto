@@ -220,6 +220,46 @@
       "error": "Something went wrong. Please try again."
     }
   },
+  "terms": {
+    "title": "Terms of use",
+    "updated": "Last updated: October 2026",
+    "back": "← Back to the game",
+    "intro": "Betűvető is a free word game you can play without signing up. By playing it you agree to these terms. They are meant to be short and readable; the Privacy page explains what data the game stores.",
+    "sections": {
+      "service": {
+        "heading": "The game",
+        "body": "Betűvető is a non-commercial hobby project, free of charge and without advertising. It is provided as is: it may have bugs, be unavailable at times, change, or be discontinued. Scores, streaks, statistics and achievements may occasionally be corrected or reset, for example after a bug fix."
+      },
+      "fairPlay": {
+        "heading": "Fair play",
+        "body": "Play by hand. Don't use bots, scripts or other automated tools to play, solve puzzles or climb the leaderboards; don't try to get around rate limits or other protections; and don't deliberately exploit bugs — report them instead. Results that break these rules may be removed."
+      },
+      "names": {
+        "heading": "Display names and rooms",
+        "body": "Other players see your display name on leaderboards and in rooms. Don't pick a name that is offensive, hateful or sexual, that impersonates someone else, or that contains personal information such as a phone number or an address. The operator may rename or hide a name, or remove a player from the leaderboards, without notice."
+      },
+      "content": {
+        "heading": "What you send us",
+        "body": "When you send feedback, report a word or suggest a word, you allow the project to use it to improve the game. Please don't include personal information about yourself or anyone else."
+      },
+      "words": {
+        "heading": "Words",
+        "body": "The word lists come from open-source dictionaries and may contain mistakes, or words some people find offensive. A word appearing in the game is not an endorsement. If you find one that shouldn't be there, report it from the found-words list."
+      },
+      "liability": {
+        "heading": "Liability",
+        "body": "The game comes without any warranty. To the extent the law allows, the project is not liable for any loss arising from using the game, including lost scores or streaks. Nothing here limits the rights you have under the law of your country."
+      },
+      "changes": {
+        "heading": "Changes",
+        "body": "These terms may be updated; the date at the top shows the current version. If you keep playing after an update, the new terms apply."
+      },
+      "contact": {
+        "heading": "Contact",
+        "body": "A question, a problem, or a name to report? Use the feedback form in the help screen or in Settings."
+      }
+    }
+  },
   "foundWords": {
     "header": "Words found:",
     "points": "{{points}} pts",

@@ -220,6 +220,46 @@
       "error": "Valami hiba történt. Próbáld újra."
     }
   },
+  "terms": {
+    "title": "Felhasználási feltételek",
+    "updated": "Utolsó frissítés: 2026. október",
+    "back": "← Vissza a játékhoz",
+    "intro": "A Betűvető ingyenes szójáték, amely regisztráció nélkül játszható. A játékkal elfogadod ezeket a feltételeket. Igyekeztünk röviden és érthetően fogalmazni; hogy a játék milyen adatokat tárol, azt az Adatvédelem oldal írja le.",
+    "sections": {
+      "service": {
+        "heading": "A játék",
+        "body": "A Betűvető nem üzleti célú hobbiprojekt, ingyenes és hirdetésmentes. A játékot „ahogy van” alapon kínáljuk: előfordulhatnak benne hibák, időnként elérhetetlen lehet, változhat, vagy akár meg is szűnhet. A pontszámokat, sorozatokat, statisztikákat és kitüntetéseket alkalmanként javíthatjuk vagy nullázhatjuk, például egy hibajavítás után."
+      },
+      "fairPlay": {
+        "heading": "Tisztességes játék",
+        "body": "Saját kezűleg játssz. Ne használj robotot, szkriptet vagy más automatizált eszközt a játékhoz, a feladványok megfejtéséhez vagy a ranglistákon való előrejutáshoz; ne próbáld megkerülni a korlátozásokat és egyéb védelmeket; és ne használd ki szándékosan a hibákat, inkább jelezd őket. A szabályokat sértő eredményeket eltávolíthatjuk."
+      },
+      "names": {
+        "heading": "Megjelenítendő nevek és szobák",
+        "body": "A megjelenítendő nevedet a többi játékos is látja a ranglistákon és a szobákban. Ne válassz sértő, gyűlöletkeltő vagy szexuális tartalmú nevet, ne adj ki magad másnak, és ne írj bele személyes adatot, például telefonszámot vagy címet. Az üzemeltető előzetes értesítés nélkül átnevezhet vagy elrejthet egy nevet, illetve eltávolíthat egy játékost a ranglistákról."
+      },
+      "content": {
+        "heading": "Amit nekünk küldesz",
+        "body": "Ha visszajelzést küldesz, szót jelentesz vagy szót javasolsz, hozzájárulsz, hogy a projekt ezt a játék fejlesztésére felhasználja. Kérjük, ne írj bele magadról vagy másokról személyes adatot."
+      },
+      "words": {
+        "heading": "Szavak",
+        "body": "A szólisták nyílt forrású szótárakból származnak, és tartalmazhatnak hibákat vagy olyan szavakat, amelyeket egyesek sértőnek tartanak. Attól, hogy egy szó szerepel a játékban, még nem értünk vele egyet. Ha olyat találsz, aminek nem kellene ott lennie, jelentsd a talált szavak listájából."
+      },
+      "liability": {
+        "heading": "Felelősség",
+        "body": "A játékot mindenféle garancia nélkül nyújtjuk. A jogszabályok által megengedett mértékben a projekt nem felel a játék használatából eredő semmilyen veszteségért, ideértve az elveszett pontszámokat vagy sorozatokat is. Ezek a feltételek nem korlátozzák az országod jogszabályai szerint téged megillető jogokat."
+      },
+      "changes": {
+        "heading": "Változások",
+        "body": "Ezeket a feltételeket frissíthetjük; a lap tetején lévő dátum mutatja az érvényes változatot. Ha egy frissítés után tovább játszol, az új feltételek érvényesek."
+      },
+      "contact": {
+        "heading": "Kapcsolat",
+        "body": "Kérdésed vagy problémád van, vagy jelentenél egy nevet? Használd a visszajelzési űrlapot a súgóban vagy a Beállításokban."
+      }
+    }
+  },
   "foundWords": {
     "header": "Talált szavak:",
     "points": "{{points}} pont",
