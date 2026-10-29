@@ -512,12 +512,28 @@ export async function leaveRoom(code: string, playerId: string | null): Promise<
     return { status: 200, body: { ok: true } };
   }
   if (room.status === "lobby") {
-    if (room.host_player_id === playerId) {
-      // D4: the host leaving cancels the room (v1: no hand-off).
-      await sql`update rooms set status = 'cancelled' where id = ${room.id} and status = 'lobby'`;
-    } else {
-      await sql`delete from room_players where room_id = ${room.id} and player_id = ${playerId}`;
-    }
+    // ROADMAP 11.22 (supersedes D4): a leaving host hands the room to whoever has waited
+    // longest; the room is cancelled only when nobody is left. Everything runs in one
+    // transaction under a row lock on `rooms`, so a host and the next-in-line leaving at the
+    // same moment serialise instead of both reading a stale "who is host" and stranding the
+    // room with a host who has already left.
+    await sql.begin(async (tx) => {
+      const [current] = await tx<{ host_player_id: string | null; status: string }[]>`
+        select host_player_id, status from rooms where id = ${room.id} for update
+      `;
+      if (!current || current.status !== "lobby") return;
+      await tx`delete from room_players where room_id = ${room.id} and player_id = ${playerId}`;
+      if (current.host_player_id !== playerId) return;
+      const [successor] = await tx<{ player_id: string }[]>`
+        select player_id from room_players where room_id = ${room.id}
+         order by joined_at, player_id limit 1
+      `;
+      if (successor) {
+        await tx`update rooms set host_player_id = ${successor.player_id} where id = ${room.id}`;
+      } else {
+        await tx`update rooms set status = 'cancelled' where id = ${room.id}`;
+      }
+    });
   }
 
   return { status: 200, body: { ok: true } };
@@ -668,8 +684,9 @@ export async function startRoom(
 }
 
 /**
- * POST /rooms/{code}/rematch — host only, finished rooms only (ROADMAP 7.2.6's backend).
- * A new lobby with the same settings and mode, the host already in it; the old room's
+ * POST /rooms/{code}/rematch — any member, finished rooms only (ROADMAP 7.2.6's backend; open
+ * to every member since 11.22, so a host who has left cannot strand the group). A new lobby
+ * with the same settings and mode, the caller already in it as its host; the old room's
  * `next_room_code` points at it, so every other member sees "join the rematch" on their
  * next poll and joins with one tap. Idempotent: asking again returns the same new room.
  */
@@ -678,7 +695,10 @@ export async function rematchRoom(code: string, playerId: string | null): Promis
   const sql = db();
   const room = await loadRoomForCode(sql, code);
   if (!room) return { status: 404, body: { detail: "Unknown room." } };
-  if (room.host_player_id !== playerId) return { status: 403, body: { detail: "not_host" } };
+  const [member] = await sql<{ player_id: string }[]>`
+    select player_id from room_players where room_id = ${room.id} and player_id = ${playerId}
+  `;
+  if (!member) return { status: 404, body: { detail: "Unknown room." } };
   if (room.status !== "finished") return { status: 409, body: { detail: "room_not_finished" } };
   if (room.next_room_code) return { status: 200, body: { code: room.next_room_code } };
 

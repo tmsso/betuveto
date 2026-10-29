@@ -489,9 +489,11 @@ function App() {
   // ROADMAP 15.2 / D-15e: while the player is in a room's lobby or round (or the snapshot is
   // still loading after a reload), the settings drawer shrinks to what cannot stop the game.
   const roomActive = Boolean(rooms.code) && (!room || ['lobby', 'playing'].includes(room.status))
-  // Non-hosts get a "Leave game" button. The host keeps give-up (in a round) and "close
-  // room" (in the lobby), which already do what leaving would.
-  const showLeaveGame = Boolean(room && !room.is_host && ['lobby', 'playing'].includes(room.status))
+  // "Leave game" for everyone mid-round and for joiners in the lobby (ROADMAP 11.22: a
+  // leaving host hands the room on). The lobby has its own leave link for the host.
+  const showLeaveGame = Boolean(
+    room && ['lobby', 'playing'].includes(room.status) && (!room.is_host || room.status === 'playing'),
+  )
   const handleLeaveGameClick = useCallback(() => {
     if (room?.status !== 'playing') {
       rooms.leave()

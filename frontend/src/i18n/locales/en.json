@@ -290,7 +290,7 @@
       "roomCoopShared": "🤝 Together, words visible: everyone sees the words found so far, and a word only scores for whoever found it first — no need to type one that is already found. Everyone sees the points and how many words are left. If you find every word between you, the game ends and you split the time bonus equally.",
       "roomVersus": "⚔️ Against each other: the player with the most points wins. You see the others' points and milestones, not their words. There is no shared time bonus.",
       "leave": "🚪 \"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption.",
-      "leaveHost": "🏳️ Giving up ends your own game while the others play on. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption."
+      "leaveHost": "🚪 \"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If the host leaves in the lobby, the player who joined first takes over. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption."
     }
   },
   "feedback": {
@@ -342,6 +342,7 @@
     "waitingForHost": "Waiting for the host to start…",
     "leave": "Leave room",
     "closeRoom": "Close room",
+    "nowHost": "The host left, you are now the host.",
     "invited": "You're invited to room {{code}}",
     "notNow": "Not now",
     "cancelled": "This room was closed.",
@@ -370,7 +371,6 @@
     "nobodyFound": "Words nobody found ({{count}})",
     "rematch": "Rematch",
     "joinRematch": "Join the rematch",
-    "waitingForRematch": "Waiting for the host to start a rematch…",
     "boardBadge": "Room {{code}}",
     "badges": {
       "full_word": "Found the full word",

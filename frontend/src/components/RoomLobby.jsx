@@ -16,6 +16,16 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
   const [copied, setCopied] = useState(false)
   const canStart = room.is_host && room.member_count >= 2
 
+  // ROADMAP 11.22: when the host leaves, the next member is promoted on the next poll. Tell
+  // them once, so the sudden Start button is not a surprise.
+  // (Adjusting state while rendering, React's documented alternative to a setState effect.)
+  const [prevIsHost, setPrevIsHost] = useState(room.is_host)
+  const [promoted, setPromoted] = useState(false)
+  if (room.is_host !== prevIsHost) {
+    setPrevIsHost(room.is_host)
+    if (room.is_host) setPromoted(true)
+  }
+
   const share = async () => {
     const url = roomLink(room.code)
     try {
@@ -66,6 +76,11 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
       </ul>
       <p className="text-xs text-game-muted">{t('room.memberCount', { count: room.member_count, max: room.max_members })}</p>
 
+      {promoted && room.is_host && (
+        <p role="status" data-testid="now-host" className="text-xs font-semibold text-game-secondary">
+          {t('room.nowHost')}
+        </p>
+      )}
       {room.is_host ? (
         <button
           type="button"
@@ -80,7 +95,7 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
       )}
       {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{t(error)}</p>}
       <button type="button" onClick={onLeave} className="text-xs text-game-muted underline hover:text-red-600">
-        {room.is_host ? t('room.closeRoom') : t('room.leave')}
+        {room.is_host && room.member_count <= 1 ? t('room.closeRoom') : t('room.leave')}
       </button>
     </div>
   )
