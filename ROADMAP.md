@@ -2026,7 +2026,10 @@ or an outright bug). Nothing here blocks Batch 7.*
   record on meta-share says CC BY, but no working download was found. A rank file derived from
   wordfreq would be CC BY-SA, which is fine in this MIT repo as a separately-licensed data file
   with attribution in `data/README.md`. **Bigger gap:** `magyar-szavak.txt` itself still has
-  unknown provenance. Owner decision pending: source + whether to import.
+  unknown provenance. **Owner decided 2026-10-29:** the `wordfreq` CC BY-SA licence is
+  accepted (11.21 is unblocked: import a rank file + attribution in `data/README.md`), and the
+  Magyar Ispell check is agreed in principle; details (source, what to do with mismatches)
+  are to be discussed in a later batch (see 16.9).
 - **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
   `docs/multiplayer.md` most likely to be asked for after the first real session.
   *Deferred 2026-10-15 (owner): wait for the owner's first real two-browser room session.* That session is now under way: see Batch 15, which overlaps (leave / left alone / D4).
@@ -2295,6 +2298,58 @@ Related: 11.22 (host hand-off, deferred until a real room session, which this is
 
 ---
 
+## Batch 16 — Store readiness (Google Play first; owner asked 2026-10-29)
+
+*Turns the gap analysis (dev review 2026-10-02) into work. **Scope decision (D-16a):** Google
+Play via a Trusted Web Activity (the existing PWA in a Chrome-backed shell) comes first; Apple is
+a later, separate decision (a Capacitor/WKWebView wrapper risks rejection under guideline 4.2
+unless it adds native value, has its own cookie jar so players get a new identity, costs
+$99/yr, and needs Sign in with Apple once any other login is offered). The custom domain
+(`betuveto.tmsso.com`) and the in-app account deletion + privacy page already exist. Items marked
+**owner** need the owner's accounts or judgement; the rest are Claude-buildable.*
+
+- `[ ]` **16.1 Terms of use page** (`/terms`, hu + en, linked next to the privacy link). Stores
+  often expect one; the wording needs the owner's sign-off. Small.
+- `[ ]` **16.2 Player-facing "report this name"** for display names shown on leaderboards and in
+  rooms. The profanity filter is in (Batch 13/14 name filter); stores want a report path for
+  user-generated content too. Reuse the existing report queue + admin triage. Small–medium.
+- `[ ]` **16.3 Lighthouse PWA audit** (9.1's pending half), by hand against betuveto.tmsso.com, then
+  fix what it flags. Needs a real browser.
+- `[ ]` **16.4 Bubblewrap project, signed AAB, TWA scope.** Scope `/` with `/admin` excluded.
+  Use Play App Signing; the upload key goes in the password manager (the lost backup key is the
+  cautionary tale). *(owner: Play developer account, one-time $25.)*
+- `[ ]` **16.5 `/.well-known/assetlinks.json`** on the domain (Digital Asset Links), using the
+  SHA-256 fingerprint of the Play App Signing key, so it can only be finished after 16.4 has
+  produced a Play Console app. Needs a `vercel.json` header/route check so the file is served
+  as JSON without a redirect.
+- `[ ]` **16.6 Play Console paperwork** *(owner, Claude drafts text from the privacy page)*:
+  Data safety form, IARC content rating questionnaire, store listing (hu + en descriptions,
+  screenshots, icon).
+- `[ ]` **16.7 Closed test: >= 12 opted-in testers for 14 consecutive days** before production
+  access (new personal accounts since 2023-11-13; Play Console Help 14151465, verified
+  2026-10-02, re-check at the time). A TWA shares Chrome's cookies, so existing testers keep their
+  identity. *(owner: recruit testers.)*
+- `[ ]` **16.8 Security hardening before wider reach.** CSP `script-src` (12.3 deferred it: needs
+  the inline theme script, Sentry and the Neon Auth SDK allow-listed); rotate the bypass
+  secret if not yet confirmed; `@neondatabase/auth` is still beta (11.15); confirm Sentry
+  scrubs PII and has no session replay; consider an IP/2FA posture for `/admin`; `npm audit`
+  in CI. Done already: rate limits, security headers, encrypted backups with a restorable
+  key, Neon production password rotated (2026-10-26).
+- `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
+  real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
+  plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
+  discussed in a later batch.** Pairs with 11.21 (licence accepted, ready to build).
+- `[ ]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
+  new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
+  if testers will switch devices.
+- **Open forks:**
+  - **D-16b** Offline play: a TWA needs the site up; offline needs a service-worker wordlist
+    slice (9.2 note). *(Default: not for the first release.)*
+  - **D-16c** Order. *(Default: 16.1, 16.2, 16.3, 16.8 first, all useful without a store; then
+    16.4-16.7; 16.9/16.10 in parallel.)*
+
+---
+
 ## Challenged / rejected ideas (and why)
 
 | Original idea | Verdict | Reasoning |
@@ -2330,6 +2385,7 @@ Related: 11.22 (host hand-off, deferred until a real room session, which this is
 | 13 — Owner test-pass findings (2026-10-03) | S each | 12 |
 | 14 — Wider-audience tail (2026-10-15) | S each | 13 |
 | 15 — Room test notes (2026-10-25) | M (one migration, leave flow, rules text) | 7.2 |
+| 16 — Store readiness (2026-10-29) | M–L, partly owner tasks | 8 (for 16.10), domain |
 | 13 — Owner test-pass findings (2026-10-03) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or
