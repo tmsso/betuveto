@@ -260,12 +260,12 @@ async function startWithCookie(
 async function completeSmallGame(): Promise<{ cookie: string; totalScore: number; gameId: string }> {
   let cookie: string | undefined;
   let game: StartResult | undefined;
-  for (let attempt = 0; attempt < 20 && !game; attempt++) {
+  for (let attempt = 0; attempt < 60 && !game; attempt++) {
     const result = await startWithCookie(5, cookie);
     cookie = result.cookie;
     if (result.game.possible_count <= 10) game = result.game;
   }
-  if (!game || !cookie) throw new Error("No small-enough 5-letter board found after 20 tries.");
+  if (!game || !cookie) throw new Error("No small-enough 5-letter board found after 60 tries.");
 
   let totalScore = 0;
   for (const word of findable(game)) {
@@ -312,12 +312,12 @@ async function completeSmallGameEn(
 ): Promise<{ cookie: string; totalScore: number; gameId: string }> {
   let cookie: string | undefined = existingCookie;
   let game: StartResult | undefined;
-  for (let attempt = 0; attempt < 20 && !game; attempt++) {
+  for (let attempt = 0; attempt < 60 && !game; attempt++) {
     const result = await startWithCookieEn(5, cookie);
     cookie = result.cookie;
     if (result.game.possible_count <= 10) game = result.game;
   }
-  if (!game || !cookie) throw new Error("No small-enough 5-letter English board found after 20 tries.");
+  if (!game || !cookie) throw new Error("No small-enough 5-letter English board found after 60 tries.");
 
   let totalScore = 0;
   for (const word of findableEn(game)) {
@@ -965,12 +965,12 @@ describeApi("Betűvető API contract", () => {
     // guess actually reporting game_ended.
     let cookie: string | undefined;
     let game: StartResult | undefined;
-    for (let attempt = 0; attempt < 20 && !game; attempt++) {
+    for (let attempt = 0; attempt < 60 && !game; attempt++) {
       const r = await startWithCookie(5, cookie);
       cookie = r.cookie;
       if (r.game.possible_count <= 10) game = r.game;
     }
-    if (!game || !cookie) throw new Error("No small-enough 5-letter board found after 20 tries.");
+    if (!game || !cookie) throw new Error("No small-enough 5-letter board found after 60 tries.");
 
     let anyFound = false;
     let lastEnded = false;
