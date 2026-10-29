@@ -290,7 +290,7 @@
       "roomCoopShared": "🤝 Együtt, látható szavakkal: a megtalált szavakat mindenki látja, és egy szó csak az első megtalálójának ér pontot – a már megtalált szót nem kell újra beírni. Mindenki látja a pontokat és azt, hány szó van még hátra. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
       "roomVersus": "⚔️ Egymás ellen: a legtöbb pontot szerző játékos nyer. A többiek pontjait és mérföldköveit látod, a szavaikat nem. Nincs közös időbónusz.",
       "leave": "🚪 A „Játék elhagyása” gombbal kilépsz: a saját játékod véget ér, a többiek folytatják, te pedig nem látod a megoldásokat. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz.",
-      "leaveHost": "🏳️ A feladással a saját játékod ér véget, a többiek folytatják. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz."
+      "leaveHost": "🚪 A „Játék elhagyása” kivesz a játékból: a saját játékod véget ér, a többiek folytatják, a megoldásokat nem látod. Ha a házigazda a váróteremben kilép, a legrégebben várakozó játékos veszi át a szerepét. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz."
     }
   },
   "feedback": {
@@ -342,6 +342,7 @@
     "waitingForHost": "Várakozás a házigazdára…",
     "leave": "Kilépés a szobából",
     "closeRoom": "Szoba bezárása",
+    "nowHost": "A házigazda kilépett, mostantól te vagy a házigazda.",
     "invited": "Meghívtak a(z) {{code}} szobába",
     "notNow": "Most nem",
     "cancelled": "Ezt a szobát bezárták.",
@@ -370,7 +371,6 @@
     "nobodyFound": "Szavak, amelyeket senki sem talált meg ({{count}})",
     "rematch": "Visszavágó",
     "joinRematch": "Csatlakozás a visszavágóhoz",
-    "waitingForRematch": "Várakozás, hogy a házigazda visszavágót indítson…",
     "boardBadge": "{{code}} szoba",
     "badges": {
       "full_word": "Megtalálta a teljes szót",

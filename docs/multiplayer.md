@@ -144,10 +144,10 @@ a first-ever visitor can create or join a room in one request. Every route below
 |---|---|---|
 | `POST /rooms` `{display_name, mode?, wordlist?, target_length?}` | anyone | Create a `lobby` room (`mode` `coop` \| `versus`, default `coop`; 422 otherwise), set the caller's `display_name`, join as host. Applies the item-14 hidden-selector forcing (`resolveDailyAxes`-style). → `{code, room}` |
 | `POST /rooms/{code}/join` `{display_name}` | anyone | Join a `lobby` room. Idempotent for an existing member. 404 unknown · 409 `room_started` / `room_full` (8) / `room_cancelled`. → `{room}` |
-| `POST /rooms/{code}/leave` | member | Lobby only. A leaving **host cancels the room** (v1: no host hand-off). |
+| `POST /rooms/{code}/leave` | member | Lobby: removes the caller; a leaving **host hands the room to the longest-waiting member** (earliest `joined_at`, ties by player id), and the room is cancelled only when nobody is left (§9). Mid-round: gives up the caller's own game (§8). |
 | `POST /rooms/{code}/start` | host | Lobby → `playing`. Picks the target (uniform random, **not** `pickPersonalizedWord` — it's one board for everyone, same rule as the daily), computes `possible`, stamps `ends_at = now() + durationForLength(...)`, and **inserts one `games` row per member in one statement**, all with `room_id` and the shared `ends_at`. 409 `not_enough_players` below 2. |
 | `GET /rooms/{code}` | member | **The snapshot** — the single read used for polling, reconnection and the end-of-game reveal (§5). Touches the caller's `last_seen_at`. |
-| `POST /rooms/{code}/rematch` | host, `finished` room | Creates a new lobby room with the same settings, sets `next_room_code` on the old one, joins the host. Others see the pointer in their next snapshot and join with one tap. |
+| `POST /rooms/{code}/rematch` | any member, `finished` room | Creates a new lobby room with the same settings, sets `next_room_code` on the old one, joins the host. Others see the pointer in their next snapshot and join with one tap. |
 
 Snapshot body (shape is the contract 7.2's frontend builds against):
 
@@ -290,8 +290,8 @@ E2E coverage extended *before* room code lands on top of it.
 - **D3 — Leaderboards: room games are excluded** from the single-player boards
   (`room_id is null` in `lib/scores.ts`); room results live in the room's reveal. A
   separate "rooms" board is a possible follow-up, not v1.
-- **D4 — Host leaves / disappears: v1 cancels the room.** Host hand-off is a follow-up if
-  it hurts in practice (ROADMAP 11.22).
+- **D4 — Host leaves / disappears: v1 cancels the room.** *Superseded 2026-10-29 by host
+  hand-off (ROADMAP 11.22, §9).*
 
 - **D9 (owner, 2026-09-30) — no early reveal.** While a room is still playing, a member's
   `give_up` returns `{target_word: null, possible_words: null, room_pending: true}` and
@@ -352,3 +352,21 @@ Decisions D-15a–g are recorded in ROADMAP Batch 15. What they changed in the c
 - **Rules text.** The "Játékszabály" dialog follows the player's context (single, daily,
   co-op private/shared, versus; host vs joiner).
 
+## 9. Host hand-off (ROADMAP 11.22, owner decisions 2026-10-29)
+
+- **Lobby.** When the host leaves, the member who joined first (`room_players.joined_at`, ties
+  by `player_id`) becomes `rooms.host_player_id`. The room is cancelled only when nobody is
+  left. `leaveRoom` does the whole thing in one transaction under `select … for update` on the
+  `rooms` row, so a host and the next-in-line leaving at the same moment serialise.
+  No migration: the order already exists.
+- **Only an explicit leave hands off.** A host who simply goes silent is not replaced (same
+  spirit as D-15c); an idle lobby is cancelled after 30 minutes anyway.
+- **Mid-round.** The host gets "Leave game" like everyone else (give-up + exit, §8). No role
+  transfer is needed because the host role only matters in the lobby and for nothing after the round.
+- **Rematch is open to any member** of a finished room (non-members get 404). It stays
+  idempotent via the guarded `next_room_code` update; the caller becomes host of the new lobby.
+- **Client.** `is_host` is recomputed on every snapshot, so a promoted member's Start button
+  appears on the next poll, with a one-line "you are now the host" notice.
+- **Not built:** multi-round rooms (a cumulative series). Rematch covers "play again".
+- **Known gap:** an account deletion that nulls `host_player_id` (§3) still reads as
+  cancelled, even if members remain.

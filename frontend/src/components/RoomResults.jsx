@@ -60,16 +60,7 @@ export default function RoomResults({ room, busy, error, onRematch, onJoinRematc
         </details>
       )}
       <div className="flex flex-wrap justify-center gap-3 pt-2">
-        {room.is_host ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onRematch}
-            className="h-11 px-6 rounded-full shadow bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
-          >
-            {t('room.rematch')}
-          </button>
-        ) : room.next_room_code ? (
+        {room.next_room_code ? (
           <button
             type="button"
             disabled={busy}
@@ -79,7 +70,14 @@ export default function RoomResults({ room, busy, error, onRematch, onJoinRematc
             {t('room.joinRematch')}
           </button>
         ) : (
-          <p className="text-xs text-game-muted self-center">{t('room.waitingForRematch')}</p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onRematch}
+            className="h-11 px-6 rounded-full shadow bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
+          >
+            {t('room.rematch')}
+          </button>
         )}
         <button type="button" onClick={onBackToSolo} className="text-sm underline text-game-secondary">
           {t('room.backToSolo')}

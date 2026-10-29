@@ -2030,9 +2030,12 @@ or an outright bug). Nothing here blocks Batch 7.*
   accepted (11.21 is unblocked: import a rank file + attribution in `data/README.md`), and the
   Magyar Ispell check is agreed in principle; details (source, what to do with mismatches)
   are to be discussed in a later batch (see 16.9).
-- **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
+- `[x]` *(host hand-off built 2026-10-29; **multi-round rooms NOT built**, rematch covers play-again)* **11.22 Host hand-off and multi-round rooms** — the two v1 simplifications in
   `docs/multiplayer.md` most likely to be asked for after the first real session.
   *Deferred 2026-10-15 (owner): wait for the owner's first real two-browser room session.* That session is now under way: see Batch 15, which overlaps (leave / left alone / D4).
+  **Decided 2026-10-29 (owner, all three recommendations):** a leaving lobby host hands the room to the
+  longest-waiting member (supersedes D4); any member may start a rematch; the host also gets Leave
+  game mid-round; hand-off only on an explicit leave, no silence timeout. As built: docs/multiplayer.md §9.
 - *(Owner 2026-10-01: skip for now, too close to the no-per-word-history rule.)* **11.23 "Did you know" highlight** from `longest_word_found` (kept in `/me/stats` for
   exactly this) — one line on the stats panel, rotating, never a list.
 

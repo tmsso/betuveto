@@ -2267,26 +2267,49 @@ describeApi("Betűvető API contract", () => {
     expect(ninth.json.detail).toBe("room_full");
   }, 20000); // 9 sequential round trips (create + 8 joins) — longer than the default.
 
-  it("host leaving cancels the room; a non-host leaving just removes them", async () => {
+  it("a non-host leaving just removes them; a leaving host hands the room to the longest-waiting member (11.22)", async () => {
     const host = await createRoomWithCookie("Host");
-    const guest = await joinRoomWithCookie(host.result.code, "Guest");
+    const code = host.result.code;
+    const second = await joinRoomWithCookie(code, "Second");
+    const third = await joinRoomWithCookie(code, "Third");
 
     // Non-host leaves: the room stays in the lobby, member count drops.
-    const guestLeave = await call("POST", `/api/v1/rooms/${host.result.code}/leave`, undefined, { Cookie: guest.cookie });
-    expect(guestLeave.status).toBe(200);
-    const afterGuestLeave = await call("GET", `/api/v1/rooms/${host.result.code}`, undefined, { Cookie: host.cookie });
-    expect(afterGuestLeave.json.status).toBe("lobby");
-    expect(afterGuestLeave.json.member_count).toBe(1);
+    const thirdLeave = await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: third.cookie });
+    expect(thirdLeave.status).toBe(200);
+    const afterThird = await call("GET", `/api/v1/rooms/${code}`, undefined, { Cookie: host.cookie });
+    expect(afterThird.json.status).toBe("lobby");
+    expect(afterThird.json.member_count).toBe(2);
 
-    // Host leaves: the room cancels (D4 — v1 has no host hand-off).
-    const hostLeave = await call("POST", `/api/v1/rooms/${host.result.code}/leave`, undefined, { Cookie: host.cookie });
+    // Host leaves: Second (the only other member) becomes host; the room stays open.
+    const hostLeave = await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: host.cookie });
     expect(hostLeave.status).toBe(200);
+    const asSecond = await call("GET", `/api/v1/rooms/${code}`, undefined, { Cookie: second.cookie });
+    expect(asSecond.json.status).toBe("lobby");
+    expect(asSecond.json.is_host).toBe(true);
+    expect(asSecond.json.member_count).toBe(1);
 
-    // A cancelled room can no longer be joined.
-    const joinCancelled = await joinRoomWithCookie(host.result.code, "Too late");
+    // The old host is no longer a member, so it cannot start or poll the room.
+    const oldStart = await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: host.cookie });
+    expect(oldStart.status).toBe(403);
+    expect((await call("GET", `/api/v1/rooms/${code}`, undefined, { Cookie: host.cookie })).status).toBe(404);
+
+    // The last member leaving closes the room.
+    await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: second.cookie });
+    const joinCancelled = await joinRoomWithCookie(code, "Too late");
     expect(joinCancelled.status).toBe(409);
     expect(joinCancelled.json.detail).toBe("room_cancelled");
-  });
+  }, 30_000);
+
+  it("hand-off picks the earliest joiner", async () => {
+    const host = await createRoomWithCookie("Host");
+    const code = host.result.code;
+    const first = await joinRoomWithCookie(code, "First");
+    await joinRoomWithCookie(code, "Later");
+    await call("POST", `/api/v1/rooms/${code}/leave`, undefined, { Cookie: host.cookie });
+    const asFirst = await call("GET", `/api/v1/rooms/${code}`, undefined, { Cookie: first.cookie });
+    expect(asFirst.json.is_host).toBe(true);
+    expect(asFirst.json.members.filter((m: any) => m.is_host)).toHaveLength(1);
+  }, 30_000);
 
   // --- Multiplayer rooms — start + shared deadline (ROADMAP 7.2.3) ----------------
   // Every room test from here on is skipped against production: each one mints several
@@ -2510,7 +2533,7 @@ describeApi("Betűvető API contract", () => {
     }
   }, 180_000);
 
-  it("shows hint_used live, and rematch is host-only and idempotent", async () => {
+  it("shows hint_used live, and rematch is open to any member and idempotent", async () => {
     if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
     const { code, hostCookie, guestCookie } = await twoPlayerLobby();
     await call("POST", `/api/v1/rooms/${code}/start`, { duration_seconds: 5 }, { Cookie: hostCookie });
@@ -2525,14 +2548,15 @@ describeApi("Betűvető API contract", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 6500));
     expect((await snapshot(code, guestCookie)).json.status).toBe("finished");
-    const notHost = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: guestCookie });
-    expect(notHost.status).toBe(403);
-    const first = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: hostCookie });
+    // 11.22: a non-host member can start the rematch; an outsider cannot.
+    const outsider = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, undefined);
+    expect([401, 404]).toContain(outsider.status);
+    const first = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: guestCookie });
     expect(first.status).toBe(200);
     const second = await call("POST", `/api/v1/rooms/${code}/rematch`, {}, { Cookie: hostCookie });
     expect(second.json.code).toBe(first.json.code);
     expect((await snapshot(code, guestCookie)).json.next_room_code).toBe(first.json.code);
-    const rejoin = await joinRoomWithCookie(first.json.code, "Guest", guestCookie);
+    const rejoin = await joinRoomWithCookie(first.json.code, "Host", hostCookie);
     expect(rejoin.status).toBe(200);
     expect(rejoin.json.room.member_count).toBe(2);
   }, 60_000);
