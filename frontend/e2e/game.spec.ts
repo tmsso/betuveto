@@ -23,7 +23,7 @@
  * instead of minting a fresh one, and the dashboard excludes it. Absent locally (a plain
  * `npx playwright test` run falls back to the old fresh-mint behaviour unchanged).
  */
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { findAcceptedWord, loadDictionary } from './helpers'
 
 const CI_PLAYER_COOKIE = process.env.E2E_CI_PLAYER_COOKIE
@@ -297,6 +297,16 @@ test('feedback can be opened and typed from the settings panel', async ({ page }
   await expect(feedback).toHaveValue('settings ok')
   await expect(settings.getByRole('button', { name: 'Küldés' })).toBeEnabled()
 })
+
+// ROADMAP 16.8 — the static pages and the admin login screen load under the CSP too (the
+// fixture fails the test on any violation). /admin pulls in the Neon Auth chunk.
+for (const path of ['/privacy', '/terms', '/admin']) {
+  test(`${path} loads without CSP violations`, async ({ page }) => {
+    await page.goto(path)
+    await expect(page.locator('#root')).not.toBeEmpty()
+    await page.waitForLoadState('networkidle')
+  })
+}
 
 // ROADMAP 16.1 — the terms page is its own route, linked from Settings next to Privacy, and
 // the two static pages link to each other. Read-only: nothing is written.
