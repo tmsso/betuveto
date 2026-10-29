@@ -10,6 +10,7 @@
 import { type AdminIdentity, logAdminAction } from "./admin.js";
 import { db } from "./db.js";
 import type { Reply } from "./game.js";
+import { DISPLAY_NAME_MAX_LENGTH } from "./players.js";
 
 export const MAX_FEEDBACK_LENGTH = 2000;
 const MAX_FEEDBACK_PER_DAY = 5;
@@ -51,33 +52,7 @@ export async function submitFeedback(
     };
   }
 
-  const sql = db();
-  try {
-    // A freshly minted identity has no players row yet (game/start creates it the same way).
-    await sql`insert into players (id) values (${playerId}) on conflict do nothing`;
-    const [row] = await sql<{ id: string }[]>`
-      insert into feedback (player_id, message, page_url, user_agent, ui_language)
-      values (${playerId}, ${message}, ${context(ctx.page_url, 500)},
-              ${context(ctx.user_agent, 300)}, ${context(ctx.ui_language, 10)})
-      returning id
-    `;
-
-    // Insert-then-count-then-undo, like lib/word-suggestions.ts: counting first would let
-    // concurrent requests all read "under the limit" before any of them inserts.
-    const [{ count }] = await sql<{ count: number }[]>`
-      select count(*)::int as count from feedback
-       where player_id = ${playerId} and created_at >= now() - interval '1 day'
-    `;
-    if (count > MAX_FEEDBACK_PER_DAY) {
-      await sql`delete from feedback where id = ${row.id}`;
-      return { status: 429, body: { detail: "rate_limited" } };
-    }
-  } catch (error) {
-    if (isMissingTable(error)) return UNAVAILABLE;
-    throw error;
-  }
-
-  return { status: 200, body: { sent: true } };
+  return insertFeedback(playerId, message, ctx);
 }
 
 /** Admin list, newest first. `open` (the default) hides resolved items. */
@@ -119,4 +94,75 @@ export async function resolveFeedback(admin: AdminIdentity, feedbackId: number):
     if (isMissingTable(error)) return UNAVAILABLE;
     throw error;
   }
+}
+
+/** Shared by submitFeedback and reportName: one feedback row, under the per-player daily cap. */
+async function insertFeedback(playerId: string, message: string, ctx: FeedbackContext): Promise<Reply> {
+  const sql = db();
+  try {
+    // A freshly minted identity has no players row yet (game/start creates it the same way).
+    await sql`insert into players (id) values (${playerId}) on conflict do nothing`;
+    const [row] = await sql<{ id: string }[]>`
+      insert into feedback (player_id, message, page_url, user_agent, ui_language)
+      values (${playerId}, ${message}, ${context(ctx.page_url, 500)},
+              ${context(ctx.user_agent, 300)}, ${context(ctx.ui_language, 10)})
+      returning id
+    `;
+
+    // Insert-then-count-then-undo, like lib/word-suggestions.ts: counting first would let
+    // concurrent requests all read "under the limit" before any of them inserts.
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from feedback
+       where player_id = ${playerId} and created_at >= now() - interval '1 day'
+    `;
+    if (count > MAX_FEEDBACK_PER_DAY) {
+      await sql`delete from feedback where id = ${row.id}`;
+      return { status: 429, body: { detail: "rate_limited" } };
+    }
+  } catch (error) {
+    if (isMissingTable(error)) return UNAVAILABLE;
+    throw error;
+  }
+
+  return { status: 200, body: { sent: true } };
+}
+
+/** Where a reported name was seen; the admin uses it to find the context. */
+export const NAME_REPORT_PLACES = ["leaderboard", "daily", "room"] as const;
+/** Prefix the admin feedback list shows; also what the admin panel matches on. */
+export const NAME_REPORT_PREFIX = "[name report]";
+
+/**
+ * ROADMAP 16.2 — a player reports a display name they saw on a leaderboard or in a room.
+ *
+ * Stored as a feedback row (no new table, no migration): the admin already reads and
+ * resolves feedback, and acting on a report is the existing admin rename. The message is
+ * composed here, not by the client, so every report has the same scannable shape. It
+ * shares feedback's daily cap, so reports can't be used to flood the queue.
+ *
+ * Leaderboards deliberately expose no player ids, so the report carries the name itself.
+ * It must be a name some player currently has (404 otherwise): that keeps the queue to
+ * real names, and the admin finds the player(s) by searching that name.
+ */
+export async function reportName(
+  playerId: string,
+  rawName: unknown,
+  rawPlace: unknown,
+  ctx: FeedbackContext,
+): Promise<Reply> {
+  if (typeof rawName !== "string" || rawName.trim().length === 0 || rawName.trim().length > DISPLAY_NAME_MAX_LENGTH) {
+    return { status: 422, body: { detail: `name must be 1-${DISPLAY_NAME_MAX_LENGTH} characters.` } };
+  }
+  if (typeof rawPlace !== "string" || !(NAME_REPORT_PLACES as readonly string[]).includes(rawPlace)) {
+    return { status: 422, body: { detail: `place must be one of ${NAME_REPORT_PLACES.join(", ")}.` } };
+  }
+  const name = rawName.trim();
+
+  // Leaderboards show btrim(display_name) (lib/scores.ts, lib/daily.ts), so match the same way.
+  const [match] = await db()<{ found: boolean }[]>`
+    select true as found from players where btrim(display_name) = ${name} limit 1
+  `;
+  if (!match) return { status: 404, body: { detail: "Unknown name." } };
+
+  return insertFeedback(playerId, `${NAME_REPORT_PREFIX} "${name}" (${rawPlace})`, ctx);
 }

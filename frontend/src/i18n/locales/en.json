@@ -95,6 +95,12 @@
     "offlineWithLocal": "No connection to the server — your local scores:",
     "offlineNone": "No connection to the server."
   },
+  "reportName": {
+    "button": "Report the name {{name}}",
+    "confirm": "Report the name \"{{name}}\" as offensive or inappropriate? The operator will review it.",
+    "sent": "Reported, thanks",
+    "error": "Couldn't send the report. Try again later."
+  },
   "board": {
     "ariaLabel": "Available letters",
     "letterAriaLabel": "letter {{letter}}"

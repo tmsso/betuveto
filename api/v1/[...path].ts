@@ -75,7 +75,7 @@ import { continueSolo, createRoom, getRoomSnapshot, joinRoom, leaveRoom, rematch
 import { getTopScores } from "../../lib/scores.js";
 import { reportWord } from "../../lib/word-reports.js";
 import { suggestWord } from "../../lib/word-suggestions.js";
-import { listFeedback, resolveFeedback, submitFeedback } from "../../lib/feedback.js";
+import { listFeedback, reportName, resolveFeedback, submitFeedback } from "../../lib/feedback.js";
 import { getMyStats } from "../../lib/word-stats.js";
 import { DEFAULT_TARGET_LENGTH } from "../../lib/words.js";
 
@@ -368,6 +368,21 @@ async function submitFeedbackRoute(req: VercelRequest): Promise<Reply> {
     : reply;
 }
 
+// ROADMAP 16.2 — report a display name. Mints like feedback: a first-time visitor can
+// read the leaderboard (and see an offensive name) before ever playing.
+async function reportNameRoute(req: VercelRequest): Promise<Reply> {
+  const identity = await resolveOrMintIdentity(req);
+  if (!identity) return MINT_THROTTLED;
+  const reply = await reportName(identity.playerId, bodyField(req, "name"), bodyField(req, "place"), {
+    page_url: bodyField(req, "page_url"),
+    user_agent: req.headers["user-agent"],
+    ui_language: bodyField(req, "ui_language"),
+  });
+  return identity.setCookieHeader
+    ? { ...reply, headers: { ...reply.headers, "Set-Cookie": identity.setCookieHeader } }
+    : reply;
+}
+
 function scoresTopRoute(req: VercelRequest) {
   const secret = process.env.ANON_SESSION_SECRET;
   // Missing secret degrades to "no personal best" rather than 500 — the leaderboard
@@ -449,6 +464,10 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 
   if (segments.length === 1 && a === "feedback") {
     return methodHandler({ POST: submitFeedbackRoute });
+  }
+
+  if (segments.length === 1 && a === "report-name") {
+    return methodHandler({ POST: reportNameRoute });
   }
 
   // DELETE /api/v1/me — wipe the caller's player record + personal data, anonymise their

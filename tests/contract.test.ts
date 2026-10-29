@@ -2850,4 +2850,45 @@ describeApi("Betűvető API contract", () => {
     const afterDelete = await call("GET", "/api/v1/admin/feedback?status=all", undefined, adminHeaders);
     expect(afterDelete.json.feedback.some((f: any) => f.message.startsWith(marker))).toBe(false);
   }, 60_000);
+
+  // ROADMAP 16.2 — "report this name" lands in the feedback queue in a fixed shape.
+  it("rejects a name report with a bad name or place, and 404s a name nobody has", async () => {
+    const noName = await call("POST", "/api/v1/report-name", { name: "  ", place: "leaderboard" });
+    expect(noName.status).toBe(422);
+    const tooLong = await call("POST", "/api/v1/report-name", { name: "x".repeat(21), place: "room" });
+    expect(tooLong.status).toBe(422);
+    const badPlace = await call("POST", "/api/v1/report-name", { name: "Valaki", place: "chat" });
+    expect(badPlace.status).toBe(422);
+    if (IS_PRODUCTION) return; // the 404 path mints an identity (a players row)
+    const unknown = await call("POST", "/api/v1/report-name", {
+      name: `nincs${Date.now()}`.slice(0, 20),
+      place: "leaderboard",
+    });
+    expect(unknown.status).toBe(404);
+  });
+
+  it("stores a name report as admin-visible feedback for a name a player really has", async () => {
+    if (IS_PRODUCTION) return; // writes real rows
+
+    // The reported player: a fresh identity with a unique display name.
+    const minted = await call("POST", "/api/game/start?target_length=7");
+    const targetAuth = { Cookie: minted.headers.get("set-cookie")!.split(";", 1)[0] };
+    const name = `Rep${Date.now() % 1e9}`;
+    expect((await call("PATCH", "/api/v1/me/preferences", { display_name: name }, targetAuth)).status).toBe(200);
+
+    // The reporter has no cookie yet: the route mints one, like feedback.
+    const report = await call("POST", "/api/v1/report-name", { name: `  ${name} `, place: "daily" });
+    expect(report.status).toBe(200);
+    expect(report.json.sent).toBe(true);
+    const reporterCookie = report.headers.get("set-cookie")!.split(";", 1)[0];
+
+    if (ADMIN_TOKEN) {
+      const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
+      const open = await call("GET", "/api/v1/admin/feedback?status=open", undefined, adminHeaders);
+      expect(open.json.feedback.some((f: any) => f.message === `[name report] "${name}" (daily)`)).toBe(true);
+    }
+
+    expect((await call("DELETE", "/api/v1/me", undefined, { Cookie: reporterCookie })).status).toBe(200);
+    expect((await call("DELETE", "/api/v1/me", undefined, targetAuth)).status).toBe(200);
+  }, 60_000);
 });

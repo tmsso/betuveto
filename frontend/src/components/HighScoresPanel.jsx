@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import ReportNameButton from './ReportNameButton.jsx'
 
 /**
  * Server-side leaderboard for the active board length (ROADMAP 2.2): global top 10 +
@@ -22,7 +23,10 @@ export default function HighScoresPanel({ serverScores, serverScoresLoading, hig
           {serverScores.top.map((entry, i) => (
             <li key={i} className="flex justify-between gap-4">
               <span className="truncate">{i + 1}. {entry.display_name ?? t('highScores.anonymous')}</span>
-              <span className="font-bold">{entry.final_score}</span>
+              <span className="ml-auto flex items-center gap-2">
+                <ReportNameButton name={entry.display_name} place="leaderboard" />
+                <span className="font-bold">{entry.final_score}</span>
+              </span>
             </li>
           ))}
         </ol>
