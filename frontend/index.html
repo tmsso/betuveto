@@ -22,23 +22,8 @@
     <meta property="og:image:height" content="512" />
     <meta property="og:locale" content="hu_HU" />
     <meta name="twitter:card" content="summary" />
-    <script>
-      // ROADMAP Batch 10 item 7 — set the theme before first paint so a dark-mode
-      // reload never flashes the light background. The server preference (loaded by
-      // useTheme after mount) arrives too late for that; localStorage is the fast path,
-      // mirrored on every change. Wrapped in try/catch: a private window or blocked
-      // site-data must not stop the page rendering.
-      (function () {
-        try {
-          var stored = localStorage.getItem('betuveto_theme'); // 'light' | 'dark' | 'system' | null
-          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var dark = stored === 'dark' || ((stored === 'system' || !stored) && systemDark);
-          document.documentElement.classList.toggle('dark', dark);
-        } catch (e) {
-          /* leave the light default */
-        }
-      })();
-    </script>
+    <!-- Pre-paint theme switch (ROADMAP Batch 10 item 7); external, not inline, for the CSP (16.8). -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

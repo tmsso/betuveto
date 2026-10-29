@@ -1,7 +1,19 @@
+import { readFileSync } from 'node:fs'
 import process from 'node:process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// ROADMAP 16.8: `vite preview` (what the E2E tests load) sends the same Content-Security-Policy
+// headers as production, read from vercel.json so the policy has one source. The E2E fixture
+// then fails a test on any CSP violation, including Report-Only ones.
+const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
+const cspHeaders = Object.fromEntries(
+  vercelConfig.headers
+    .find((rule) => rule.source === '/(.*)')
+    .headers.filter((h) => h.key.startsWith('Content-Security-Policy'))
+    .map((h) => [h.key, h.value]),
+)
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -67,6 +79,7 @@ export default defineConfig({
   // to run e2e/rooms.spec.ts against a preview whose branch database has the room schema —
   // with VERCEL_AUTOMATION_BYPASS_SECRET forwarded for Vercel's preview protection.
   preview: {
+    headers: cspHeaders,
     proxy: {
       '/api': {
         target: process.env.E2E_API_TARGET || 'https://betuveto.vercel.app',
