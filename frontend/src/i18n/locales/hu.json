@@ -95,6 +95,12 @@
     "offlineWithLocal": "Nincs kapcsolat a szerverrel — helyi pontjaid:",
     "offlineNone": "Nincs kapcsolat a szerverrel."
   },
+  "reportName": {
+    "button": "{{name}} név jelentése",
+    "confirm": "Jelented a(z) „{{name}}” nevet sértőként vagy nem odaillőként? Az üzemeltető átnézi.",
+    "sent": "Jelentve, köszönjük",
+    "error": "Nem sikerült elküldeni a jelentést. Próbáld újra később."
+  },
   "board": {
     "ariaLabel": "Kirakható betűk",
     "letterAriaLabel": "{{letter}} betű"
