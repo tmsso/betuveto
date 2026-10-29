@@ -2314,7 +2314,7 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
 - `[x]` **16.1 Terms of use page** (`/terms`, hu + en, linked next to the privacy link). Stores
   often expect one; the wording needs the owner's sign-off. Small. **Built 2026-10-29 (PR #116):**
   static route like /privacy, names no person ("the project"/"the operator"), contact = in-app
-  feedback. *Wording still awaits the owner's sign-off.*
+  feedback. **Wording signed off by the owner 2026-10-29** after a Hungarian subject–verb agreement pass.
 - `[ ]` **16.2 Player-facing "report this name"** for display names shown on leaderboards and in
   rooms. The profanity filter is in (Batch 13/14 name filter); stores want a report path for
   user-generated content too. Reuse the existing report queue + admin triage. Small–medium.
@@ -2327,8 +2327,8 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   more; Chromium's own installability check (`Page.getInstallabilityErrors`) on the live site
   reports no errors, a valid manifest and an active service worker. Lighthouse mobile: performance
   92, accessibility 95, best practices 100, SEO 100. Manifest now has an explicit `id: '/'`
-  (PR #118). Only finding: white button text on the accent blue is 3.15:1; PR #121 darkens it to
-  #2272b8 (5.0:1), **awaiting the owner's OK** (visible colour change). Dark-mode buttons
+  (PR #118). Only finding: white button text on the accent blue is 3.15:1; PR #121 darkened it to
+  #2272b8 (5.0:1), approved by the owner and merged 2026-10-29. Dark-mode buttons
   (~2.5:1) need their own token, not done.
 - `[ ]` **16.4 Bubblewrap project, signed AAB, TWA scope.** Scope `/` with `/admin` excluded.
   Use Play App Signing; the upload key goes in the password manager (the lost backup key is the
@@ -2357,7 +2357,7 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   object-src 'none'; base-uri 'self'` shipped as **Report-Only** (PR #119; inline theme script
   moved to `/theme-init.js`; E2E fails on any violation); flip to enforcing after the owner's
   clean-console day incl. the admin Magic Link login. `npm audit` gate in CI (PR #120) with an
-  allow-list: the SDK upgrade to 0.6/0.7 beta was **not** done, because both still pull
+  allow-list: the SDK upgrade to 0.6/0.7 beta was **not** done (owner confirmed 2026-10-29), because both still pull
   better-auth 1.7.6 (fixes 1 of 12 findings) and previews can't test the admin login; the
   remaining high/critical advisories are better-auth server-side flaws (Neon hosts that server)
   and zod (admin chunk only, validates Neon Auth responses). Live Report-Only sweep found one

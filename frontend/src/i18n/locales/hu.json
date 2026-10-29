@@ -200,7 +200,7 @@
     "sections": {
       "stored": {
         "heading": "Mit tárolunk",
-        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a szobákat, amelyekhez csatlakoztál, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha szót jelentesz vagy javasolsz, visszajelzést küldesz (a súgóból vagy a Beállításokból), vagy egy játékos nevét jelented, azt is tároljuk; a visszajelzések és a névjelentések mellé az oldal címét, a böngésződ azonosító szövegét és a felület nyelvét is elmentjük, hogy az üzemeltető elolvashassa őket. Ha törlöd az adataidat (lásd lent), ezek is törlődnek."
+        "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a szobákat, amelyekhez csatlakoztál, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha szót jelentesz vagy javasolsz, visszajelzést küldesz (a súgóból vagy a Beállításokból), vagy egy játékos nevét jelented, ezeket is tároljuk; a visszajelzések és a névjelentések mellé az oldal címét, a böngésződ azonosító szövegét és a felület nyelvét is elmentjük, hogy az üzemeltető elolvashassa őket. Ha törlöd az adataidat (lásd lent), ezek is törlődnek."
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
@@ -234,7 +234,7 @@
     "sections": {
       "service": {
         "heading": "A játék",
-        "body": "A Betűvető nem üzleti célú hobbiprojekt, ingyenes és hirdetésmentes. A játékot „ahogy van” alapon kínáljuk: előfordulhatnak benne hibák, időnként elérhetetlen lehet, változhat, vagy akár meg is szűnhet. A pontszámokat, sorozatokat, statisztikákat és kitüntetéseket alkalmanként javíthatjuk vagy nullázhatjuk, például egy hibajavítás után."
+        "body": "A Betűvető nem üzleti célú hobbiprojekt, ingyenes és hirdetésmentes. A játékot „ahogy van” alapon kínáljuk: lehetnek benne hibák, és a játék időnként elérhetetlen lehet, változhat, vagy akár meg is szűnhet. A pontszámokat, sorozatokat, statisztikákat és kitüntetéseket alkalmanként javíthatjuk vagy nullázhatjuk, például egy hibajavítás után."
       },
       "fairPlay": {
         "heading": "Tisztességes játék",
@@ -246,7 +246,7 @@
       },
       "content": {
         "heading": "Amit nekünk küldesz",
-        "body": "Ha visszajelzést küldesz, szót jelentesz vagy szót javasolsz, hozzájárulsz, hogy a projekt ezt a játék fejlesztésére felhasználja. Kérjük, ne írj bele magadról vagy másokról személyes adatot."
+        "body": "Ha visszajelzést küldesz, szót jelentesz vagy szót javasolsz, hozzájárulsz, hogy a projekt ezeket a játék fejlesztésére felhasználja. Kérjük, ne írj beléjük magadról vagy másokról személyes adatot."
       },
       "words": {
         "heading": "Szavak",
@@ -254,7 +254,7 @@
       },
       "liability": {
         "heading": "Felelősség",
-        "body": "A játékot mindenféle garancia nélkül nyújtjuk. A jogszabályok által megengedett mértékben a projekt nem felel a játék használatából eredő semmilyen veszteségért, ideértve az elveszett pontszámokat vagy sorozatokat is. Ezek a feltételek nem korlátozzák az országod jogszabályai szerint téged megillető jogokat."
+        "body": "A játékot mindenféle garancia nélkül nyújtjuk. A jogszabályok által megengedett mértékben nem felelünk a játék használatából eredő semmilyen veszteségért, ideértve az elveszett pontszámokat vagy sorozatokat is. Ezek a feltételek nem korlátozzák az országod jogszabályai szerint téged megillető jogokat."
       },
       "changes": {
         "heading": "Változások",
