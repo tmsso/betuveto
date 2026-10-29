@@ -329,13 +329,19 @@ export default function SettingsPanel({
         {/* ROADMAP 13.4: feedback here too, not only in the help dialog. */}
         <div className="border-t border-game-border pt-3 flex flex-col gap-2 items-start">
           <FeedbackForm compact />
-          <a
-            href="/privacy"
-            {...(inRoom ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-            className="text-xs text-game-muted underline hover:text-game-secondary self-start"
-          >
-            {t('privacy.title')}
-          </a>
+          {/* ROADMAP 16.1: terms of use sits next to privacy; both open in a new tab in a room. */}
+          <div className="flex gap-3">
+            {[['/privacy', 'privacy.title'], ['/terms', 'terms.title']].map(([href, key]) => (
+              <a
+                key={href}
+                href={href}
+                {...(inRoom ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className="text-xs text-game-muted underline hover:text-game-secondary"
+              >
+                {t(key)}
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>

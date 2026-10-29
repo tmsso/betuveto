@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import PrivacyPage from './components/PrivacyPage.jsx'
+import TermsPage from './components/TermsPage.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './observability.js'
 // i18next init (ROADMAP 6.2) — must run before App renders so useTranslation() has a
@@ -28,7 +29,7 @@ import '@fontsource/baloo-2/latin-ext-800.css'
 import './index.css'
 
 // No router library (ROADMAP 5.1): the app has a few static top-level paths — "/",
-// "/admin", "/privacy" — with no nested or dynamic routes, so a pathname check here is
+// "/admin", "/privacy", "/terms" — with no nested or dynamic routes, so a pathname check here is
 // simpler than adding react-router for what would be a handful of always-matching rules.
 // Any tabs within the admin panel are component-local state, not sub-routes.
 // Error tracking (ROADMAP Batch 10 item 9) is initialised by importing observability.js,
@@ -36,6 +37,7 @@ import './index.css'
 
 const isAdminRoute = window.location.pathname.startsWith('/admin')
 const isPrivacyRoute = window.location.pathname === '/privacy'
+const isTermsRoute = window.location.pathname === '/terms'
 
 // ROADMAP Batch 10 item 7: dark mode is player-facing only for now. The admin panels
 // (AdminApp + the 5 Admin*Panel files) still use light-only class strings, so force the
@@ -58,6 +60,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </Suspense>
       ) : isPrivacyRoute ? (
         <PrivacyPage />
+      ) : isTermsRoute ? (
+        <TermsPage />
       ) : (
         <App />
       )}
