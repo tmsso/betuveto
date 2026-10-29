@@ -10,7 +10,9 @@
    utility in one place instead of a `dark:` variant per element. */
 :root {
   --game-primary: 44 62 80;      /* #2c3e50 — primary text / headings */
-  --game-secondary: 52 152 219;  /* #3498db — accent, links, focus ring */
+  /* #2272b8 since ROADMAP 16.3 (was #3498db): white button text on it reaches 5.0:1 (WCAG AA
+     4.5:1); the old blue gave 3.15:1, flagged by Lighthouse. Hue kept close to the brand blue. */
+  --game-secondary: 34 114 184;  /* #2272b8 — accent, links, focus ring */
   --game-success: 46 204 113;    /* #2ecc71 */
   --game-warning: 243 156 18;    /* #f39c12 */
   --game-error: 231 76 60;       /* #e74c3c */
