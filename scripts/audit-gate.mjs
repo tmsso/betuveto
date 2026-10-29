@@ -44,7 +44,19 @@ try {
   // npm audit exits non-zero whenever it finds anything; the JSON is still on stdout.
   report = error.stdout;
 }
-const { vulnerabilities = {} } = JSON.parse(report);
+// Fail closed: a registry or network error must not read as "no advisories".
+let parsed;
+try {
+  parsed = JSON.parse(report);
+} catch {
+  console.error(`npm audit did not return JSON (${dir}); cannot judge advisories.`);
+  process.exit(1);
+}
+if (parsed.error || !parsed.vulnerabilities) {
+  console.error(`npm audit failed (${dir}): ${parsed.error?.summary || parsed.error?.code || "no vulnerabilities report"}`);
+  process.exit(1);
+}
+const { vulnerabilities } = parsed;
 
 const found = new Map(); // advisory id -> "severity package: title"
 for (const vuln of Object.values(vulnerabilities)) {

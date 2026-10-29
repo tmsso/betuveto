@@ -68,11 +68,11 @@ the project, so nothing is shared.
   (`DELETE /api/v1/me`). Deletion URL for the form: `https://betuveto.tmsso.com/privacy`.
 - No account is needed, so Play's "account deletion" requirement is met by the same page.
 
-**Open check (owner):** production has a Vercel → Sentry log drain
-(`SENTRY_VERCEL_LOG_DRAIN_URL`). If it forwards request logs that carry client IP
-addresses, Sentry stores IPs, and the privacy page sentence "a keyed hash of your IP
-address (never the address itself)" would need qualifying. Check in Sentry what a drained
-log line contains.
+**Log drain (checked 2026-10-29):** no Vercel log drains exist (neither current nor legacy
+integration drains). `SENTRY_VERCEL_LOG_DRAIN_URL` is only a URL the Sentry integration
+provides, so no request logs or IPs are forwarded. To make sure Sentry never keeps a reporter's
+IP either, turn on **Security & Privacy → Prevent Storing of IP Addresses** in the Sentry
+project settings **(owner)**.
 
 ## Content rating (IARC) questionnaire (draft)
 

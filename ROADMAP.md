@@ -2363,8 +2363,9 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   and zod (admin chunk only, validates Neon Auth responses). Live Report-Only sweep found one
   violation: zod's `new Function("")` feature probe on `/admin`; zod catches it and falls back, so
   enforcing is safe (one console line remains). CI's E2E can't see it (no auth URL in CI builds). Sentry: no replay, no `sendDefaultPii`. `main` branch protection
-  on (required CI checks, no reviews, admins exempt). Still open: IP/2FA posture for `/admin`;
-  check what the Vercel→Sentry log drain forwards (IP addresses?).
+  on (required CI checks, no reviews, admins exempt). No Vercel log drains exist (checked); the
+  privacy page now names Sentry and lists rooms, reports and suggestions. Still open: IP/2FA
+  posture for `/admin`; Sentry's "prevent storing IP addresses" setting (owner).
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
