@@ -341,6 +341,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
     const contrast = async (where: string) => {
       // Let the button "breathe" animation and colour transitions settle before measuring.
       await page.waitForTimeout(800)
+      // Prove the premise: the theme really is the one under test. CI's pinned player could
+      // carry a stored server-side theme that useTheme applies after mount, which would make
+      // the "dark" run silently audit light mode.
+      const html = page.locator('html')
+      if (colorScheme === 'dark') await expect(html).toHaveClass(/(^|\s)dark(\s|$)/)
+      else await expect(html).not.toHaveClass(/(^|\s)dark(\s|$)/)
       const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
       const found = violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.any[0]?.message}`))
       expect(found, `contrast failures on the ${where} (${colorScheme})`).toEqual([])
