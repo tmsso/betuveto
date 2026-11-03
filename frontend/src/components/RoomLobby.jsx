@@ -88,7 +88,7 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
           type="button"
           disabled={!canStart || busy}
           onClick={onStart}
-          className="h-12 px-8 rounded-full shadow-lg bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-12 px-8 rounded-full shadow-lg bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {canStart ? t('room.start') : t('room.waitingForPlayers')}
         </button>

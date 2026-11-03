@@ -30,7 +30,7 @@ export default function GuessInput({
           {/* role="alert" (ROADMAP Batch 10 accessibility pass): an implicit
               assertive live region, so a screen reader announces a rejected guess
               even though nothing else on the page changes when it appears. */}
-          <span role="alert" className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded shadow-lg animate-fade-out-up">
+          <span role="alert" className="bg-red-600 text-white text-sm font-bold px-3 py-1 rounded shadow-lg animate-fade-out-up">
             {errorMessage}
           </span>
         </div>

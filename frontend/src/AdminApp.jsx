@@ -203,7 +203,7 @@ function AdminAppInner() {
                   )}
                   <button
                     type="submit"
-                    className="w-full bg-game-secondary text-white font-semibold rounded p-2 hover:bg-blue-600 transition-colors"
+                    className="w-full bg-game-button text-white font-semibold rounded p-2 hover:bg-game-button-hover transition-colors"
                   >
                     {t('login.magicSend')}
                   </button>
@@ -228,7 +228,7 @@ function AdminAppInner() {
             />
             <button
               type="submit"
-              className="w-full bg-game-primary/80 text-white font-semibold rounded p-2 hover:bg-game-primary transition-colors"
+              className="w-full bg-game-primary/80 text-game-paper font-semibold rounded p-2 hover:bg-game-primary transition-colors"
             >
               {t('login.tokenSubmit')}
             </button>

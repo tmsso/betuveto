@@ -78,7 +78,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
               <button
                 type="button"
                 onClick={handleShare}
-                className="rounded-lg border border-game-secondary text-game-secondary text-sm font-bold px-3 py-1 hover:bg-game-secondary hover:text-white focus:outline-none focus:ring-2 focus:ring-game-secondary"
+                className="rounded-lg border border-game-secondary text-game-secondary text-sm font-bold px-3 py-1 hover:bg-game-button hover:text-white focus:outline-none focus:ring-2 focus:ring-game-secondary"
               >
                 📤 {t('daily.share.button')}
               </button>
@@ -93,7 +93,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
             type="button"
             onClick={onPlayDaily}
             disabled={controlsDisabled || isDailyGame}
-            className="self-start rounded-lg bg-game-secondary text-white text-sm font-bold px-3 py-1.5 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+            className="self-start rounded-lg bg-game-button text-white text-sm font-bold px-3 py-1.5 hover:bg-game-button-hover focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
           >
             {isDailyGame
               ? t('daily.playing')

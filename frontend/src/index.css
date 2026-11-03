@@ -13,6 +13,13 @@
   /* #2272b8 since ROADMAP 16.3 (was #3498db): white button text on it reaches 5.0:1 (WCAG AA
      4.5:1); the old blue gave 3.15:1, flagged by Lighthouse. Hue kept close to the brand blue. */
   --game-secondary: 34 114 184;  /* #2272b8 — accent, links, focus ring */
+  /* Fills under white text get their own tokens (ROADMAP 16.3, 2026-11-03): in dark mode the
+     accent must be LIGHT to read as text on the dark page, but a button fill must stay DARK
+     for its white label, so one token can't serve both. All four reach >= 4.5:1 with white. */
+  --game-button: 34 114 184;       /* #2272b8, 5.0:1 — same look as before in light mode */
+  --game-button-hover: 37 99 235;  /* #2563eb, 5.2:1 */
+  --game-go: 21 128 61;            /* #15803d, 5.0:1 — the guess-submit button (was #2ecc71, 2.1:1) */
+  --game-go-hover: 22 101 52;      /* #166534, 7.1:1 */
   --game-success: 46 204 113;    /* #2ecc71 */
   --game-warning: 243 156 18;    /* #f39c12 */
   --game-error: 231 76 60;       /* #e74c3c */
@@ -26,6 +33,10 @@
 .dark {
   --game-primary: 226 232 240;   /* #e2e8f0 — light text on a dark ground */
   --game-secondary: 96 165 250;  /* #60a5fa — brighter blue keeps AA contrast on dark */
+  --game-button: 37 99 235;       /* #2563eb, 5.2:1 with white (the #60a5fa fill gave 2.5:1) */
+  --game-button-hover: 29 78 216; /* #1d4ed8, 6.7:1 */
+  --game-go: 21 128 61;           /* #15803d (the #4ade80 fill gave 1.7:1) */
+  --game-go-hover: 22 101 52;     /* #166534 */
   --game-success: 74 222 128;    /* #4ade80 */
   --game-warning: 251 191 36;    /* #fbbf24 */
   --game-error: 248 113 113;     /* #f87171 */
