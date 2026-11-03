@@ -39,12 +39,14 @@ export async function verifyNeonAuthToken(token: string): Promise<{ userId: stri
   const set = getJwks();
   if (!set) return null;
 
-  // Not a JWT at all: an opaque session token (or junk) in the Bearer header. Expected
-  // client-side fallout, not a server fault, so a warning with no stack (ROADMAP 16.8;
-  // these were 20 "Invalid Compact JWS" errors in October). Only the shape is logged,
-  // never the value: an opaque session token is itself a credential.
+  // Not a JWT at all: an opaque session token (or junk) in the Bearer header (ROADMAP 16.8;
+  // 20 "Invalid Compact JWS" errors in October). Logged under its own event name, with no
+  // stack, and only the shape, never the value: an opaque session token is itself a
+  // credential. Deliberately still level ERROR: only stderr reaches Vercel's runtime-errors
+  // view, the one record that outlives Hobby's 1-hour log retention, and its count is how the
+  // frontend fix gets checked. Downgrade to warn once a week of data shows it at ~0.
   if (!isJwtShaped(token)) {
-    log.warn("neon_auth_not_jwt", { length: token.length, segments: token.split(".").length });
+    log.error("neon_auth_not_jwt", { length: token.length, segments: token.split(".").length });
     return null;
   }
 

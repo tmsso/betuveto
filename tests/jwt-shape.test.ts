@@ -34,7 +34,7 @@ describe("verifyNeonAuthToken with a non-JWT bearer", () => {
     delete process.env.NEON_AUTH_JWKS_URL;
   });
 
-  it("returns null and logs a warning without the token value", async () => {
+  it("returns null and logs neon_auth_not_jwt (error level, no stack) without the token value", async () => {
     // A JWKS URL makes the verifier "configured"; jose fetches it lazily, and the shape
     // check returns before any fetch, so nothing goes over the network.
     process.env.NEON_AUTH_JWKS_URL = "https://auth.invalid/jwks";
@@ -45,9 +45,14 @@ describe("verifyNeonAuthToken with a non-JWT bearer", () => {
     const opaque = "opaqueSessionTokenValue123";
     expect(await verifyNeonAuthToken(opaque)).toBeNull();
 
-    expect(err).not.toHaveBeenCalled();
-    const lines = out.mock.calls.map((c) => String(c[0]));
-    expect(lines.some((l) => l.includes("neon_auth_not_jwt") && l.includes('"warn"'))).toBe(true);
+    // stderr (console.error), so it shows in Vercel's runtime-errors view; see neon-auth.ts.
+    const lines = [...err.mock.calls, ...out.mock.calls].map((c) => String(c[0]));
+    const event = err.mock.calls.map((c) => String(c[0])).find((l) => l.includes("neon_auth_not_jwt"));
+    expect(event).toBeDefined();
+    expect(event).toContain('"error"');
+    expect(event).not.toContain("stack");
+    // The jose path (neon_auth_verify_failed) must not run for a non-JWT.
+    expect(lines.some((l) => l.includes("neon_auth_verify_failed"))).toBe(false);
     expect(lines.join("\n")).not.toContain(opaque);
   });
 });
