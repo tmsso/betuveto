@@ -31,7 +31,7 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
   const inputClass =
     'border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary'
   const buttonClass =
-    'px-3 py-1.5 rounded-lg bg-game-secondary text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed'
+    'px-3 py-1.5 rounded-lg bg-game-button text-white text-sm font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed'
 
   return (
     <section aria-labelledby="room-panel-title" className="flex flex-col gap-3">

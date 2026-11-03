@@ -906,7 +906,7 @@ function App() {
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="animate-breathe h-14 px-8 rounded-full shadow-lg bg-game-secondary text-white text-lg font-semibold hover:bg-blue-600 transition-colors inline-flex items-center justify-center gap-2"
+              className="animate-breathe h-14 px-8 rounded-full shadow-lg bg-game-button text-white text-lg font-semibold hover:bg-game-button-hover transition-colors inline-flex items-center justify-center gap-2"
             >
               <span aria-hidden="true">🎲</span>
               <span>{t('actions.newGame')}</span>
@@ -940,7 +940,7 @@ function App() {
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-secondary text-white text-sm sm:text-base font-semibold hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-button text-white text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
               <span>🎲</span>
               <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
@@ -963,7 +963,7 @@ function App() {
             disabled={!currentGuess.trim()}
             className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
-                ? 'bg-game-success text-white hover:bg-green-600 hover:scale-105 active:scale-95'
+                ? 'bg-game-go text-white hover:bg-game-go-hover hover:scale-105 active:scale-95'
                 : 'bg-gray-300 dark:bg-slate-700 cursor-not-allowed text-game-muted'
               }`}
           >

@@ -27,7 +27,7 @@ export default function RoomInvite({ code, displayName, busy, error, onJoin, onD
         type="button"
         disabled={busy || !trimmed}
         onClick={() => onJoin(code, trimmed)}
-        className="h-12 px-8 rounded-full shadow-lg bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-12 px-8 rounded-full shadow-lg bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {t('room.join')}
       </button>
