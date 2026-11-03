@@ -46,7 +46,8 @@ export default defineConfig({
         short_name: 'Betűvető',
         description: 'Magyar szójáték — rakj ki minél több szót a betűkből!',
         lang: 'hu',
-        theme_color: '#3498db',
+        // The accent since ROADMAP 16.3 (#121); also the Android status bar colour in the TWA.
+        theme_color: '#2272b8',
         background_color: '#f8f9fa',
         icons: [
           {
@@ -67,6 +68,14 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'maskable'
           }
+        ],
+        // ROADMAP 16.6: Chrome on Android shows these in a richer install dialog (and PWABuilder
+        // stops warning). Copies of the Play listing shots; JPEG is outside the precache glob,
+        // so they're only downloaded when that dialog actually opens.
+        screenshots: [
+          { src: 'screenshots/hu-01-start.jpg', sizes: '1080x1920', type: 'image/jpeg', form_factor: 'narrow', label: 'Kezdőképernyő' },
+          { src: 'screenshots/hu-02-game.jpg', sizes: '1080x1920', type: 'image/jpeg', form_factor: 'narrow', label: 'Játék közben' },
+          { src: 'screenshots/hu-04-room-lobby.jpg', sizes: '1080x1920', type: 'image/jpeg', form_factor: 'narrow', label: 'Szoba barátokkal' },
         ]
       }
     })
