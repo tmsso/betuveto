@@ -4,11 +4,13 @@
  * JWKS-verification path (`jose`), not `@neondatabase/auth/next/server`'s `createNeonAuth`
  * — that helper is Next.js-only (its own signed-cookie session, middleware, RSC support),
  * none of which applies to this project's Vite frontend + hand-rolled Vercel dispatcher.
- * The client instead calls `getJWTToken()` and sends it as a Bearer header — Neon Auth's
+ * The client instead gets a JWT (session.token from `getSession()`, or `/token` as a
+ * fallback; see frontend/src/AdminApp.jsx) and sends it as a Bearer header — Neon Auth's
  * base URL is a different registrable domain from this app's, so a session cookie the
  * callback sets would never be attached to a same-site check against our own API anyway.
  */
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { isJwtShaped } from "./jwt-shape.js";
 import { log, serializeError } from "./log.js";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -36,6 +38,15 @@ function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
 export async function verifyNeonAuthToken(token: string): Promise<{ userId: string } | null> {
   const set = getJwks();
   if (!set) return null;
+
+  // Not a JWT at all: an opaque session token (or junk) in the Bearer header. Expected
+  // client-side fallout, not a server fault, so a warning with no stack (ROADMAP 16.8;
+  // these were 20 "Invalid Compact JWS" errors in October). Only the shape is logged,
+  // never the value: an opaque session token is itself a credential.
+  if (!isJwtShaped(token)) {
+    log.warn("neon_auth_not_jwt", { length: token.length, segments: token.split(".").length });
+    return null;
+  }
 
   try {
     const base = process.env.NEON_AUTH_BASE_URL;

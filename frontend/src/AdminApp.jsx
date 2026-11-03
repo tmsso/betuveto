@@ -7,6 +7,7 @@ import AdminWordsPanel from './AdminWordsPanel'
 import { AdminLangProvider } from './admin/AdminLangProvider'
 import { ADMIN_LANGUAGES, adminLocale, useAdminT } from './admin/adminI18n'
 import { authClient } from './neonAuth'
+import { isJwtShaped } from './admin/jwtShape'
 
 // Interim admin auth (ROADMAP 5.1): a shared token, not a real per-admin login — see
 // lib/admin.ts for why. Stored client-side only in this browser's localStorage; never
@@ -33,6 +34,8 @@ function AdminAppInner() {
   // link has actually been followed. Checked once on mount.
   const [sessionJwt, setSessionJwt] = useState(null)
   const [sessionChecked, setSessionChecked] = useState(!authClient)
+  // A Neon Auth session exists but no JWT could be obtained for it (see the effect below).
+  const [sessionNoJwt, setSessionNoJwt] = useState(false)
   const [magicLinkEmail, setMagicLinkEmail] = useState('')
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [magicLinkError, setMagicLinkError] = useState(null)
@@ -56,9 +59,27 @@ function AdminAppInner() {
     // right after following the link, where getJWTToken() silently never could. The JWT
     // itself rides on the response as session.token (the SDK copies it there from a
     // set-auth-jwt response header on success).
+    //
+    // ROADMAP 16.8 (2026-11-03): session.token is the JWT only when that get-session
+    // response carried the `set-auth-jwt` header. Without it, the SDK leaves Better Auth's
+    // OPAQUE session token there, which our API can't verify ("Invalid Compact JWS", 20 times
+    // in October) and the 401 then wiped the login. So: use session.token only if it is
+    // JWT-shaped; otherwise ask `/token`, which returns the JWT in the response BODY (no
+    // cross-origin header involved). If that fails too, show "sign in again" instead of
+    // sending a token that can only 401. A second getSession() would not help: the SDK
+    // caches the session in memory and would hand back the same opaque token.
     authClient
       .getSession()
-      .then((result) => setSessionJwt(result?.data?.session?.token ?? null))
+      .then(async (result) => {
+        const session = result?.data?.session
+        if (!session) return setSessionJwt(null)
+        if (isJwtShaped(session.token)) return setSessionJwt(session.token)
+        const fallback = await authClient.token().catch(() => null)
+        const jwt = fallback?.data?.token
+        if (isJwtShaped(jwt)) return setSessionJwt(jwt)
+        setSessionJwt(null)
+        setSessionNoJwt(true)
+      })
       // No session yet (the common case until an admin actually completes a magic link)
       // surfaces as a rejected AuthApiError here, not a clean resolved null — caught
       // directly against production before shipping. Same outcome as "no session" either
@@ -183,6 +204,9 @@ function AdminAppInner() {
 
           {authClient && (
             <>
+              {sessionNoJwt && !magicLinkSent && (
+                <p role="alert" className="text-sm text-red-600 mb-4">{t('err.sessionNoJwt')}</p>
+              )}
               {magicLinkSent ? (
                 <p className="text-sm text-game-primary/80 mb-4">
                   {t('login.magicSent', { email: magicLinkEmail })}
