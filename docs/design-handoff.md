@@ -1,5 +1,7 @@
 # Betűvető — design polish handoff (2026-11-06)
 
+> **Status (2026-11-07):** answered — see [`design-handback.md`](design-handback.md).
+
 Audience: a designer (human or Claude Design session) producing a refreshed look. Scope is
 **visual identity and polish**, not new features or game rules. The output should be specs +
 assets that a dev session can implement against the existing token system.
