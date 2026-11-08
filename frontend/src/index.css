@@ -144,6 +144,19 @@
     box-shadow: none;
   }
 
+  /* Wordmark (handback §1.3): the overlay copy shows only above the 0.26em clip line,
+     i.e. just the double acute; the hairline stroke hides the ink fringe underneath.
+     user-select:none so copying the title doesn't yield "Betűűvetőő". */
+  .wordmark { @apply font-display font-extrabold text-game-primary leading-none; }
+  .wordmark-accented { position: relative; display: inline-block; }
+  .wordmark-accented > span {
+    position: absolute; left: 0; top: 0;
+    color: rgb(var(--game-accent-fill));
+    -webkit-text-stroke: 0.012em rgb(var(--game-accent-fill));
+    clip-path: inset(0 0 calc(100% - 0.26em) 0);
+    user-select: none; pointer-events: none;
+  }
+
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full bg-game-success-soft text-game-primary
       text-[15px] font-extrabold shadow-elev-1;
