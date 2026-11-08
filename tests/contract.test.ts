@@ -1789,7 +1789,8 @@ describeApi("Betűvető API contract", () => {
 
     const view2 = await call("GET", "/api/v1/daily?target_length=7", undefined, { Cookie: cookie });
     expect(view2.json.played_today).toBe(true);
-    expect(view2.json.already_played).toBe(false); // not this combo, but today is used up
+    // (already_played isn't asserted: an admin-hidden length selector pins every daily to
+    // one length, so "a different combo" may resolve to the same puzzle.)
   }, 60000);
 
   it("a hidden length selector also pins the daily puzzle's length", async () => {
