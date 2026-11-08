@@ -22,6 +22,7 @@ export default {
         'game-warning': 'rgb(var(--game-warning) / <alpha-value>)',
         'game-error': 'rgb(var(--game-error) / <alpha-value>)',
         'game-paper': 'rgb(var(--game-paper) / <alpha-value>)',
+        'game-title': 'rgb(var(--game-title) / <alpha-value>)',
         'game-border': 'rgb(var(--game-border) / <alpha-value>)',
         // New tokens introduced for dark mode: `surface` replaces bare `bg-white` cards,
         // `muted` replaces the recurring `text-gray-500` secondary text.

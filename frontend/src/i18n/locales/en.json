@@ -271,6 +271,7 @@
     "points": "{{points}} pts",
     "reportAriaLabel": "Report {{word}} as wrong",
     "reportTitle": "Report as wrong",
+    "reportedToast": "“{{word}}” reported — sent for review. Thanks!",
     "teamHeader": "Teammates' words"
   },
   "dictionary": {
@@ -460,6 +461,7 @@
     "words": "Words found",
     "longest": "Your longest word",
     "fullWord": "The full word",
+    "newGame": "New game",
     "noHint": "No hints used"
   }
 }
