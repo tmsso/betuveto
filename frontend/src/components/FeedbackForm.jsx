@@ -78,7 +78,7 @@ export default function FeedbackForm({ compact = false }) {
         <button
           type="submit"
           disabled={!trimmed || status === 'sending'}
-          className="rounded-lg bg-game-secondary text-white font-bold px-3 py-1.5 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+          className="rounded-lg bg-game-button text-white font-bold px-3 py-1.5 hover:bg-game-button-hover focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
         >
           {status === 'sending' ? t('feedback.sending') : t('feedback.send')}
         </button>

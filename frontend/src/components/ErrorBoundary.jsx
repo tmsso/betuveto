@@ -34,7 +34,7 @@ export default class ErrorBoundary extends Component {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-5 py-2 rounded-lg bg-game-secondary text-white font-semibold"
+            className="px-5 py-2 rounded-lg bg-game-button text-white font-semibold"
           >
             {i18n.t('crash.reload')}
           </button>

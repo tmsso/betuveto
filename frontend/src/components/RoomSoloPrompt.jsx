@@ -39,7 +39,7 @@ export default function RoomSoloPrompt({ bonusSeconds, busy, onContinue, onFinis
             type="button"
             disabled={busy}
             onClick={onContinue}
-            className="px-4 py-2 rounded-lg bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50"
           >
             {t('room.solo.continue')}
           </button>

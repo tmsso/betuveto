@@ -66,7 +66,7 @@ function InstallPrompt() {
       <span className="text-sm font-semibold text-game-primary whitespace-nowrap">{t('install.prompt')}</span>
       <button
         onClick={handleInstall}
-        className="text-sm font-semibold bg-game-secondary text-white px-3 py-1 rounded-full hover:bg-blue-600 transition-colors whitespace-nowrap"
+        className="text-sm font-semibold bg-game-button text-white px-3 py-1 rounded-full hover:bg-game-button-hover transition-colors whitespace-nowrap"
       >
         {t('install.install')}
       </button>

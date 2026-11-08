@@ -65,7 +65,7 @@ export default function RoomResults({ room, busy, error, onRematch, onJoinRematc
             type="button"
             disabled={busy}
             onClick={() => onJoinRematch(room.next_room_code)}
-            className="h-11 px-6 rounded-full shadow bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
+            className="h-11 px-6 rounded-full shadow bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50"
           >
             {t('room.joinRematch')}
           </button>
@@ -74,7 +74,7 @@ export default function RoomResults({ room, busy, error, onRematch, onJoinRematc
             type="button"
             disabled={busy}
             onClick={onRematch}
-            className="h-11 px-6 rounded-full shadow bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
+            className="h-11 px-6 rounded-full shadow bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50"
           >
             {t('room.rematch')}
           </button>

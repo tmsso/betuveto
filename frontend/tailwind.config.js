@@ -27,6 +27,11 @@ export default {
         // `muted` replaces the recurring `text-gray-500` secondary text.
         'game-surface': 'rgb(var(--game-surface) / <alpha-value>)',
         'game-muted': 'rgb(var(--game-muted) / <alpha-value>)',
+        // Fills under white text (ROADMAP 16.3): see index.css for why these are separate.
+        'game-button': 'rgb(var(--game-button) / <alpha-value>)',
+        'game-button-hover': 'rgb(var(--game-button-hover) / <alpha-value>)',
+        'game-go': 'rgb(var(--game-go) / <alpha-value>)',
+        'game-go-hover': 'rgb(var(--game-go-hover) / <alpha-value>)',
       },
       fontFamily: {
         // Rounded, readable base face with full Hungarian (ő/ű) support.
