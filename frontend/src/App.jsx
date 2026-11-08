@@ -603,6 +603,12 @@ function App() {
     }
   }, [selectedWordlist, selectedLength])
 
+  // The desktop side rail (design refresh 17c) shows the daily card without Settings being
+  // opened, so load the view on mount when the rail is actually visible (lg+, 1024px).
+  useEffect(() => {
+    if (window.matchMedia?.('(min-width: 1024px)').matches) refreshDailyView()
+  }, [refreshDailyView])
+
   // Starting the daily routes through the same confirm-before-restart funnel as the
   // length/wordlist selectors — losing real progress still prompts first.
   const handlePlayDaily = useCallback(() => {
