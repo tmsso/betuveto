@@ -271,6 +271,7 @@
     "points": "{{points}} pont",
     "reportAriaLabel": "{{word}} jelentése hibás szóként",
     "reportTitle": "Jelentés hibás szóként",
+    "reportedToast": "„{{word}}” jelentve — ellenőrzésre küldtük. Köszönjük!",
     "teamHeader": "Csapattársak szavai"
   },
   "dictionary": {
@@ -460,6 +461,7 @@
     "words": "Megtalált szavak",
     "longest": "Leghosszabb szavad",
     "fullWord": "A teljes szó",
+    "newGame": "Új játék",
     "noHint": "Segítség nélkül"
   }
 }

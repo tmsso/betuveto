@@ -19,30 +19,11 @@ export function LogoMark({ size = 48, onBrand = false, className = '' }) {
   )
 }
 
-// Letters whose double acute is drawn in saffron.
-const ACCENTED = new Set(['ű', 'ő', 'Ű', 'Ő'])
-
 /**
- * The wordmark as live text (handback §1.3): the <h1> keeps its plain accessible name
- * ("Betűvető"), and each ű/ő gets an aria-hidden copy of itself on top, clipped to the
- * accent zone (the top 0.26em of a line-height:1 box), coloured saffron. So the font's own
- * accent glyphs are recoloured — no hand-drawn accents, no image.
+ * The wordmark as plain live text. The owner review of 2026-11-08 dropped the saffron
+ * accent overlay and the extra-bold display face: the title is now the app's normal
+ * Nunito in a lighter teal (`--game-title`), nothing else.
  */
 export function Wordmark({ text, className = '' }) {
-  return (
-    // aria-label pins the accessible name: the absolutely positioned overlay spans make
-    // Chromium's name computation insert a space ("Betű vető") even though they're hidden.
-    <h1 className={`wordmark ${className}`} aria-label={text}>
-      {[...text].map((ch, i) =>
-        ACCENTED.has(ch) ? (
-          <span key={i} className="wordmark-accented">
-            {ch}
-            <span aria-hidden="true">{ch}</span>
-          </span>
-        ) : (
-          ch
-        ),
-      )}
-    </h1>
-  )
+  return <h1 className={`wordmark ${className}`}>{text}</h1>
 }

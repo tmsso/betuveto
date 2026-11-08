@@ -50,11 +50,12 @@ export default function Board({
           : scrambledLetters.map((letter, index) => (
           <button
             key={index}
-            onClick={() => onLetterClick(letter)}
+            onClick={() => onLetterClick(letter, index)}
             aria-label={t('board.letterAriaLabel', { letter })}
             // Tile look lives in index.css (.tile*) — the bevel is an inset box-shadow, and
             // hover/press only translate (never scale) so the hit target never moves.
-            className={`tile ${currentAnimatingIndex === index ? 'tile-hint' : ''}`}            disabled={usedLetters[index]}
+            className={`tile ${currentAnimatingIndex === index ? 'tile-hint' : ''}`}
+            disabled={usedLetters[index]}
           >
             {letter}
           </button>

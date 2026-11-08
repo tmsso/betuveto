@@ -1,4 +1,4 @@
-import { CalendarDays, Flame, Sparkles, Trophy } from 'lucide-react'
+import { CalendarDays, Dices, Flame, Sparkles, Trophy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import useCountUp from './useCountUp'
 
@@ -11,7 +11,7 @@ import useCountUp from './useCountUp'
  */
 export default function RoundSummary({
   score, foundCount, totalCount, longestWord, fullWord, cleared, noHint, newBest,
-  isDaily, streak,
+  isDaily, streak, onNewGame,
 }) {
   const { t } = useTranslation()
   const shown = useCountUp(score, 900)
@@ -68,6 +68,20 @@ export default function RoundSummary({
               )}
             </span>
           )}
+        </div>
+      )}
+      {/* After a daily there's no second daily today, so the next step is a normal game —
+          offered right here (owner review 2026-11-08: it used to need a page refresh). */}
+      {isDaily && onNewGame && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={onNewGame}
+            className="inline-flex items-center gap-2 rounded-full bg-game-button px-5 py-2.5 text-sm font-semibold text-game-on-secondary shadow-elev-1 hover:bg-game-button-hover"
+          >
+            <Dices size={18} aria-hidden="true" />
+            {t('summary.newGame')}
+          </button>
         </div>
       )}
     </section>
