@@ -46,8 +46,8 @@ export default defineConfig({
         short_name: 'Betűvető',
         description: 'Magyar szójáték — rakj ki minél több szót a betűkből!',
         lang: 'hu',
-        theme_color: '#3498db',
-        background_color: '#f8f9fa',
+        theme_color: '#0b6b6b',
+        background_color: '#f4efe4',
         icons: [
           {
             src: 'pwa-192x192.png',

@@ -227,7 +227,7 @@ function AdminAppInner() {
                   )}
                   <button
                     type="submit"
-                    className="w-full bg-game-button text-white font-semibold rounded p-2 hover:bg-game-button-hover transition-colors"
+                    className="w-full bg-game-button text-game-on-secondary font-semibold rounded p-2 hover:bg-game-button-hover transition-colors"
                   >
                     {t('login.magicSend')}
                   </button>

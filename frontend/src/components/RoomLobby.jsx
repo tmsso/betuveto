@@ -57,7 +57,7 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
       <button
         type="button"
         onClick={share}
-        className="text-sm underline text-game-secondary hover:text-blue-700 dark:hover:text-blue-300"
+        className="text-sm underline text-game-secondary hover:text-game-primary"
       >
         {copied ? t('room.copied') : t('room.share')}
       </button>
@@ -67,7 +67,7 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
           <li key={m.player_id} className="flex items-center gap-2 text-sm">
             <span
               aria-label={m.online ? t('room.online') : t('room.offline')}
-              className={`inline-block h-2 w-2 rounded-full ${m.online ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}
+              className={`inline-block h-2 w-2 rounded-full ${m.online ? 'bg-game-success' : 'bg-game-tile-used'}`}
             />
             <span className="font-semibold truncate">{m.display_name ?? t('highScores.anonymous')}</span>
             {m.is_host && <span title={t('room.host')} aria-label={t('room.host')}>👑</span>}
@@ -88,15 +88,15 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
           type="button"
           disabled={!canStart || busy}
           onClick={onStart}
-          className="h-12 px-8 rounded-full shadow-lg bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-12 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {canStart ? t('room.start') : t('room.waitingForPlayers')}
         </button>
       ) : (
         <p className="text-sm font-semibold animate-pulse">{t('room.waitingForHost')}</p>
       )}
-      {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{t(error)}</p>}
-      <button type="button" onClick={onLeave} className="text-xs text-game-muted underline hover:text-red-600">
+      {error && <p role="alert" className="text-xs text-game-error">{t(error)}</p>}
+      <button type="button" onClick={onLeave} className="text-xs text-game-muted underline hover:text-game-error">
         {room.is_host && room.member_count <= 1 ? t('room.closeRoom') : t('room.leave')}
       </button>
     </div>

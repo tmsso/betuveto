@@ -20,7 +20,7 @@ export default function Scoreboard({
   return (
     <div className="text-left">
       <div
-        className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-red-600 dark:text-red-400' : 'text-game-primary'}`}
+        className={`text-3xl font-bold ${isScoreFlashing ? 'animate-pulse text-game-error' : 'text-game-primary'}`}
         aria-live="polite"
         aria-label={t('score.ariaLabel', { score: displayScore })}
       >
