@@ -2315,7 +2315,7 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   often expect one; the wording needs the owner's sign-off. Small. **Built 2026-10-29 (PR #116):**
   static route like /privacy, names no person ("the project"/"the operator"), contact = in-app
   feedback. **Wording signed off by the owner 2026-10-29** after a Hungarian subject–verb agreement pass.
-- `[ ]` **16.2 Player-facing "report this name"** for display names shown on leaderboards and in
+- `[x]` **16.2 Player-facing "report this name"** for display names shown on leaderboards and in
   rooms. The profanity filter is in (Batch 13/14 name filter); stores want a report path for
   user-generated content too. Reuse the existing report queue + admin triage. Small–medium.
   **Built 2026-10-29 (PR #117):** a ⚑ next to named entries on the all-time and daily leaderboards
@@ -2329,7 +2329,12 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   92, accessibility 95, best practices 100, SEO 100. Manifest now has an explicit `id: '/'`
   (PR #118). Only finding: white button text on the accent blue is 3.15:1; PR #121 darkened it to
   #2272b8 (5.0:1), approved by the owner and merged 2026-10-29. Dark-mode buttons
-  (~2.5:1) need their own token, not done.
+  (~2.5:1) need their own token. **2026-11-03 (PR #125, built, awaiting merge):** an axe
+  `color-contrast` audit on a preview found three failures: the green guess-submit button
+  (2.1:1 light, 1.74:1 dark; Lighthouse missed it because it audited the button while
+  disabled) and the dark-mode blue (2.54:1). New fill tokens `game-button`/`game-go` (dark mode
+  needs a light accent for links but a dark fill under white labels); an E2E runs axe in both
+  themes and asserts the theme it audits. See D-16d.
 - `[ ]` **16.4 Bubblewrap project, signed AAB, TWA scope.** Scope `/` with `/admin` excluded.
   Use Play App Signing; the upload key goes in the password manager (the lost backup key is the
   cautionary tale). *(owner: Play developer account, one-time $25.)*
@@ -2340,6 +2345,10 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   with `application/json`, 200 and no redirect (checked with curl on the preview); the real
   statement waits for the signing fingerprint. Steps in `docs/play-store.md`.
 - `[ ]` **16.6 Play Console paperwork** *(owner, Claude drafts text from the privacy page)*:
+  **2026-11-03 (PR #126, built, awaiting merge):** listing assets ready in `docs/play-store/`:
+  5 portrait screenshots per language (1080×1920 JPEG), a 1024×500 feature graphic per language,
+  full hu + en descriptions; generator in `frontend/play-assets/` (refuses production; never run
+  by CI). Also manifest screenshots and `theme_color` #2272b8. Uploading is the owner's step.
   Data safety form, IARC content rating questionnaire, store listing (hu + en descriptions,
   screenshots, icon). **Drafts in `docs/play-store.md` (2026-10-29),** derived from the schema,
   not only the privacy page. Play requires a public developer email on the listing (Help
@@ -2366,6 +2375,16 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   on (required CI checks, no reviews, admins exempt). No Vercel log drains exist (checked); the
   privacy page now names Sentry and lists rooms, reports and suggestions. Still open: IP/2FA
   posture for `/admin`; Sentry's "prevent storing IP addresses" setting (owner).
+  **2026-11-03:** Vercel runtime errors showed 20 `neon_auth_verify_failed` "Invalid Compact JWS"
+  on `/admin` in October. The Neon Auth SDK puts the JWT into `session.token` only when the
+  get-session response has a `set-auth-jwt` header; otherwise the opaque session token stays
+  there, the API rejects it and the admin page wipes the login. **PR #124 (built, awaiting
+  merge; needs the owner's Magic Link test):** the page sends only JWT-shaped tokens, falling
+  back to `/token` (JWT in the body), else "sign in again"; the API logs non-JWT bearers as
+  `neon_auth_not_jwt` (error level on purpose: stderr is the only log that outlives the Hobby
+  plan's 1-hour retention). Check the count a week after merge. Which October requests were
+  this bug and which were bots is unverified. **CSP enforcing deferred again:** the owner's
+  console-day status was not given on 2026-11-03.
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
@@ -2376,6 +2395,10 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
 - **Open forks:**
   - **D-16b** Offline play: a TWA needs the site up; offline needs a service-worker wordlist
     slice (9.2 note). *(Default: not for the first release.)*
+  - **D-16d (2026-11-03, built as the recommended default, awaiting the owner's OK in PR
+    #125):** the green guess-submit button becomes darker in **light** mode too (#2ecc71 →
+    #15803d), because the light green also failed AA (2.1:1). This goes beyond the approved
+    dark-mode change. If rejected, #126's screenshots must be regenerated.
   - **D-16c** Order. *(Default: 16.1, 16.2, 16.3, 16.8 first, all useful without a store; then
     16.4-16.7; 16.9/16.10 in parallel.)*
 
@@ -2417,7 +2440,6 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
 | 14 — Wider-audience tail (2026-10-15) | S each | 13 |
 | 15 — Room test notes (2026-10-25) | M (one migration, leave flow, rules text) | 7.2 |
 | 16 — Store readiness (2026-10-29) | M–L, partly owner tasks | 8 (for 16.10), domain |
-| 13 — Owner test-pass findings (2026-10-03) | S each | — |
 
 **Working agreement for AI-assisted delivery:** one batch item = one PR; every PR adds or
 updates tests in `backend/tests/`; every PR updates the checkbox here. Batches 0 and 1
