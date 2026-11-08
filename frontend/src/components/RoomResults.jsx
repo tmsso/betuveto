@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Trophy } from 'lucide-react'
 import RoomBadges from './RoomBadges'
 
 /**
@@ -38,7 +39,9 @@ export default function RoomResults({ room, busy, error, onRematch, onJoinRematc
               className="w-full flex items-center gap-2 text-left"
             >
               <span className="w-8 font-bold tabular-nums">
-                {versus && m.rank === 1 ? '🏆' : `${m.rank}.`}
+                {versus && m.rank === 1
+                  ? <Trophy size={18} className="text-game-accent" role="img" aria-label={t('room.winner')} />
+                  : `${m.rank}.`}
               </span>
               <span className="flex-1 truncate font-semibold">{m.display_name ?? t('highScores.anonymous')}</span>
               <RoomBadges badges={m.badges} />

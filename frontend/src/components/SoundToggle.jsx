@@ -1,3 +1,4 @@
+import { Volume2, VolumeX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -16,7 +17,7 @@ export default function SoundToggle({ enabled, onToggle }) {
       title={enabled ? t('soundToggle.disable') : t('soundToggle.enable')}
       className="text-sm leading-none rounded-lg border border-game-border bg-game-surface px-2 py-1 text-game-primary focus:outline-none focus:ring-2 focus:ring-game-secondary"
     >
-      {enabled ? '🔊' : '🔇'}
+      {enabled ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}
     </button>
   )
 }

@@ -1,3 +1,4 @@
+import { Lock, Trophy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -76,7 +77,7 @@ export default function StatsPanel({ stats, statsLoading, achievements, achievem
                   }`}
                 >
                   <span aria-hidden="true" className="text-base leading-none mt-0.5">
-                    {unlocked ? '🏆' : '🔒'}
+                    {unlocked ? <Trophy size={16} aria-hidden="true" className="text-game-accent" /> : <Lock size={16} aria-hidden="true" />}
                   </span>
                   <span className="flex-1">
                     <span className="block font-semibold">{t(`achievements.items.${a.key}.name`)}</span>

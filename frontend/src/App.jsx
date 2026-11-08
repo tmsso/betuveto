@@ -3,6 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
 import { LogoMark, Wordmark } from './components/Logo'
+// Lucide icon set (handback §6) — one consistent outline style instead of OS-dependent emoji.
+import {
+  BookOpen, CalendarDays, Check, ChevronDown, ChevronUp, CircleHelp, Dices, Flag, Lightbulb,
+  LogOut, Shuffle, SlidersHorizontal, Sparkles, Sprout, Swords, Trophy, Users,
+} from 'lucide-react'
 import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
@@ -774,7 +779,7 @@ function App() {
             onClick={() => setIsHelpOpen(true)}
             className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            <span aria-hidden="true">❓</span>
+            <CircleHelp size={18} aria-hidden="true" />
             <span className="max-sm:sr-only">{t('help.open')}</span>
           </button>
           <button
@@ -784,7 +789,7 @@ function App() {
             title={t('settings.open')}
             className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            <span aria-hidden="true">⚙️</span>
+            <SlidersHorizontal size={18} aria-hidden="true" />
             <span className="max-sm:sr-only">{t('settings.open')}</span>
           </button>
           {showLeaveGame && (
@@ -794,7 +799,7 @@ function App() {
               data-testid="leave-game"
               className="header-btn hover:bg-game-error-soft focus:outline-none focus:ring-2 focus:ring-game-secondary"
             >
-              <span aria-hidden="true">🚪</span>
+              <LogOut size={18} aria-hidden="true" />
               <span className="max-sm:sr-only">{t('room.leaveGame')}</span>
             </button>
           )}
@@ -809,7 +814,7 @@ function App() {
             not the request. */}
         {gameEasyMode && (
             <div className="absolute top-0 left-0 p-2 bg-game-success-soft text-game-primary text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-game-success/30">
-                🌱 {t('easyModeBadge')}
+                <Sprout size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('easyModeBadge')}
             </div>
         )}
 
@@ -817,7 +822,10 @@ function App() {
             (a room game is never a daily). */}
         {inRoomRound && (
             <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30" title={t('room.boardBadge', { code: room.code })}>
-                {room.mode === 'versus' ? '⚔️' : '👥'} {room.code}
+                {room.mode === 'versus'
+                  ? <Swords size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />
+                  : <Users size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />}
+                {room.code}
             </div>
         )}
 
@@ -825,7 +833,7 @@ function App() {
             shared board; the result is graded once, at its terminal transition. */}
         {isDailyGame && (
             <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30">
-                🗓️ {t('daily.badge')}
+                <CalendarDays size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.badge')}
             </div>
         )}
 
@@ -925,7 +933,7 @@ function App() {
               aria-label={t('actions.newGameAriaLabel')}
               className="animate-breathe h-14 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-lg font-semibold hover:bg-game-button-hover transition-colors inline-flex items-center justify-center gap-2"
             >
-              <span aria-hidden="true">🎲</span>
+              <Dices size={20} aria-hidden="true" />
               <span>{t('actions.newGame')}</span>
             </button>
           </div>
@@ -949,28 +957,30 @@ function App() {
         />
 
         {/* Action Buttons */}
-        <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
+        {/* Phones: a 3-column grid of 52px buttons, each with icon + label (handback §3.3);
+            from sm the original row. `contents` lets the inner group's buttons join the grid. */}
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+          <div className="contents sm:flex sm:items-center sm:gap-3">
             {/* In a room round "new game" would silently walk out of the room — the room's
                 own results offer Rematch / Back to solo instead (ROADMAP 7.2.6). */}
             {!inRoomRound && (
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
-              <span>🎲</span>
-              <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
+              <Dices size={20} aria-hidden="true" />
+              <span>{t('actions.newGame')}</span>
             </button>
             )}
             <button
               onClick={handleScramble}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-elev-2 bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-game-paper transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-1 bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-game-paper transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
               aria-label={t('actions.scrambleAriaLabel')}
               title={t('actions.scrambleAriaLabel')}
             >
-              <span>🔀</span>
-              <span className="max-[420px]:hidden">{t('actions.scramble')}</span>
+              <Shuffle size={20} aria-hidden="true" />
+              <span>{t('actions.scramble')}</span>
             </button>
           </div>
 
@@ -978,14 +988,14 @@ function App() {
             onClick={handleSubmit}
             aria-label={t('actions.submitAriaLabel')}
             disabled={!currentGuess.trim()}
-            className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-elev-2 text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
+            className={`h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-2 text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
                 ? 'bg-game-go text-game-on-secondary hover:bg-game-go-hover hover:scale-105 active:scale-95'
                 : 'bg-game-tile-used cursor-not-allowed text-game-muted'
               }`}
           >
-            <span>✅</span>
-            <span className="max-[360px]:hidden">{t('actions.submit')}</span>
+            <Check size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span>{t('actions.submit')}</span>
           </button>
         </div>
 
@@ -994,16 +1004,18 @@ function App() {
           <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
               onClick={handleGiveUpClick}
-              className="text-xs text-game-muted underline hover:text-game-error"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-game-muted hover:text-game-error"
             >
+              <Flag size={16} aria-hidden="true" />
               {t('giveUpHint.giveUp')}
             </button>
             <button
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
               title={t('giveUpHint.hintTitle', { cost: hintCost })}
-              className="text-xs text-game-secondary underline hover:text-game-primary disabled:text-game-muted/50 disabled:no-underline disabled:cursor-not-allowed"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-game-secondary hover:text-game-primary disabled:text-game-muted/50 disabled:cursor-not-allowed"
             >
+              <Lightbulb size={16} aria-hidden="true" />
               {t('giveUpHint.hint', { cost: hintCost })}
             </button>
           </div>
@@ -1028,7 +1040,7 @@ function App() {
             <p className="mb-1">{t('achievements.unlockedToast')}</p>
             <p className="flex flex-wrap justify-center gap-x-3 gap-y-1">
               {achievementToast.map((key) => (
-                <span key={key}>🏆 {t(`achievements.items.${key}.name`)}</span>
+                <span key={key} className="inline-flex items-center gap-1"><Trophy size={14} aria-hidden="true" />{t(`achievements.items.${key}.name`)}</span>
               ))}
             </p>
           </div>
@@ -1046,6 +1058,7 @@ function App() {
                   key={index}
                   className={`chip animate-bounce-in ${justFoundWord === word ? 'chip-just-found' : ''} ${word.length === scrambledLetters.length ? 'chip-full' : ''}`}
                 >
+                  {word.length === scrambledLetters.length && <Sparkles size={14} aria-hidden="true" className="text-game-accent-fill" />}
                   {word}
                   <span className="chip-points">{t('foundWords.points', { points: word.length * word.length })}</span>
                   {isTimeUp && definitionUrl(word, gameWordlist) && (
@@ -1057,7 +1070,7 @@ function App() {
                       title={t('dictionary.lookupTitle')}
                       className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                     >
-                      📖
+                      <BookOpen size={14} aria-hidden="true" />
                     </a>
                   )}
                   <button
@@ -1067,7 +1080,7 @@ function App() {
                     title={t('foundWords.reportTitle')}
                     className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                   >
-                    ⚑
+                    <Flag size={14} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -1102,6 +1115,9 @@ function App() {
                   className="w-full text-center text-sm font-bold text-game-secondary hover:text-game-primary flex items-center justify-center gap-2"
                 >
                   {showRemainingWords
+                    ? <ChevronUp size={16} aria-hidden="true" />
+                    : <ChevronDown size={16} aria-hidden="true" />}
+                  {showRemainingWords
                     ? t('remainingWords.hide')
                     : t('remainingWords.show', { count: allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length })}
                 </button>
@@ -1123,7 +1139,7 @@ function App() {
                                         title={t('dictionary.lookupTitle')}
                                         className="leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                                       >
-                                        📖
+                                        <BookOpen size={14} aria-hidden="true" />
                                       </a>
                                     )}
                                     <button
@@ -1133,7 +1149,7 @@ function App() {
                                         title={t('foundWords.reportTitle')}
                                         className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                                     >
-                                        ⚑
+                                        <Flag size={14} aria-hidden="true" />
                                     </button>
                                 </span>
                             ))

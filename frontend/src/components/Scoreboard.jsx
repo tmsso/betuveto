@@ -1,3 +1,4 @@
+import { Sparkles, Trophy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -24,13 +25,13 @@ export default function Scoreboard({
         aria-live="polite"
         aria-label={t('score.ariaLabel', { score: displayScore })}
       >
-        🏆 {displayScore} <span className="hidden sm:inline">{t('score.pointsSuffix')}</span>
+        <Trophy size={26} aria-hidden="true" className="inline -mt-1 mr-1 text-game-accent" />{displayScore} <span className="hidden sm:inline">{t('score.pointsSuffix')}</span>
       </div>
       {/* Hidden on the inert pre-game board (item 17) — there is no game to report
           progress for yet. */}
       {!preGame && (
         <div className={`text-md text-game-muted transition-all duration-1000 ${allPossibleWordsFound ? 'animate-pulse scale-110 font-bold text-game-success' : ''}`}>
-          {t('score.progress', { found: foundWordsCount, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && '✨'}
+          {t('score.progress', { found: foundWordsCount, total: possibleWordsCount, guesses: guessCount })} {allPossibleWordsFound && <Sparkles size={14} aria-hidden="true" className="inline text-game-accent" />}
         </div>
       )}
     </div>

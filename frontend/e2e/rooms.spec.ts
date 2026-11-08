@@ -98,7 +98,8 @@ for (const mode of ['coop', 'versus'] as const) {
     // Both boards appear — the guest's purely from polling — with the same letters.
     const [hostLetters, guestLetters] = await Promise.all([boardLetters(host), boardLetters(guest)])
     expect([...hostLetters].sort().join('')).toBe([...guestLetters].sort().join(''))
-    await expect(host.getByText(`${mode === 'versus' ? '⚔️' : '👥'} ${code}`)).toBeVisible()
+    // The board badge: mode icon (Lucide, aria-hidden) + the room code (design refresh 17d).
+    await expect(host.getByTitle(new RegExp(code))).toContainText(code)
 
     // One find each; the other side's strip shows it.
     expect(await findAcceptedWord(host, dictionary, hostLetters)).not.toBeNull()
@@ -121,7 +122,7 @@ for (const mode of ['coop', 'versus'] as const) {
       await expect(results).toContainText('Anna')
       await expect(results).toContainText('Béla')
       await expect(results).toContainText('A teljes szó:')
-      if (mode === 'versus') await expect(results).toContainText('🏆')
+      if (mode === 'versus') await expect(results.getByRole('img', { name: 'Győztes' })).toBeVisible()
     }
 
     // Rematch: the host opens a new lobby, the guest follows the pointer.

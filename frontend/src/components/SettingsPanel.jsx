@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ThemeToggle from './ThemeToggle'
@@ -157,7 +158,7 @@ export default function SettingsPanel({
             aria-label={t('settings.close')}
             className="rounded-full w-9 h-9 flex items-center justify-center text-xl text-game-muted hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            ✕
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 

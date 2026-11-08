@@ -1,3 +1,4 @@
+import { Crown, Swords, Users } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReportNameButton from './ReportNameButton.jsx'
@@ -45,7 +46,10 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
   return (
     <div className="mb-6 flex flex-col items-center gap-4 text-center" data-testid="room-lobby">
       <p className="text-sm text-game-muted">
-        {room.mode === 'versus' ? '⚔️' : '👥'} {t(`room.mode.${room.mode}.name`)}
+        {room.mode === 'versus'
+          ? <Swords size={16} aria-hidden="true" className="inline -mt-0.5 mr-1" />
+          : <Users size={16} aria-hidden="true" className="inline -mt-0.5 mr-1" />}
+        {t(`room.mode.${room.mode}.name`)}
         {room.mode === 'coop' && ` (${t(`room.visibility.${room.visibility ?? 'private'}.name`)})`} · {t('room.lengthInfo', { length: room.target_length })}
       </p>
       <div>
@@ -70,7 +74,7 @@ export default function RoomLobby({ room, busy, error, onStart, onLeave }) {
               className={`inline-block h-2 w-2 rounded-full ${m.online ? 'bg-game-success' : 'bg-game-tile-used'}`}
             />
             <span className="font-semibold truncate">{m.display_name ?? t('highScores.anonymous')}</span>
-            {m.is_host && <span title={t('room.host')} aria-label={t('room.host')}>👑</span>}
+            {m.is_host && <Crown size={14} className="text-game-accent" role="img" aria-label={t('room.host')} />}
             {m.is_you && <span className="text-xs text-game-muted">({t('room.you')})</span>}
             {!m.is_you && <span className="ml-auto"><ReportNameButton name={m.display_name} place="room" /></span>}
           </li>

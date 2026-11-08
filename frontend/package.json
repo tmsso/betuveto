@@ -15,6 +15,7 @@
     "@neondatabase/auth": "^0.5.0-beta",
     "@sentry/browser": "^10.72.0",
     "i18next": "^26.3.6",
+    "lucide-react": "1.61.0",
     "react": "^19.2.0",
     "react-canvas-confetti": "^2.0.0",
     "react-dom": "^19.2.0",
