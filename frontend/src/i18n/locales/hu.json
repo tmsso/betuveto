@@ -317,6 +317,9 @@
     "foundByTeammate": "{{name}} már megtalálta ezt a szót.",
     "foundByTeammateAnon": "Ezt a szót már megtalálta valaki."
   },
+  "rail": {
+    "ariaLabel": "Napi rejtvény és ranglista"
+  },
   "help": {
     "open": "Játékszabály",
     "title": "Hogyan játssz?",

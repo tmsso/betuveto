@@ -317,6 +317,9 @@
     "foundByTeammate": "{{name}} already found that word.",
     "foundByTeammateAnon": "Someone already found that word."
   },
+  "rail": {
+    "ariaLabel": "Daily puzzle and leaderboard"
+  },
   "help": {
     "open": "How to play",
     "title": "How to play",

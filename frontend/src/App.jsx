@@ -7,6 +7,8 @@ import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import SettingsPanel from './components/SettingsPanel'
+import DailyPanel from './components/DailyPanel'
+import HighScoresPanel from './components/HighScoresPanel'
 import HelpPanel from './components/HelpPanel'
 import RoomLobby from './components/RoomLobby'
 import RoomInvite from './components/RoomInvite'
@@ -740,56 +742,61 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-game-paper p-4 flex flex-col items-center justify-center font-sans text-game-primary">
+    // Framing (design handback §3): top-aligned page with the header outside the card; on
+    // phones the card is the page (edge to edge), from sm up it's a floating 600px card,
+    // and from lg a 320px side rail joins it. `app-shell` adds the safe-area padding and
+    // the scattered-tile backdrop (index.css).
+    <div className="app-shell min-h-screen bg-game-paper flex flex-col items-center font-sans text-game-primary">
       <OfflineNotice />
       <InstallPrompt />
       <ReactCanvasConfetti ref={getInstance} style={canvasStyles} />
 
-      {/* Header */}
-      <div className="text-center mb-8 w-full flex flex-col items-center">
-        <div className="flex items-center gap-3 mb-3">
-          <LogoMark size={48} className="w-[38px] h-[38px] sm:w-12 sm:h-12" />
-          <Wordmark text={t('app.title')} className="text-[40px] sm:text-5xl" />
+      {/* Header: logo left, controls right. 64px with a hairline on phones, 80px from lg. */}
+      <header className="app-header w-full sm:max-w-[600px] lg:max-w-[952px] px-4 sm:px-0 flex items-center justify-between gap-3 max-sm:border-b max-sm:border-game-border">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <LogoMark size={48} className="w-[38px] h-[38px] lg:w-12 lg:h-12 shrink-0" />
+          <Wordmark text={t('app.title')} className="text-[26px] sm:text-[32px] lg:text-[40px]" />
         </div>
         {/* ROADMAP Batch 10 item 15 — every non-core control (language, theme, sound,
             length, wordlist, easy mode, leaderboard, stats) now lives behind this one
             gear button, in <SettingsPanel>, leaving the board / input / score / timer /
             actions as the default view. */}
-        <div className="mt-1 flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* ROADMAP 12.5 — the rules, for testers who arrive from a shared link. */}
           <button
             type="button"
             onClick={() => setIsHelpOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
             <span aria-hidden="true">❓</span>
-            <span>{t('help.open')}</span>
+            <span className="max-sm:sr-only">{t('help.open')}</span>
           </button>
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
             aria-label={t('settings.open')}
             title={t('settings.open')}
-            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
             <span aria-hidden="true">⚙️</span>
-            <span>{t('settings.open')}</span>
+            <span className="max-sm:sr-only">{t('settings.open')}</span>
           </button>
           {showLeaveGame && (
             <button
               type="button"
               onClick={handleLeaveGameClick}
               data-testid="leave-game"
-              className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-game-error-soft focus:outline-none focus:ring-2 focus:ring-game-secondary"
+              className="header-btn hover:bg-game-error-soft focus:outline-none focus:ring-2 focus:ring-game-secondary"
             >
               <span aria-hidden="true">🚪</span>
-              <span>{t('room.leaveGame')}</span>
+              <span className="max-sm:sr-only">{t('room.leaveGame')}</span>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="bg-game-surface rounded-xl shadow-elev-3 p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
+      <div className="w-full flex justify-center gap-8 sm:mt-4 max-sm:flex-1">
+      <main className="game-card bg-game-surface w-full sm:max-w-[600px] px-4 pt-5 pb-8 sm:px-9 sm:pt-7 sm:pb-8 sm:rounded-3xl sm:shadow-elev-2 relative overflow-hidden">
         {/* Easy-mode indicator (ROADMAP Batch 10) — the checkbox alone can't show a
             silent server-side fallback to a normal pick (lib/game.ts: no word yet
             qualifies), so this reflects gameEasyMode, the server's echoed actual outcome,
@@ -1140,6 +1147,32 @@ function App() {
             {t(error)}
           </div>
         )}
+      </main>
+
+      {/* Desktop side rail (handback §3.2): the daily puzzle and the leaderboard, same data
+          and components as in Settings, always visible where there's room. Below lg they
+          stay in Settings only. */}
+      <aside className="hidden lg:flex w-80 shrink-0 flex-col gap-4" aria-label={t('rail.ariaLabel')}>
+        {!roomActive && (
+          <section className="rounded-3xl bg-game-surface shadow-elev-1 p-5">
+            <DailyPanel
+              daily={dailyView}
+              loading={dailyLoading}
+              isDailyGame={isDailyGame}
+              onPlayDaily={handlePlayDaily}
+              controlsDisabled={isLoading}
+            />
+          </section>
+        )}
+        <section className="rounded-3xl bg-game-surface shadow-elev-1 p-5">
+          <HighScoresPanel
+            serverScores={serverScores}
+            serverScoresLoading={serverScoresLoading}
+            highScores={highScores}
+            targetLength={targetLength}
+          />
+        </section>
+      </aside>
       </div>
 
       <SettingsPanel
