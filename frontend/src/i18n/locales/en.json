@@ -452,5 +452,14 @@
       }
     },
     "winner": "Winner"
+  },
+  "summary": {
+    "title": "Round over",
+    "cleared": "Board cleared!",
+    "newBest": "New best!",
+    "words": "Words found",
+    "longest": "Your longest word",
+    "fullWord": "The full word",
+    "noHint": "No hints used"
   }
 }

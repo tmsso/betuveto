@@ -74,8 +74,33 @@ export default {
         // empty board reads as "waiting for you" rather than broken. Auto-neutralised by
         // the prefers-reduced-motion block in index.css like every other animation here.
         'breathe': 'breathe 2.6s ease-in-out infinite',
+        // Design refresh celebrations (handback §5). All neutralised by the
+        // prefers-reduced-motion rule in index.css, leaving the static end state.
+        'summary-in': 'summaryIn 300ms ease-out both',
+        'stamp': 'stamp 260ms cubic-bezier(.34,1.56,.64,1) both',
+        'flame': 'flame 450ms cubic-bezier(.34,1.56,.64,1) both',
+        'board-glow': 'boardGlow 900ms ease-in-out both',
       },
       keyframes: {
+        summaryIn: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        stamp: {
+          '0%': { opacity: '0', transform: 'rotate(-8deg) scale(1.4)' },
+          '100%': { opacity: '1', transform: 'rotate(0) scale(1)' },
+        },
+        flame: {
+          '0%': { transform: 'scale(0)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        // Tier 2: a saffron glow that swells and fades around the board. The end state
+        // (100%) keeps a faint static outline only while the class is on (1.5 s).
+        boardGlow: {
+          '0%': { boxShadow: '0 0 0 0 rgb(var(--game-accent-fill) / 0)' },
+          '40%': { boxShadow: '0 0 0 6px rgb(var(--game-accent-fill) / .9), 0 0 40px 12px rgb(var(--game-accent-fill) / .45)' },
+          '100%': { boxShadow: '0 0 0 3px rgb(var(--game-accent-fill) / .8)' },
+        },
         // A pulsing glow ring only — deliberately no `transform: scale`, so the button's
         // hit target never moves (a scaling interactive element wobbles under the cursor
         // and fails Playwright's "element is stable" actionability check).

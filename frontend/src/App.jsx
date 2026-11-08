@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
 import { LogoMark, Wordmark } from './components/Logo'
+import RoundSummary from './components/RoundSummary'
 // Lucide icon set (handback §6) — one consistent outline style instead of OS-dependent emoji.
 import {
   BookOpen, CalendarDays, Check, ChevronDown, ChevronUp, CircleHelp, Dices, Flag, Lightbulb,
@@ -108,23 +109,48 @@ function App() {
     confettiRef.current = instance;
   }, []);
 
-  const fireConfetti = useCallback(() => {
+  // Celebration tiers (design handback §5). Each tier is a distinct confetti config in
+  // the brand's celebrate-1/2/3 colours, read from the CSS tokens at fire time so dark
+  // mode gets its own brighter set. Reduced motion: no particles at all — the static
+  // fallbacks (chip colours, board outline, summary card) carry the moment instead.
+  const celebrate = useCallback((tier) => {
     if (prefersReducedMotion()) return;
-    confettiRef.current?.({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
+    const fire = confettiRef.current;
+    if (!fire) return;
+    const css = getComputedStyle(document.documentElement);
+    const colors = [1, 2, 3].map((i) => {
+      const [r, g, b] = css.getPropertyValue(`--game-celebrate-${i}`).trim().split(/\s+/).map(Number);
+      return '#' + [r, g, b].map((n) => (n || 0).toString(16).padStart(2, '0')).join('');
     });
+    const base = { colors, shapes: ['square'], disableForReducedMotion: true };
+    if (tier === 1) {
+      // Valid word: a small puff from the guess input.
+      fire({ ...base, particleCount: 24, spread: 50, startVelocity: 25, ticks: 90, origin: { y: 0.62 } });
+    } else if (tier === 2) {
+      // Full-length word.
+      fire({ ...base, particleCount: 90, spread: 100, origin: { y: 0.45 } });
+    } else if (tier === 3 || tier === 5) {
+      // Board cleared (3): two side cannons, three bursts over ~1.4 s. Room winner (5): one.
+      const bursts = tier === 3 ? [0, 450, 900] : [0];
+      bursts.forEach((delay) => setTimeout(() => {
+        fire({ ...base, particleCount: 60, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
+        if (tier === 3) fire({ ...base, particleCount: 60, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
+      }, delay));
+    } else if (tier === 4) {
+      // Daily solved: a gentle shower from the top.
+      fire({ ...base, particleCount: 70, spread: 120, gravity: 0.6, startVelocity: 20, origin: { y: 0 } });
+    }
   }, []);
 
+  // Tier 2's board glow: the class runs a 900 ms swell and then holds a faint outline
+  // until it's removed at 1.5 s — under reduced motion only that static outline shows.
+  const [boardGlow, setBoardGlow] = useState(false);
+  const fireConfetti = useCallback(() => celebrate(1), [celebrate]);
   const fireExplosion = useCallback(() => {
-    if (prefersReducedMotion()) return;
-    confettiRef.current?.({
-      particleCount: 200,
-      spread: 160,
-      origin: { y: 0.3 }
-    });
-  }, []);
+    celebrate(2);
+    setBoardGlow(true);
+    setTimeout(() => setBoardGlow(false), 1500);
+  }, [celebrate]);
 
   // ROADMAP 7.2.1 — the single-game state machine (board, guess, timer, hints, word
   // curation, ...). See useGame.js's own top comment for exactly what stayed here instead
@@ -140,7 +166,7 @@ function App() {
     preGame, targetLength, uiConfig, gameWordlist, gameEasyMode, isDailyGame,
     hintLoading, hintMessage, reportedWords, suggestPrompt, suggestLoading, suggestThanks,
     possibleWordsCount, allPossibleWords, showRemainingWords, allPossibleWordsFound,
-    displayScore, usedLetters, scoreAtExpiry,
+    displayScore, usedLetters, scoreAtExpiry, hintPenalty,
     setCurrentGuess, setShowRemainingWords, setUiConfig,
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
@@ -487,6 +513,44 @@ function App() {
   }, [rooms, room, displayName, enterPreGame])
 
   const inRoomRound = Boolean(room && isRoomGame && ['playing', 'finished'].includes(room.status))
+
+  // ── Celebrations + end-of-round summary (design refresh 17e) ──────────────────────
+  // Personal best (tier 6): the best score on record *before* this round ended. The
+  // leaderboard refetches as soon as isTimeUp flips, so the value is latched while the
+  // round is still running and compared once it's over.
+  const bestBeforeRoundRef = useRef(null)
+  if (!isTimeUp) bestBeforeRoundRef.current = serverScores?.your_best?.final_score ?? null
+  const soloRound = !preGame && !inRoomRound && !isRoomGame
+  const isNewBest = soloRound && isTimeUp && !isDailyGame &&
+    bestBeforeRoundRef.current != null && scoreAtExpiry - hintPenalty > bestBeforeRoundRef.current
+
+  // Tier 3 / 4 — fire once when the round ends in a full clear (daily: the gentler shower).
+  useEffect(() => {
+    if (!allPossibleWordsFound || inRoomRound) return
+    celebrate(isDailyGame ? 4 : 3)
+    if (isDailyGame) play('daily')
+  }, [allPossibleWordsFound, inRoomRound, isDailyGame, celebrate, play])
+  // Tier 6 — chime once per round that beats the previous best.
+  useEffect(() => {
+    if (isNewBest) play('chime')
+  }, [isNewBest, play])
+
+  const roundSummary = soloRound && isTimeUp ? (() => {
+    const lettersCount = scrambledLetters.filter((l) => l !== ' ').length
+    const longestWord = [...foundWords].sort((a, b) => b.length - a.length || a.localeCompare(b))[0] ?? null
+    return {
+      score: displayScore,
+      foundCount: foundWords.length,
+      totalCount: possibleWordsCount,
+      longestWord,
+      fullWord: allPossibleWords.find((w) => w.length === lettersCount) ?? null,
+      cleared: allPossibleWordsFound,
+      noHint: hintPenalty === 0,
+      newBest: isNewBest,
+      isDaily: isDailyGame,
+      streak: isDailyGame ? (dailyView?.streak?.current ?? 0) : 0,
+    }
+  })() : null
 
   // ROADMAP 15.1: in a shared co-op room, the words teammates found. Own words stay in
   // `foundWords` (they are scored and reportable); these are shown read-only next to them.
@@ -902,6 +966,7 @@ function App() {
             onRematch={handleRematch}
             onJoinRematch={handleJoinRematch}
             onBackToSolo={leaveRoomToSolo}
+            onCelebrate={(tier) => { celebrate(tier); play(tier === 5 ? 'fanfare' : 'fullClear') }}
           />
         )}
         {inRoomRound && room.status === 'playing' && <RoomStrip room={room} />}
@@ -912,6 +977,7 @@ function App() {
             button; otherwise Enter after clicking Keverés would reshuffle and wipe the
             typed word. `contents` keeps the wrapper out of the layout. */}
         <div data-game-keys className="contents">
+        <div className={`rounded-2xl ${boardGlow ? 'animate-board-glow' : ''}`}>
         <Board
           preGame={preGame}
           gameWordlist={gameWordlist}
@@ -921,6 +987,7 @@ function App() {
           usedLetters={usedLetters}
           onLetterClick={handleLetterClick}
         />
+        </div>
         </div>
 
         {/* Pre-game start (ROADMAP Batch 10 item 17) — the empty board's only control. It
@@ -1047,6 +1114,10 @@ function App() {
         )}
 
         {/* Stats toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
+
+        {/* End-of-round summary (design refresh 17e) — solo and daily games only; a room
+            round has its own results panel above the board. */}
+        {roundSummary && <RoundSummary {...roundSummary} />}
 
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (

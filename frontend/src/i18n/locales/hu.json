@@ -452,5 +452,14 @@
       }
     },
     "winner": "Győztes"
+  },
+  "summary": {
+    "title": "Vége a körnek",
+    "cleared": "Tábla kész!",
+    "newBest": "Új rekord!",
+    "words": "Megtalált szavak",
+    "longest": "Leghosszabb szavad",
+    "fullWord": "A teljes szó",
+    "noHint": "Segítség nélkül"
   }
 }

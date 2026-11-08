@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Trophy } from 'lucide-react'
 import RoomBadges from './RoomBadges'
@@ -9,10 +9,21 @@ import RoomBadges from './RoomBadges'
  * what's next — Rematch for the host, "Join the rematch" for everyone else once the host
  * has made one, or back to solo play.
  */
-export default function RoomResults({ room, busy, error, onRematch, onJoinRematch, onBackToSolo }) {
+export default function RoomResults({ room, busy, error, onRematch, onJoinRematch, onBackToSolo, onCelebrate }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(null) // player_id whose words are expanded
   const reveal = room.reveal
+  // Tier 5 (design refresh 17e): once per results screen — a cannon + fanfare when this
+  // player won a versus round, the full-clear burst when a co-op room cleared the board.
+  const celebrated = useRef(false)
+  useEffect(() => {
+    if (!reveal || celebrated.current || !onCelebrate) return
+    celebrated.current = true
+    // The reveal carries no is_you; the live member list does — match by player_id.
+    const myId = room.members?.find((m) => m.is_you)?.player_id
+    const me = reveal.members.find((m) => m.player_id === myId)
+    if (room.mode === 'versus' ? me?.rank === 1 : reveal.room_cleared) onCelebrate(room.mode === 'versus' ? 5 : 3)
+  }, [reveal, room.mode, room.members, onCelebrate])
   if (!reveal) return null
   const versus = room.mode === 'versus'
 
