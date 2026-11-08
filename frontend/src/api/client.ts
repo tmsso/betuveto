@@ -72,6 +72,8 @@ export interface DailyView {
   target_length: number;
   possible_count: number;
   already_played: boolean;
+  /** Any daily started today, on any combo — the one-a-day rule. */
+  played_today: boolean;
   /** found_count = words found in the graded first attempt (ROADMAP 11.20 share card). */
   your_result: { completed: boolean; final_score: number; found_count: number } | null;
   streak: { current: number; best: number };
@@ -424,7 +426,10 @@ class BetuAPIClient {
     const response = await fetch(`${this.baseUrl}/v1/daily/start${qs ? `?${qs}` : ''}`, {
       method: 'POST',
     });
-    if (!response.ok) throw new Error('Failed to start daily game');
+    if (!response.ok) {
+      // `status` lets the caller tell the one-a-day 409 apart from a real failure.
+      throw Object.assign(new Error(`Failed to start daily game (${response.status})`), { status: response.status });
+    }
     const data: StartGameResult = await response.json();
     this.gameId = data.game_id;
     return data;

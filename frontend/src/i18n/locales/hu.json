@@ -62,7 +62,6 @@
     "loading": "Betöltés...",
     "forDate": "{{date}}",
     "play": "Mai rejtvény indítása",
-    "replay": "Újra (csak szórakozásból)",
     "playing": "A mai rejtvényt játszod",
     "currentStreak": "{{count}} napos sorozat",
     "bestStreak": "legjobb: {{count}}",
@@ -76,7 +75,8 @@
       "copied": "Vágólapra másolva",
       "failed": "Nem sikerült a másolás",
       "text": "Betűvető 🗓️ {{date}} · {{length}} betű\n{{found}}/{{total}} szó · {{score}} pont{{solved}}\n🔥 {{streak}} napos sorozat\n{{url}}"
-    }
+    },
+    "doneForToday": "Mára megvan — holnap jön az új rejtvény."
   },
   "score": {
     "pointsSuffix": "pont",
@@ -271,6 +271,7 @@
     "points": "{{points}} pont",
     "reportAriaLabel": "{{word}} jelentése hibás szóként",
     "reportTitle": "Jelentés hibás szóként",
+    "reportedToast": "„{{word}}” jelentve — ellenőrzésre küldtük. Köszönjük!",
     "teamHeader": "Csapattársak szavai"
   },
   "dictionary": {
@@ -315,7 +316,9 @@
     "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
     "suggestFailed": "Hiba történt a javaslat küldésekor.",
     "foundByTeammate": "{{name}} már megtalálta ezt a szót.",
-    "foundByTeammateAnon": "Ezt a szót már megtalálta valaki."
+    "foundByTeammateAnon": "Ezt a szót már megtalálta valaki.",
+    "dailyGaveUp": "Feladtad. A napi rejtvény megoldását nem mutatjuk meg, hogy másoknak ne rontsuk el.",
+    "dailyAlreadyPlayed": "Ma már játszottál napi rejtvényt — holnap jön az új."
   },
   "rail": {
     "ariaLabel": "Napi rejtvény és ranglista"
@@ -464,6 +467,7 @@
     "words": "Megtalált szavak",
     "longest": "Leghosszabb szavad",
     "fullWord": "A teljes szó",
+    "newGame": "Új játék",
     "noHint": "Segítség nélkül"
   }
 }

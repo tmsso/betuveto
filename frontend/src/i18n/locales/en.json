@@ -62,7 +62,6 @@
     "loading": "Loading...",
     "forDate": "For {{date}}",
     "play": "Play today's puzzle",
-    "replay": "Play again (for fun)",
     "playing": "You're playing today's puzzle",
     "currentStreak": "{{count}}-day streak",
     "bestStreak": "best: {{count}}",
@@ -76,7 +75,8 @@
       "copied": "Copied to clipboard",
       "failed": "Couldn't copy, sorry",
       "text": "Betűvető 🗓️ {{date}} · {{length}} letters\n{{found}}/{{total}} words · {{score}} pts{{solved}}\n🔥 {{streak}}-day streak\n{{url}}"
-    }
+    },
+    "doneForToday": "Done for today — a new puzzle arrives tomorrow."
   },
   "score": {
     "pointsSuffix": "points",
@@ -271,6 +271,7 @@
     "points": "{{points}} pts",
     "reportAriaLabel": "Report {{word}} as wrong",
     "reportTitle": "Report as wrong",
+    "reportedToast": "“{{word}}” reported — sent for review. Thanks!",
     "teamHeader": "Teammates' words"
   },
   "dictionary": {
@@ -315,7 +316,9 @@
     "suggestRateLimited": "Too many suggestions today, try tomorrow.",
     "suggestFailed": "Something went wrong sending the suggestion.",
     "foundByTeammate": "{{name}} already found that word.",
-    "foundByTeammateAnon": "Someone already found that word."
+    "foundByTeammateAnon": "Someone already found that word.",
+    "dailyGaveUp": "You gave up. The daily solution stays hidden so it isn’t spoiled for others.",
+    "dailyAlreadyPlayed": "You’ve already played today’s daily — a new one arrives tomorrow."
   },
   "rail": {
     "ariaLabel": "Daily puzzle and leaderboard"
@@ -464,6 +467,7 @@
     "words": "Words found",
     "longest": "Your longest word",
     "fullWord": "The full word",
+    "newGame": "New game",
     "noHint": "No hints used"
   }
 }

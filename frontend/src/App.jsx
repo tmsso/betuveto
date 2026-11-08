@@ -164,7 +164,7 @@ function App() {
     currentGuess, foundWords, scrambledLetters, guessCount, isTimeUp, timeLeft,
     isGuessShaking, guessErrorMsg, justFoundWord, currentAnimatingIndex, isScoreFlashing,
     preGame, targetLength, uiConfig, gameWordlist, gameEasyMode, isDailyGame,
-    hintLoading, hintMessage, reportedWords, suggestPrompt, suggestLoading, suggestThanks,
+    hintLoading, hintMessage, reportedWords, reportToast, suggestPrompt, suggestLoading, suggestThanks,
     possibleWordsCount, allPossibleWords, showRemainingWords, allPossibleWordsFound,
     displayScore, usedLetters, scoreAtExpiry, hintPenalty,
     setCurrentGuess, setShowRemainingWords, setUiConfig,
@@ -361,6 +361,7 @@ function App() {
     }
   }, [isTimeUp, scoreAtExpiry, updateHighScores]);
 
+  const refreshDailyViewRef = useRef(null)
   const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST, easyMode = false, daily = false) => {
     try {
       setIsLoading(true)
@@ -384,6 +385,13 @@ function App() {
       // dependency-free useCallback (the mount effect below relies on that to avoid
       // restarting the game every time the UI language changes elsewhere) — the JSX
       // below translates this with the render's own (always-current) `t`.
+      // One daily per player per day: a second daily/start is a 409 — say so, and refresh
+      // the daily view so its "play" button turns into "done for today".
+      if (daily && err?.status === 409) {
+        setError('errors.dailyAlreadyPlayed')
+        refreshDailyViewRef.current?.()
+        return
+      }
       setError('errors.startGame')
       console.error('Error starting game:', err)
     } finally {
@@ -672,6 +680,9 @@ function App() {
       setDailyLoading(false)
     }
   }, [selectedWordlist, selectedLength])
+  // startNewGame is declared earlier and must stay dependency-free, so it reaches this
+  // through a ref (for the one-a-day 409 refresh).
+  useEffect(() => { refreshDailyViewRef.current = refreshDailyView }, [refreshDailyView])
 
   // The desktop side rail (design refresh 17c) shows the daily card without Settings being
   // opened, so load the view on mount when the rail is actually visible (lg+, 1024px).
@@ -825,6 +836,15 @@ function App() {
     <div className="app-shell min-h-screen bg-game-paper flex flex-col items-center font-sans text-game-primary">
       <OfflineNotice />
       <InstallPrompt />
+      {reportToast && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full bg-game-error-soft text-game-error border border-game-error/40 px-4 py-2 text-sm font-semibold shadow-elev-2 animate-bounce-in"
+        >
+          <Flag size={16} aria-hidden="true" />
+          {t('foundWords.reportedToast', { word: reportToast })}
+        </div>
+      )}
       <ReactCanvasConfetti ref={getInstance} style={canvasStyles} />
 
       {/* Header: logo left, controls right. 64px with a hairline on phones, 80px from lg. */}
@@ -1118,7 +1138,7 @@ function App() {
 
         {/* End-of-round summary (design refresh 17e) — solo and daily games only; a room
             round has its own results panel above the board. */}
-        {roundSummary && <RoundSummary {...roundSummary} />}
+        {roundSummary && <RoundSummary {...roundSummary} onNewGame={handleNewGameClick} />}
 
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
@@ -1128,7 +1148,7 @@ function App() {
               {[...foundWords].sort((a, b) => a.localeCompare(b, gameWordlist)).map((word, index) => (
                 <span
                   key={index}
-                  className={`chip animate-bounce-in ${justFoundWord === word ? 'chip-just-found' : ''} ${word.length === scrambledLetters.length ? 'chip-full' : ''}`}
+                  className={`chip animate-bounce-in ${justFoundWord === word ? 'chip-just-found' : ''} ${word.length === scrambledLetters.length ? 'chip-full' : ''} ${reportedWords.has(word) ? 'chip-flagged' : ''}`}
                 >
                   {word.length === scrambledLetters.length && <Sparkles size={14} aria-hidden="true" className="text-game-accent-fill" />}
                   {word}
@@ -1150,7 +1170,7 @@ function App() {
                     disabled={reportedWords.has(word)}
                     aria-label={t('foundWords.reportAriaLabel', { word })}
                     title={t('foundWords.reportTitle')}
-                    className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
+                    className={`text-xs leading-none ${reportedWords.has(word) ? 'text-game-error cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                   >
                     <Flag size={14} aria-hidden="true" />
                   </button>
@@ -1200,7 +1220,7 @@ function App() {
                             .filter(word => !foundWords.includes(word) && !teamWordSet.has(word))
                             .sort((a, b) => a.localeCompare(b, gameWordlist))
                             .map((word, index) => (
-                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-game-paper text-game-muted px-2 py-1 rounded border border-game-border">
+                                <span key={index} className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border ${reportedWords.has(word) ? 'bg-game-error-soft text-game-error border-game-error/40' : 'bg-game-paper text-game-muted border-game-border'}`}>
                                     {word}
                                     {definitionUrl(word, gameWordlist) && (
                                       <a
@@ -1219,7 +1239,7 @@ function App() {
                                         disabled={reportedWords.has(word)}
                                         aria-label={t('foundWords.reportAriaLabel', { word })}
                                         title={t('foundWords.reportTitle')}
-                                        className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
+                                        className={`leading-none ${reportedWords.has(word) ? 'text-game-error cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                                     >
                                         <Flag size={14} aria-hidden="true" />
                                     </button>

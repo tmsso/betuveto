@@ -218,7 +218,8 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   // serves it once it agrees the game is over; right at the deadline (rounding or minor
   // clock skew) it may still return 403, so retry a few times before giving up.
   useEffect(() => {
-    if (!isTimeUp || isRoomGame) return
+    // A daily never reveals its solution (owner review 2026-11-08); the server 403s anyway.
+    if (!isTimeUp || isRoomGame || isDailyGame) return
     let cancelled = false
     const MAX_ATTEMPTS = 6
     const fetchReveal = async () => {
@@ -238,7 +239,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     }
     fetchReveal()
     return () => { cancelled = true }
-  }, [isTimeUp, isRoomGame])
+  }, [isTimeUp, isRoomGame, isDailyGame])
 
   // Main countdown timer. The server owns the deadline (`endsAt`, epoch seconds); the
   // client just renders the remaining time, so a slept/backgrounded tab resyncs instead of
@@ -313,11 +314,16 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   // Word curation (ROADMAP 4.1): flag a found or missing word as wrong. Idempotent on the
   // server, so a double-click just comes back as already_reported — no need to guard
   // beyond disabling the button once this session has already reported it.
+  const [reportToast, setReportToast] = useState(null)
+
   const handleReportWord = useCallback(async (word) => {
     if (reportedWords.has(word)) return
     try {
       await betuAPI.reportWord(word)
       setReportedWords((prev) => new Set(prev).add(word))
+      // A visible confirmation (owner review 2026-11-08: a greyed flag alone was too subtle).
+      setReportToast(word)
+      setTimeout(() => setReportToast((w) => (w === word ? null : w)), 3000)
     } catch (err) {
       console.error('Error reporting word:', err)
       showTemporaryError(t(err?.status === 429 ? 'errors.reportLimit' : 'errors.reportFailed'))
@@ -365,6 +371,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
 
     if (!canFormClientSide) {
       showTemporaryError(t('errors.notOnlyGivenLetters'))
+      setCurrentGuess('')
       return
     }
 
@@ -479,12 +486,18 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     }
   }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength, onRoomFinished])
 
-  const handleLetterClick = useCallback((letter) => {
-    setCurrentGuess((prevGuess) => prevGuess + letter)
+  // Which tile each guess character came from, by position (null = typed). With repeated
+  // letters the board must grey out the tile actually tapped, not the first one that
+  // matches — the owner's 2026-11-08 report.
+  const [pickedTiles, setPickedTiles] = useState([])
+
+  const handleLetterClick = useCallback((letter, tileIndex = null) => {
+    setPickedTiles((prev) => [...prev.slice(0, currentGuess.length), tileIndex])
+    setCurrentGuess(currentGuess + letter)
     if (window.innerWidth >= 640) {
       document.getElementById('guess-input')?.focus()
     }
-  }, [])
+  }, [currentGuess])
 
   const handleScramble = useCallback(async () => {
     try {
@@ -509,6 +522,11 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         endGame('given_up')
         showTemporaryError(t('room.gaveUpWaiting'))
         onRoomFinished?.()
+        return
+      }
+      if (result.daily_hidden) {
+        endGame('given_up')
+        showTemporaryError(t('errors.dailyGaveUp'))
         return
       }
       endGame('given_up', { possibleWords: result.possible_words })
@@ -567,12 +585,23 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   const usedLetters = useMemo(() => {
     const used = Array(scrambledLetters.length).fill(false)
     const letters = currentGuess.split('')
-    for (const letter of letters) {
+    // Pass 1: characters that came from a tap claim exactly that tile.
+    const claimed = letters.map((letter, pos) => {
+      const tile = pickedTiles[pos]
+      if (tile != null && scrambledLetters[tile] === letter && !used[tile]) {
+        used[tile] = true
+        return true
+      }
+      return false
+    })
+    // Pass 2: typed characters take the first free matching tile, as before.
+    letters.forEach((letter, pos) => {
+      if (claimed[pos]) return
       const index = scrambledLetters.findIndex((l, i) => l === letter && !used[i])
       if (index !== -1) used[index] = true
-    }
+    })
     return used
-  }, [currentGuess, scrambledLetters])
+  }, [currentGuess, scrambledLetters, pickedTiles])
 
   return {
     // state
@@ -582,7 +611,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     scoreAtExpiry,
     gameEasyMode, isDailyGame, isRoomGame, gameAlphabet, hintPenalty, hintLoading, hintMessage,
     hintCost: rules.hintCost, minWordLength: rules.minWordLength,
-    reportedWords, suggestPrompt, suggestLoading, suggestThanks, possibleWordsCount,
+    reportedWords, reportToast, suggestPrompt, suggestLoading, suggestThanks, possibleWordsCount,
     allPossibleWords, showRemainingWords, allPossibleWordsFound, totalScore, displayScore,
     usedLetters,
     setCurrentGuess, setShowRemainingWords,
