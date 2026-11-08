@@ -12,7 +12,7 @@ export default function RoomInvite({ code, displayName, busy, error, onJoin, onD
   return (
     <div className="mb-6 flex flex-col items-center gap-3 text-center" data-testid="room-invite">
       <p className="text-lg font-bold">{t('room.invited', { code })}</p>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex w-full max-w-xs flex-col items-stretch gap-1 text-sm text-left">
         <span className="text-game-muted font-semibold">{t('room.nameLabel')}</span>
         <input
           type="text"
@@ -20,7 +20,7 @@ export default function RoomInvite({ code, displayName, busy, error, onJoin, onD
           maxLength={20}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('room.namePlaceholder')}
-          className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary w-36"
+          className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary w-full"
         />
       </label>
       <button

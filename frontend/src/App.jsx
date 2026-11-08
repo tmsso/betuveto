@@ -420,13 +420,14 @@ function App() {
 
   // Rooms (ROADMAP 7.2.5). Creating or joining a room leaves any solo game in progress
   // (confirmed first, like every other restart) and shows the lobby on the pre-game board.
-  const handleCreateRoom = useCallback((name, mode, visibility) => {
+  const handleCreateRoom = useCallback((name, mode, visibility, revealWords) => {
     requestRestart(async () => {
       enterPreGame()
       const snapshot = await rooms.create({
         display_name: name,
         mode,
         ...(visibility ? { visibility } : {}),
+        reveal_words: Boolean(revealWords),
         wordlist: selectedWordlist,
         target_length: selectedLength,
       })
