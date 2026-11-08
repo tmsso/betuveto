@@ -69,6 +69,7 @@ const STRINGS = {
     'common.setting': 'Beállítás',
 
     'err.invalidToken': 'Érvénytelen token.',
+    'err.sessionNoJwt': 'A bejelentkezés lejárt vagy nem teljes. Jelentkezz be újra a Magic Linkkel.',
     'err.load': 'Hiba történt a betöltéskor.',
     'err.fetch': 'Hiba történt a lekéréskor.',
     'err.save': 'Hiba történt a mentéskor.',
@@ -261,6 +262,7 @@ const STRINGS = {
     'common.setting': 'Setting',
 
     'err.invalidToken': 'Invalid token.',
+    'err.sessionNoJwt': 'Your sign-in expired or did not complete. Please sign in again with the Magic Link.',
     'err.load': 'Something went wrong loading.',
     'err.fetch': 'Something went wrong fetching.',
     'err.save': 'Something went wrong saving.',
