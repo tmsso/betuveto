@@ -218,7 +218,8 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   // serves it once it agrees the game is over; right at the deadline (rounding or minor
   // clock skew) it may still return 403, so retry a few times before giving up.
   useEffect(() => {
-    if (!isTimeUp || isRoomGame) return
+    // A daily never reveals its solution (owner review 2026-11-08); the server 403s anyway.
+    if (!isTimeUp || isRoomGame || isDailyGame) return
     let cancelled = false
     const MAX_ATTEMPTS = 6
     const fetchReveal = async () => {
@@ -238,7 +239,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     }
     fetchReveal()
     return () => { cancelled = true }
-  }, [isTimeUp, isRoomGame])
+  }, [isTimeUp, isRoomGame, isDailyGame])
 
   // Main countdown timer. The server owns the deadline (`endsAt`, epoch seconds); the
   // client just renders the remaining time, so a slept/backgrounded tab resyncs instead of
@@ -509,6 +510,11 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         endGame('given_up')
         showTemporaryError(t('room.gaveUpWaiting'))
         onRoomFinished?.()
+        return
+      }
+      if (result.daily_hidden) {
+        endGame('given_up')
+        showTemporaryError(t('errors.dailyGaveUp'))
         return
       }
       endGame('given_up', { possibleWords: result.possible_words })

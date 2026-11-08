@@ -22,6 +22,8 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
   const { t } = useTranslation()
 
   const alreadyPlayed = daily?.already_played ?? false
+  // One daily per player per day, on any length/word list (owner review 2026-11-08).
+  const playedToday = daily?.played_today ?? alreadyPlayed
   const streak = daily?.streak ?? { current: 0, best: 0 }
   const leaderboard = daily?.leaderboard ?? []
   // 'copied' | 'failed' | null — 'shared'/'cancelled' need no message, the OS sheet was
@@ -90,18 +92,18 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={onPlayDaily}
-            disabled={controlsDisabled || isDailyGame}
-            className="self-start rounded-lg bg-game-button text-game-on-secondary text-sm font-bold px-3 py-1.5 hover:bg-game-button-hover focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
-          >
-            {isDailyGame
-              ? t('daily.playing')
-              : alreadyPlayed
-                ? t('daily.replay')
-                : t('daily.play')}
-          </button>
+          {playedToday && !isDailyGame ? (
+            <p className="text-sm text-game-muted">{t('daily.doneForToday')}</p>
+          ) : (
+            <button
+              type="button"
+              onClick={onPlayDaily}
+              disabled={controlsDisabled || isDailyGame}
+              className="self-start rounded-lg bg-game-button text-game-on-secondary text-sm font-bold px-3 py-1.5 hover:bg-game-button-hover focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+            >
+              {isDailyGame ? t('daily.playing') : t('daily.play')}
+            </button>
+          )}
 
           {leaderboard.length > 0 && (
             <ol className="mt-1 flex flex-col gap-0.5 text-sm">

@@ -452,6 +452,11 @@ export async function giveUp(gameId: string): Promise<Reply> {
     }
   }
 
+  // A daily reveals nothing (owner review 2026-11-08): everyone gets the same board today.
+  if (game.daily_puzzle_id) {
+    return { status: 200, body: { target_word: null, possible_words: null, daily_hidden: true } };
+  }
+
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
   // No display string (ROADMAP 6.2): target_word is already in the body, and "the full
   // word was X" is exactly one sentence shape the frontend can build itself from that
@@ -526,6 +531,9 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
   // D9 (ROADMAP 7.2.4): a room game's answers stay hidden until the whole room is over.
   if (game.room_id && (await isRoomStillPlaying(sql, game.room_id, config))) {
     return { status: 403, body: { detail: "room_in_progress" } };
+  }
+  if (game.daily_puzzle_id) {
+    return { status: 403, body: { detail: "daily_hidden" } };
   }
 
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);

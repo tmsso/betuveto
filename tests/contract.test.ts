@@ -1739,7 +1739,7 @@ describeApi("Betűvető API contract", () => {
     expect(a.json.difficulty).toBe("normal");
   });
 
-  it("grades only the first daily attempt; a replay is flagged as not counting", async () => {
+  it("grades the daily attempt and allows only one daily per player per day", async () => {
     if (IS_PRODUCTION) return;
 
     // A fresh identity so the streak starts from nothing.
@@ -1758,7 +1758,12 @@ describeApi("Betűvető API contract", () => {
       if (typeof g.json?.found_count === "number") foundSoFar = g.json.found_count;
       await new Promise((r) => setTimeout(r, 400));
     }
-    await call("POST", `/api/v1/game/${first.json.game_id}/give_up`, undefined, { Cookie: cookie });
+    const gaveUp = await call("POST", `/api/v1/game/${first.json.game_id}/give_up`, undefined, { Cookie: cookie });
+    // A daily reveals nothing: no target, no word list, and no possible-words endpoint.
+    expect(gaveUp.json.target_word).toBeNull();
+    expect(gaveUp.json.possible_words).toBeNull();
+    const reveal = await call("GET", `/api/v1/game/${first.json.game_id}/possible_words`, undefined, { Cookie: cookie });
+    expect(reveal.status).toBe(403);
 
     const view1 = await call("GET", "/api/v1/daily?target_length=5", undefined, { Cookie: cookie });
     expect(view1.status).toBe(200);
@@ -1774,15 +1779,17 @@ describeApi("Betűvető API contract", () => {
     // deactivated server-side — if completed, the day counts toward the streak.
     if (gradedCompleted) expect(view1.json.streak.current).toBeGreaterThanOrEqual(1);
 
-    // A replay still plays, but the server marks it as already graded.
-    const replay = await startDaily(cookie, "?target_length=5");
-    expect(replay.json.daily.already_graded).toBe(true);
-    await call("POST", `/api/v1/game/${replay.json.game_id}/give_up`, undefined, { Cookie: cookie });
+    // One daily per player per day (owner review 2026-11-08): a replay is refused, and so
+    // is a different combo the same day.
+    const replay = await call("POST", "/api/v1/daily/start?target_length=5", undefined, { Cookie: cookie });
+    expect(replay.status).toBe(409);
+    expect(replay.json.detail).toBe("daily_already_played");
+    const otherCombo = await call("POST", "/api/v1/daily/start?target_length=7", undefined, { Cookie: cookie });
+    expect(otherCombo.status).toBe(409);
 
-    const view2 = await call("GET", "/api/v1/daily?target_length=5", undefined, { Cookie: cookie });
-    expect(view2.json.your_result.final_score).toBe(gradedScore); // first attempt frozen
-    expect(view2.json.your_result.completed).toBe(gradedCompleted);
-    expect(view2.json.your_result.found_count).toBe(foundSoFar); // the replay doesn't count
+    const view2 = await call("GET", "/api/v1/daily?target_length=7", undefined, { Cookie: cookie });
+    expect(view2.json.played_today).toBe(true);
+    expect(view2.json.already_played).toBe(false); // not this combo, but today is used up
   }, 60000);
 
   it("a hidden length selector also pins the daily puzzle's length", async () => {
@@ -1814,7 +1821,7 @@ describeApi("Betűvető API contract", () => {
         "POST",
         "/api/v1/daily/start?target_length=9",
         undefined,
-        { ...PINNED_COOKIE_HEADER },
+        // A fresh identity: the pinned CI player may have used today's one daily already.
       );
       expect(started.json.target_length).toBe(forcedLen);
       expect(started.json.ui.show_length_selector).toBe(false);
