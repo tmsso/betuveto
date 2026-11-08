@@ -61,8 +61,8 @@
     "badge": "Daily puzzle",
     "loading": "Loading...",
     "forDate": "For {{date}}",
-    "play": "▶ Play today's puzzle",
-    "replay": "↻ Play again (for fun)",
+    "play": "Play today's puzzle",
+    "replay": "Play again (for fun)",
     "playing": "You're playing today's puzzle",
     "currentStreak": "{{count}}-day streak",
     "bestStreak": "best: {{count}}",
@@ -85,7 +85,7 @@
     "timerAriaLabel": "Time remaining: {{time}}"
   },
   "highScores": {
-    "show": "🏆 Leaderboard ({{length}} letters)",
+    "show": "Leaderboard ({{length}} letters)",
     "hide": "Hide leaderboard",
     "panelTitle": "Best — {{length}}-letter words",
     "loading": "Loading...",
@@ -134,16 +134,16 @@
     "submitAriaLabel": "Submit guess"
   },
   "giveUpHint": {
-    "giveUp": "🏳️ Give up (reveal solution)",
+    "giveUp": "Give up (reveal solution)",
     "confirmGiveUp": "Are you sure you want to give up? The solution will be revealed.",
     "confirmGiveUpTitle": "Give up?",
     "confirmGiveUpButton": "Give up",
-    "hint": "💡 Hint (-{{cost}} pts)",
+    "hint": "Hint (-{{cost}} pts)",
     "hintTitle": "Reveal a word's first letter (-{{cost}} pts)"
   },
-  "hintMessage": "💡 Start of a {{length}}-letter word: \"{{letter}}\" (-{{cost}} pts)",
+  "hintMessage": "Start of a {{length}}-letter word: \"{{letter}}\" (-{{cost}} pts)",
   "stats": {
-    "show": "📊 My stats",
+    "show": "My stats",
     "hide": "Hide",
     "loading": "Loading...",
     "noGames": "You haven't finished a game yet.",
@@ -154,7 +154,7 @@
     "offline": "No connection to the server."
   },
   "achievements": {
-    "title": "🏆 Achievements",
+    "title": "Achievements",
     "unlockedToast": "Achievement unlocked!",
     "unlockedOn": "Unlocked {{date}}",
     "items": {
@@ -278,8 +278,8 @@
     "lookupTitle": "Look up definition in Wiktionary"
   },
   "remainingWords": {
-    "show": "🔽 Show missing words ({{count}} words)",
-    "hide": "🔼 Hide missing words"
+    "show": "Show missing words ({{count}} words)",
+    "hide": "Hide missing words"
   },
   "confirmModal": {
     "title": "Start a new game?",
@@ -289,11 +289,11 @@
     "confirm": "New game"
   },
   "install": {
-    "prompt": "📲 Install the app!",
+    "prompt": "Install the app!",
     "install": "Install",
     "dismissAriaLabel": "Close"
   },
-  "offline": "📡 No internet connection — Betűvető needs a live server, reconnect to keep playing.",
+  "offline": "No internet connection — Betűvető needs a live server, reconnect to keep playing.",
   "errors": {
     "startGame": "Something went wrong starting the game.",
     "tooShort": "Enter at least {{count}} letters!",
@@ -324,22 +324,22 @@
     "open": "How to play",
     "title": "How to play",
     "close": "Close",
-    "goal": "🎯 Build as many words as you can from the scrambled letters before the time runs out. One word uses every letter — finding it is worth the most.",
-    "words": "✍️ Words must be at least {{count}} letters long and can use each letter tile once. Tap the letters or type, then press Enter or ✅.",
+    "goal": "Build as many words as you can from the scrambled letters before the time runs out. One word uses every letter — finding it is worth the most.",
+    "words": "Words must be at least {{count}} letters long and can use each letter tile once. Tap the letters or type, then press Enter or OK.",
     "scoring": "⭐ A word scores its length squared, so long words are worth far more (a 7-letter word is 49 points). Find every word on the board and the time you have left is added as a bonus.",
-    "buttons": "🔀 reshuffles the letters · 💡 reveals the first letter of a word you haven't found yet (costs {{cost}} points) · 🏳️ gives up and shows every word.",
-    "curation": "⚑ next to a word reports it as wrong. If a real word is rejected, you can suggest adding it to the dictionary.",
-    "more": "⚙️ Settings: board length, dictionary language, the daily puzzle (the same board for everyone, with a streak), leaderboards and your stats.",
+    "buttons": "Shuffle reshuffles the letters · Hint reveals the first letter of a word you haven't found yet (costs {{cost}} points) · Give up ends the game and shows every word.",
+    "curation": "The flag icon next to a word reports it as wrong. If a real word is rejected, you can suggest adding it to the dictionary.",
+    "more": "Settings: board length, dictionary language, the daily puzzle (the same board for everyone, with a streak), leaderboards and your stats.",
     "feedbackIntro": "Something broken, confusing or missing?",
-    "daily": "🗓️ Daily puzzle: everyone gets the same board today. One result counts per day, and you can build a streak.",
-    "moreRoom": "⚙️ Settings holds the display options (language, theme, sound) and the leaderboards; while a room game is on, the settings that would affect the game are hidden.",
+    "daily": "Daily puzzle: everyone gets the same board today. One result counts per day, and you can build a streak.",
+    "moreRoom": "Settings holds the display options (language, theme, sound) and the leaderboards; while a room game is on, the settings that would affect the game are hidden.",
     "room": {
-      "common": "👥 Room game: everyone gets the same board and one shared deadline. Shuffling and hints are yours alone. The answers are revealed once the room game is over.",
-      "roomCoopPrivate": "🤝 Together, hidden: everyone plays their own game, and the others cannot see which words you found — only your points and how many words are left. If two players find the same word, both score it. If you find every word between you, the game ends and you split the time bonus equally.",
-      "roomCoopShared": "🤝 Together, words visible: everyone sees the words found so far, and a word only scores for whoever found it first — no need to type one that is already found. Everyone sees the points and how many words are left. If you find every word between you, the game ends and you split the time bonus equally.",
-      "roomVersus": "⚔️ Against each other: the player with the most points wins. You see the others' points and milestones, not their words. There is no shared time bonus.",
-      "leave": "🚪 \"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption.",
-      "leaveHost": "🚪 \"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If the host leaves in the lobby, the player who joined first takes over. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption."
+      "common": "Room game: everyone gets the same board and one shared deadline. Shuffling and hints are yours alone. The answers are revealed once the room game is over.",
+      "roomCoopPrivate": "Together, hidden: everyone plays their own game, and the others cannot see which words you found — only your points and how many words are left. If two players find the same word, both score it. If you find every word between you, the game ends and you split the time bonus equally.",
+      "roomCoopShared": "Together, words visible: everyone sees the words found so far, and a word only scores for whoever found it first — no need to type one that is already found. Everyone sees the points and how many words are left. If you find every word between you, the game ends and you split the time bonus equally.",
+      "roomVersus": "Against each other: the player with the most points wins. You see the others' points and milestones, not their words. There is no shared time bonus.",
+      "leave": "\"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption.",
+      "leaveHost": "\"Leave game\" takes you out: your own game ends, the others play on, and you do not see the answers. If the host leaves in the lobby, the player who joined first takes over. If everyone else has left, you are offered to carry on alone, with +{{seconds}} seconds for the interruption."
     }
   },
   "feedback": {
@@ -450,6 +450,16 @@
         "name": "Visible words",
         "explain": "Everyone sees the words found. A word only scores for whoever found it first."
       }
-    }
+    },
+    "winner": "Winner"
+  },
+  "summary": {
+    "title": "Round over",
+    "cleared": "Board cleared!",
+    "newBest": "New best!",
+    "words": "Words found",
+    "longest": "Your longest word",
+    "fullWord": "The full word",
+    "noHint": "No hints used"
   }
 }

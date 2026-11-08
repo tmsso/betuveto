@@ -3,6 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
 import { LogoMark, Wordmark } from './components/Logo'
+import RoundSummary from './components/RoundSummary'
+// Lucide icon set (handback §6) — one consistent outline style instead of OS-dependent emoji.
+import {
+  BookOpen, CalendarDays, Check, ChevronDown, ChevronUp, CircleHelp, Dices, Flag, Lightbulb,
+  LogOut, Shuffle, SlidersHorizontal, Sparkles, Sprout, Swords, Trophy, Users,
+} from 'lucide-react'
 import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
@@ -103,23 +109,48 @@ function App() {
     confettiRef.current = instance;
   }, []);
 
-  const fireConfetti = useCallback(() => {
+  // Celebration tiers (design handback §5). Each tier is a distinct confetti config in
+  // the brand's celebrate-1/2/3 colours, read from the CSS tokens at fire time so dark
+  // mode gets its own brighter set. Reduced motion: no particles at all — the static
+  // fallbacks (chip colours, board outline, summary card) carry the moment instead.
+  const celebrate = useCallback((tier) => {
     if (prefersReducedMotion()) return;
-    confettiRef.current?.({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
+    const fire = confettiRef.current;
+    if (!fire) return;
+    const css = getComputedStyle(document.documentElement);
+    const colors = [1, 2, 3].map((i) => {
+      const [r, g, b] = css.getPropertyValue(`--game-celebrate-${i}`).trim().split(/\s+/).map(Number);
+      return '#' + [r, g, b].map((n) => (n || 0).toString(16).padStart(2, '0')).join('');
     });
+    const base = { colors, shapes: ['square'], disableForReducedMotion: true };
+    if (tier === 1) {
+      // Valid word: a small puff from the guess input.
+      fire({ ...base, particleCount: 24, spread: 50, startVelocity: 25, ticks: 90, origin: { y: 0.62 } });
+    } else if (tier === 2) {
+      // Full-length word.
+      fire({ ...base, particleCount: 90, spread: 100, origin: { y: 0.45 } });
+    } else if (tier === 3 || tier === 5) {
+      // Board cleared (3): two side cannons, three bursts over ~1.4 s. Room winner (5): one.
+      const bursts = tier === 3 ? [0, 450, 900] : [0];
+      bursts.forEach((delay) => setTimeout(() => {
+        fire({ ...base, particleCount: 60, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
+        if (tier === 3) fire({ ...base, particleCount: 60, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
+      }, delay));
+    } else if (tier === 4) {
+      // Daily solved: a gentle shower from the top.
+      fire({ ...base, particleCount: 70, spread: 120, gravity: 0.6, startVelocity: 20, origin: { y: 0 } });
+    }
   }, []);
 
+  // Tier 2's board glow: the class runs a 900 ms swell and then holds a faint outline
+  // until it's removed at 1.5 s — under reduced motion only that static outline shows.
+  const [boardGlow, setBoardGlow] = useState(false);
+  const fireConfetti = useCallback(() => celebrate(1), [celebrate]);
   const fireExplosion = useCallback(() => {
-    if (prefersReducedMotion()) return;
-    confettiRef.current?.({
-      particleCount: 200,
-      spread: 160,
-      origin: { y: 0.3 }
-    });
-  }, []);
+    celebrate(2);
+    setBoardGlow(true);
+    setTimeout(() => setBoardGlow(false), 1500);
+  }, [celebrate]);
 
   // ROADMAP 7.2.1 — the single-game state machine (board, guess, timer, hints, word
   // curation, ...). See useGame.js's own top comment for exactly what stayed here instead
@@ -135,7 +166,7 @@ function App() {
     preGame, targetLength, uiConfig, gameWordlist, gameEasyMode, isDailyGame,
     hintLoading, hintMessage, reportedWords, suggestPrompt, suggestLoading, suggestThanks,
     possibleWordsCount, allPossibleWords, showRemainingWords, allPossibleWordsFound,
-    displayScore, usedLetters, scoreAtExpiry,
+    displayScore, usedLetters, scoreAtExpiry, hintPenalty,
     setCurrentGuess, setShowRemainingWords, setUiConfig,
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
@@ -483,6 +514,44 @@ function App() {
 
   const inRoomRound = Boolean(room && isRoomGame && ['playing', 'finished'].includes(room.status))
 
+  // ── Celebrations + end-of-round summary (design refresh 17e) ──────────────────────
+  // Personal best (tier 6): the best score on record *before* this round ended. The
+  // leaderboard refetches as soon as isTimeUp flips, so the value is latched while the
+  // round is still running and compared once it's over.
+  const bestBeforeRoundRef = useRef(null)
+  if (!isTimeUp) bestBeforeRoundRef.current = serverScores?.your_best?.final_score ?? null
+  const soloRound = !preGame && !inRoomRound && !isRoomGame
+  const isNewBest = soloRound && isTimeUp && !isDailyGame &&
+    bestBeforeRoundRef.current != null && scoreAtExpiry - hintPenalty > bestBeforeRoundRef.current
+
+  // Tier 3 / 4 — fire once when the round ends in a full clear (daily: the gentler shower).
+  useEffect(() => {
+    if (!allPossibleWordsFound || inRoomRound) return
+    celebrate(isDailyGame ? 4 : 3)
+    if (isDailyGame) play('daily')
+  }, [allPossibleWordsFound, inRoomRound, isDailyGame, celebrate, play])
+  // Tier 6 — chime once per round that beats the previous best.
+  useEffect(() => {
+    if (isNewBest) play('chime')
+  }, [isNewBest, play])
+
+  const roundSummary = soloRound && isTimeUp ? (() => {
+    const lettersCount = scrambledLetters.filter((l) => l !== ' ').length
+    const longestWord = [...foundWords].sort((a, b) => b.length - a.length || a.localeCompare(b))[0] ?? null
+    return {
+      score: displayScore,
+      foundCount: foundWords.length,
+      totalCount: possibleWordsCount,
+      longestWord,
+      fullWord: allPossibleWords.find((w) => w.length === lettersCount) ?? null,
+      cleared: allPossibleWordsFound,
+      noHint: hintPenalty === 0,
+      newBest: isNewBest,
+      isDaily: isDailyGame,
+      streak: isDailyGame ? (dailyView?.streak?.current ?? 0) : 0,
+    }
+  })() : null
+
   // ROADMAP 15.1: in a shared co-op room, the words teammates found. Own words stay in
   // `foundWords` (they are scored and reportable); these are shown read-only next to them.
   const teamWords = (inRoomRound && room.visibility === 'shared' ? room.found_words ?? [] : [])
@@ -774,7 +843,7 @@ function App() {
             onClick={() => setIsHelpOpen(true)}
             className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            <span aria-hidden="true">❓</span>
+            <CircleHelp size={18} aria-hidden="true" />
             <span className="max-sm:sr-only">{t('help.open')}</span>
           </button>
           <button
@@ -784,7 +853,7 @@ function App() {
             title={t('settings.open')}
             className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            <span aria-hidden="true">⚙️</span>
+            <SlidersHorizontal size={18} aria-hidden="true" />
             <span className="max-sm:sr-only">{t('settings.open')}</span>
           </button>
           {showLeaveGame && (
@@ -794,7 +863,7 @@ function App() {
               data-testid="leave-game"
               className="header-btn hover:bg-game-error-soft focus:outline-none focus:ring-2 focus:ring-game-secondary"
             >
-              <span aria-hidden="true">🚪</span>
+              <LogOut size={18} aria-hidden="true" />
               <span className="max-sm:sr-only">{t('room.leaveGame')}</span>
             </button>
           )}
@@ -809,7 +878,7 @@ function App() {
             not the request. */}
         {gameEasyMode && (
             <div className="absolute top-0 left-0 p-2 bg-game-success-soft text-game-primary text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-game-success/30">
-                🌱 {t('easyModeBadge')}
+                <Sprout size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('easyModeBadge')}
             </div>
         )}
 
@@ -817,7 +886,10 @@ function App() {
             (a room game is never a daily). */}
         {inRoomRound && (
             <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30" title={t('room.boardBadge', { code: room.code })}>
-                {room.mode === 'versus' ? '⚔️' : '👥'} {room.code}
+                {room.mode === 'versus'
+                  ? <Swords size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />
+                  : <Users size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />}
+                {room.code}
             </div>
         )}
 
@@ -825,7 +897,7 @@ function App() {
             shared board; the result is graded once, at its terminal transition. */}
         {isDailyGame && (
             <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30">
-                🗓️ {t('daily.badge')}
+                <CalendarDays size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.badge')}
             </div>
         )}
 
@@ -894,6 +966,7 @@ function App() {
             onRematch={handleRematch}
             onJoinRematch={handleJoinRematch}
             onBackToSolo={leaveRoomToSolo}
+            onCelebrate={(tier) => { celebrate(tier); play(tier === 5 ? 'fanfare' : 'fullClear') }}
           />
         )}
         {inRoomRound && room.status === 'playing' && <RoomStrip room={room} />}
@@ -904,6 +977,7 @@ function App() {
             button; otherwise Enter after clicking Keverés would reshuffle and wipe the
             typed word. `contents` keeps the wrapper out of the layout. */}
         <div data-game-keys className="contents">
+        <div className={`rounded-2xl ${boardGlow ? 'animate-board-glow' : ''}`}>
         <Board
           preGame={preGame}
           gameWordlist={gameWordlist}
@@ -913,6 +987,7 @@ function App() {
           usedLetters={usedLetters}
           onLetterClick={handleLetterClick}
         />
+        </div>
         </div>
 
         {/* Pre-game start (ROADMAP Batch 10 item 17) — the empty board's only control. It
@@ -925,7 +1000,7 @@ function App() {
               aria-label={t('actions.newGameAriaLabel')}
               className="animate-breathe h-14 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-lg font-semibold hover:bg-game-button-hover transition-colors inline-flex items-center justify-center gap-2"
             >
-              <span aria-hidden="true">🎲</span>
+              <Dices size={20} aria-hidden="true" />
               <span>{t('actions.newGame')}</span>
             </button>
           </div>
@@ -949,28 +1024,30 @@ function App() {
         />
 
         {/* Action Buttons */}
-        <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
+        {/* Phones: a 3-column grid of 52px buttons, each with icon + label (handback §3.3);
+            from sm the original row. `contents` lets the inner group's buttons join the grid. */}
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+          <div className="contents sm:flex sm:items-center sm:gap-3">
             {/* In a room round "new game" would silently walk out of the room — the room's
                 own results offer Rematch / Back to solo instead (ROADMAP 7.2.6). */}
             {!inRoomRound && (
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
-              <span>🎲</span>
-              <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
+              <Dices size={20} aria-hidden="true" />
+              <span>{t('actions.newGame')}</span>
             </button>
             )}
             <button
               onClick={handleScramble}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-elev-2 bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-game-paper transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-1 bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-game-paper transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
               aria-label={t('actions.scrambleAriaLabel')}
               title={t('actions.scrambleAriaLabel')}
             >
-              <span>🔀</span>
-              <span className="max-[420px]:hidden">{t('actions.scramble')}</span>
+              <Shuffle size={20} aria-hidden="true" />
+              <span>{t('actions.scramble')}</span>
             </button>
           </div>
 
@@ -978,14 +1055,14 @@ function App() {
             onClick={handleSubmit}
             aria-label={t('actions.submitAriaLabel')}
             disabled={!currentGuess.trim()}
-            className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-elev-2 text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
+            className={`h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-2 text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
                 ? 'bg-game-go text-game-on-secondary hover:bg-game-go-hover hover:scale-105 active:scale-95'
                 : 'bg-game-tile-used cursor-not-allowed text-game-muted'
               }`}
           >
-            <span>✅</span>
-            <span className="max-[360px]:hidden">{t('actions.submit')}</span>
+            <Check size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span>{t('actions.submit')}</span>
           </button>
         </div>
 
@@ -994,16 +1071,18 @@ function App() {
           <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
               onClick={handleGiveUpClick}
-              className="text-xs text-game-muted underline hover:text-game-error"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-game-muted hover:text-game-error"
             >
+              <Flag size={16} aria-hidden="true" />
               {t('giveUpHint.giveUp')}
             </button>
             <button
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
               title={t('giveUpHint.hintTitle', { cost: hintCost })}
-              className="text-xs text-game-secondary underline hover:text-game-primary disabled:text-game-muted/50 disabled:no-underline disabled:cursor-not-allowed"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-game-secondary hover:text-game-primary disabled:text-game-muted/50 disabled:cursor-not-allowed"
             >
+              <Lightbulb size={16} aria-hidden="true" />
               {t('giveUpHint.hint', { cost: hintCost })}
             </button>
           </div>
@@ -1028,13 +1107,17 @@ function App() {
             <p className="mb-1">{t('achievements.unlockedToast')}</p>
             <p className="flex flex-wrap justify-center gap-x-3 gap-y-1">
               {achievementToast.map((key) => (
-                <span key={key}>🏆 {t(`achievements.items.${key}.name`)}</span>
+                <span key={key} className="inline-flex items-center gap-1"><Trophy size={14} aria-hidden="true" />{t(`achievements.items.${key}.name`)}</span>
               ))}
             </p>
           </div>
         )}
 
         {/* Stats toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
+
+        {/* End-of-round summary (design refresh 17e) — solo and daily games only; a room
+            round has its own results panel above the board. */}
+        {roundSummary && <RoundSummary {...roundSummary} />}
 
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
@@ -1046,6 +1129,7 @@ function App() {
                   key={index}
                   className={`chip animate-bounce-in ${justFoundWord === word ? 'chip-just-found' : ''} ${word.length === scrambledLetters.length ? 'chip-full' : ''}`}
                 >
+                  {word.length === scrambledLetters.length && <Sparkles size={14} aria-hidden="true" className="text-game-accent-fill" />}
                   {word}
                   <span className="chip-points">{t('foundWords.points', { points: word.length * word.length })}</span>
                   {isTimeUp && definitionUrl(word, gameWordlist) && (
@@ -1057,7 +1141,7 @@ function App() {
                       title={t('dictionary.lookupTitle')}
                       className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                     >
-                      📖
+                      <BookOpen size={14} aria-hidden="true" />
                     </a>
                   )}
                   <button
@@ -1067,7 +1151,7 @@ function App() {
                     title={t('foundWords.reportTitle')}
                     className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                   >
-                    ⚑
+                    <Flag size={14} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -1102,6 +1186,9 @@ function App() {
                   className="w-full text-center text-sm font-bold text-game-secondary hover:text-game-primary flex items-center justify-center gap-2"
                 >
                   {showRemainingWords
+                    ? <ChevronUp size={16} aria-hidden="true" />
+                    : <ChevronDown size={16} aria-hidden="true" />}
+                  {showRemainingWords
                     ? t('remainingWords.hide')
                     : t('remainingWords.show', { count: allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length })}
                 </button>
@@ -1123,7 +1210,7 @@ function App() {
                                         title={t('dictionary.lookupTitle')}
                                         className="leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                                       >
-                                        📖
+                                        <BookOpen size={14} aria-hidden="true" />
                                       </a>
                                     )}
                                     <button
@@ -1133,7 +1220,7 @@ function App() {
                                         title={t('foundWords.reportTitle')}
                                         className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                                     >
-                                        ⚑
+                                        <Flag size={14} aria-hidden="true" />
                                     </button>
                                 </span>
                             ))

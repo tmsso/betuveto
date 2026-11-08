@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -75,7 +76,7 @@ function InstallPrompt() {
         aria-label={t('install.dismissAriaLabel')}
         className="text-game-muted hover:text-game-primary text-lg leading-none"
       >
-        ✖️
+        <X size={18} aria-hidden="true" />
       </button>
     </div>
   )

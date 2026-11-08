@@ -411,14 +411,15 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
               setCompletionBonus(response.completion_bonus ?? 0)
             }
 
-            if (response.is_full_length || guess.length === scrambledLetters.filter((l) => l !== ' ').length) {
+            const fullLength = response.is_full_length || guess.length === scrambledLetters.filter((l) => l !== ' ').length
+            if (fullLength) {
               fireExplosion()
             } else {
               fireConfetti()
             }
-            // ROADMAP Batch 10 item 8: the arpeggio for clearing the board, the blip for
-            // any other find.
-            play(response.game_ended ? 'fullClear' : 'correct')
+            // ROADMAP Batch 10 item 8 + design refresh tier 2: the arpeggio for clearing the
+            // board, a rising figure for the full-length word, the blip for any other find.
+            play(response.game_ended ? 'fullClear' : fullLength ? 'target' : 'correct')
           } else {
             setIsScoreFlashing(true)
             setTimeout(() => setIsScoreFlashing(false), 500)

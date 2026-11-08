@@ -1,3 +1,4 @@
+import { CalendarDays, Check, Flame, Hourglass, Share2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReportNameButton from './ReportNameButton.jsx'
@@ -42,7 +43,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-xs font-bold uppercase tracking-wide text-game-muted">
-        🗓️ {t('daily.title')}
+        <CalendarDays size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.title')}
       </h3>
 
       {loading && !daily && (
@@ -56,7 +57,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
           </p>
 
           <div className="text-sm text-game-primary">
-            🔥 {t('daily.currentStreak', { count: streak.current })}
+            <Flame size={14} aria-hidden="true" className="inline -mt-0.5 mr-1 text-game-accent" />{t('daily.currentStreak', { count: streak.current })}
             {streak.best > 0 && (
               <span className="text-game-muted"> · {t('daily.bestStreak', { count: streak.best })}</span>
             )}
@@ -65,8 +66,8 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
           {alreadyPlayed && daily.your_result && (
             <div className="text-sm font-semibold">
               {daily.your_result.completed
-                ? <span className="text-game-success">✅ {t('daily.yourResult.completed')}</span>
-                : <span className="text-game-muted">⏳ {t('daily.yourResult.notCompleted')}</span>}
+                ? <span className="text-game-success"><Check size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.yourResult.completed')}</span>
+                : <span className="inline-flex items-center gap-1 text-game-muted"><Hourglass className="h-3.5 w-3.5" aria-hidden="true" />{t('daily.yourResult.notCompleted')}</span>}
               <span className="text-game-muted font-normal">
                 {' '}· {t('daily.yourResult.score', { score: daily.your_result.final_score })}
               </span>
@@ -80,7 +81,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
                 onClick={handleShare}
                 className="rounded-lg border border-game-secondary text-game-secondary text-sm font-bold px-3 py-1 hover:bg-game-button hover:text-game-on-secondary focus:outline-none focus:ring-2 focus:ring-game-secondary"
               >
-                📤 {t('daily.share.button')}
+                <Share2 size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.share.button')}
               </button>
               <span role="status" aria-live="polite" className="text-xs text-game-muted">
                 {shareStatus === 'copied' && t('daily.share.copied')}
@@ -109,7 +110,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
                   <span className="text-game-muted tabular-nums w-5 text-right">{index + 1}.</span>
                   <span className="flex-1 truncate">{entry.display_name ?? t('highScores.anonymous')}</span>
                   <ReportNameButton name={entry.display_name} place="daily" />
-                  <span aria-hidden="true">{entry.completed ? '✅' : '⏳'}</span>
+                  {entry.completed ? <Check size={14} aria-hidden="true" className="text-game-success" /> : <Hourglass size={14} aria-hidden="true" className="text-game-muted" />}
                   <span className="tabular-nums font-semibold">{entry.final_score}</span>
                 </li>
               ))}

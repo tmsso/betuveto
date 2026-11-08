@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -65,7 +66,7 @@ export default function GuessInput({
             aria-label={t('guessInput.clearAriaLabel')}
             className="absolute right-3 top-1/2 -translate-y-1/2 bg-game-paper hover:bg-game-border rounded-full w-10 h-10 flex items-center justify-center text-game-primary text-xl"
           >
-            ✖️
+            <X size={20} aria-hidden="true" />
           </button>
         )}
       </div>

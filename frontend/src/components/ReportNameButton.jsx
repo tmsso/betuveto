@@ -1,3 +1,4 @@
+import { Check, Flag } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { betuAPI } from '../api/client'
@@ -18,7 +19,7 @@ export default function ReportNameButton({ name, place }) {
   if (status === 'sent') {
     return (
       <span role="status" className="text-xs text-game-muted" title={t('reportName.sent')}>
-        ✓<span className="sr-only">{t('reportName.sent')}</span>
+        <Check size={12} aria-hidden="true" className="inline" /><span className="sr-only">{t('reportName.sent')}</span>
       </span>
     )
   }
@@ -43,7 +44,7 @@ export default function ReportNameButton({ name, place }) {
       title={status === 'error' ? t('reportName.error') : t('reportName.button', { name })}
       className={`shrink-0 text-xs leading-none opacity-60 hover:opacity-100 focus:opacity-100 disabled:opacity-30 ${status === 'error' ? 'text-game-error' : 'text-game-muted'}`}
     >
-      ⚑
+      <Flag size={12} aria-hidden="true" />
     </button>
   )
 }

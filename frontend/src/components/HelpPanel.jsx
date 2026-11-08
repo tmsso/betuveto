@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import FeedbackForm from './FeedbackForm'
@@ -90,7 +91,7 @@ export default function HelpPanel({
             aria-label={t('help.close')}
             className="text-2xl leading-none px-2 text-game-muted hover:text-game-primary focus:outline-none focus:ring-2 focus:ring-game-secondary rounded"
           >
-            ×
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
         <ul className="space-y-3 text-sm leading-relaxed list-none">
