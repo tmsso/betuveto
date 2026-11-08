@@ -144,6 +144,33 @@
     box-shadow: none;
   }
 
+  /* Page frame (handback §3): safe areas for notched phones (needs viewport-fit=cover),
+     and from lg up a faint scattered-tile backdrop — a static SVG, not DOM nodes. */
+  .app-shell {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Height grows by the notch inset instead of content-box sizing, which would also add
+     the side padding to w-full and push the header past the viewport edge. */
+  .app-header { padding-top: env(safe-area-inset-top); height: calc(4rem + env(safe-area-inset-top)); }
+  @media (min-width: 1024px) { .app-header { height: calc(5rem + env(safe-area-inset-top)); } }
+  @media (min-width: 1024px) {
+    .app-shell {
+      background-image: url('/backdrop.svg');
+      background-position: center top;
+      background-attachment: fixed;
+      padding-bottom: 48px;
+    }
+    .dark .app-shell { background-image: url('/backdrop-dark.svg'); }
+  }
+  /* Header buttons: 44px pill outline with icon + label; icon-only on phones (the label
+     stays as sr-only text so the accessible name — and the E2E lookups — don't change). */
+  .header-btn {
+    @apply inline-flex items-center justify-center gap-1.5 h-11 min-w-11 px-3 sm:px-4 rounded-full
+      border border-game-border bg-game-surface text-game-primary text-sm font-semibold;
+  }
+
   /* Wordmark (handback §1.3): the overlay copy shows only above the 0.26em clip line,
      i.e. just the double acute; the hairline stroke hides the ink fringe underneath.
      user-select:none so copying the title doesn't yield "Betűűvetőő". */
