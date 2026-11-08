@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
+import { LogoMark, Wordmark } from './components/Logo'
 import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
@@ -746,7 +747,10 @@ function App() {
 
       {/* Header */}
       <div className="text-center mb-8 w-full flex flex-col items-center">
-        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-display leading-tight">{t('app.title')}</h1>
+        <div className="flex items-center gap-3 mb-3">
+          <LogoMark size={48} className="w-[38px] h-[38px] sm:w-12 sm:h-12" />
+          <Wordmark text={t('app.title')} className="text-[40px] sm:text-5xl" />
+        </div>
         {/* ROADMAP Batch 10 item 15 — every non-core control (language, theme, sound,
             length, wordlist, easy mode, leaderboard, stats) now lives behind this one
             gear button, in <SettingsPanel>, leaving the board / input / score / timer /
