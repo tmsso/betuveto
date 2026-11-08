@@ -67,7 +67,7 @@ export default function DailyPanel({ daily, loading, isDailyGame, onPlayDaily, c
             <div className="text-sm font-semibold">
               {daily.your_result.completed
                 ? <span className="text-game-success"><Check size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.yourResult.completed')}</span>
-                : <span className="text-game-muted">⏳ {t('daily.yourResult.notCompleted')}</span>}
+                : <span className="inline-flex items-center gap-1 text-game-muted"><Hourglass className="h-3.5 w-3.5" aria-hidden="true" />{t('daily.yourResult.notCompleted')}</span>}
               <span className="text-game-muted font-normal">
                 {' '}· {t('daily.yourResult.score', { score: daily.your_result.final_score })}
               </span>
