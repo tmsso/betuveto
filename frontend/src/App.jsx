@@ -720,7 +720,7 @@ function App() {
         <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-sans">
             <OfflineNotice />
             <InstallPrompt />
-            <div className="bg-red-100 dark:bg-red-950/40 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
+            <div className="bg-game-error-soft border border-game-error/40 text-game-error px-4 py-3 rounded-lg text-center max-w-md mx-auto">
                 <strong className="font-bold">{t('errorScreen.title')}</strong>
                 <span className="block sm:inline"> {t(error)}</span>
                 <div className="mt-4">
@@ -728,7 +728,7 @@ function App() {
                         // Not `onClick={startNewGame}`: the click event would land in the
                         // `length` parameter and reach the API as target_length=[object Object].
                         onClick={() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                        className="bg-game-error text-game-on-secondary px-4 py-2 rounded-lg hover:bg-game-error/90 transition-colors"
                     >
                         {t('errorScreen.retry')}
                     </button>
@@ -756,7 +756,7 @@ function App() {
           <button
             type="button"
             onClick={() => setIsHelpOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
             <span aria-hidden="true">❓</span>
             <span>{t('help.open')}</span>
@@ -766,7 +766,7 @@ function App() {
             onClick={() => setIsSettingsOpen(true)}
             aria-label={t('settings.open')}
             title={t('settings.open')}
-            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
             <span aria-hidden="true">⚙️</span>
             <span>{t('settings.open')}</span>
@@ -776,7 +776,7 @@ function App() {
               type="button"
               onClick={handleLeaveGameClick}
               data-testid="leave-game"
-              className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-red-50 dark:hover:bg-red-950/40 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+              className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-game-error-soft focus:outline-none focus:ring-2 focus:ring-game-secondary"
             >
               <span aria-hidden="true">🚪</span>
               <span>{t('room.leaveGame')}</span>
@@ -785,13 +785,13 @@ function App() {
         </div>
       </div>
 
-      <div className="bg-game-surface rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
+      <div className="bg-game-surface rounded-xl shadow-elev-3 p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
         {/* Easy-mode indicator (ROADMAP Batch 10) — the checkbox alone can't show a
             silent server-side fallback to a normal pick (lib/game.ts: no word yet
             qualifies), so this reflects gameEasyMode, the server's echoed actual outcome,
             not the request. */}
         {gameEasyMode && (
-            <div className="absolute top-0 left-0 p-2 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-green-200 dark:border-green-900">
+            <div className="absolute top-0 left-0 p-2 bg-game-success-soft text-game-primary text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-game-success/30">
                 🌱 {t('easyModeBadge')}
             </div>
         )}
@@ -799,7 +799,7 @@ function App() {
         {/* Room indicator (ROADMAP 7.2.6) — mode + code, where the daily badge would sit
             (a room game is never a daily). */}
         {inRoomRound && (
-            <div className="absolute top-0 right-0 p-2 bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-purple-200 dark:border-purple-900" title={t('room.boardBadge', { code: room.code })}>
+            <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30" title={t('room.boardBadge', { code: room.code })}>
                 {room.mode === 'versus' ? '⚔️' : '👥'} {room.code}
             </div>
         )}
@@ -807,7 +807,7 @@ function App() {
         {/* Daily-puzzle indicator (ROADMAP Batch 10 item 1) — the current game is today's
             shared board; the result is graded once, at its terminal transition. */}
         {isDailyGame && (
-            <div className="absolute top-0 right-0 p-2 bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-blue-200 dark:border-blue-900">
+            <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30">
                 🗓️ {t('daily.badge')}
             </div>
         )}
@@ -906,7 +906,7 @@ function App() {
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="animate-breathe h-14 px-8 rounded-full shadow-lg bg-game-button text-white text-lg font-semibold hover:bg-game-button-hover transition-colors inline-flex items-center justify-center gap-2"
+              className="animate-breathe h-14 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-lg font-semibold hover:bg-game-button-hover transition-colors inline-flex items-center justify-center gap-2"
             >
               <span aria-hidden="true">🎲</span>
               <span>{t('actions.newGame')}</span>
@@ -940,7 +940,7 @@ function App() {
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-button text-white text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
               <span>🎲</span>
               <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
@@ -948,7 +948,7 @@ function App() {
             )}
             <button
               onClick={handleScramble}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-elev-2 bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-game-paper transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
               aria-label={t('actions.scrambleAriaLabel')}
               title={t('actions.scrambleAriaLabel')}
             >
@@ -961,10 +961,10 @@ function App() {
             onClick={handleSubmit}
             aria-label={t('actions.submitAriaLabel')}
             disabled={!currentGuess.trim()}
-            className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
+            className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-elev-2 text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
-                ? 'bg-game-go text-white hover:bg-game-go-hover hover:scale-105 active:scale-95'
-                : 'bg-gray-300 dark:bg-slate-700 cursor-not-allowed text-game-muted'
+                ? 'bg-game-go text-game-on-secondary hover:bg-game-go-hover hover:scale-105 active:scale-95'
+                : 'bg-game-tile-used cursor-not-allowed text-game-muted'
               }`}
           >
             <span>✅</span>
@@ -977,7 +977,7 @@ function App() {
           <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
               onClick={handleGiveUpClick}
-              className="text-xs text-game-muted underline hover:text-red-600"
+              className="text-xs text-game-muted underline hover:text-game-error"
             >
               {t('giveUpHint.giveUp')}
             </button>
@@ -985,7 +985,7 @@ function App() {
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
               title={t('giveUpHint.hintTitle', { cost: hintCost })}
-              className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300 disabled:text-gray-300 dark:disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
+              className="text-xs text-game-secondary underline hover:text-game-primary disabled:text-game-muted/50 disabled:no-underline disabled:cursor-not-allowed"
             >
               {t('giveUpHint.hint', { cost: hintCost })}
             </button>
@@ -993,7 +993,7 @@ function App() {
         )}
 
         {hintMessage && (
-          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900 rounded-lg px-3 py-2">
+          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-game-primary bg-game-warning-soft border border-game-accent-fill/50 rounded-lg px-3 py-2">
             {hintMessage}
           </div>
         )}
@@ -1006,7 +1006,7 @@ function App() {
           <div
             role="status"
             aria-live="polite"
-            className="mb-4 text-center text-sm font-semibold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 rounded-lg px-3 py-2"
+            className="mb-4 text-center text-sm font-semibold text-game-primary bg-game-warning-soft border border-game-accent-fill/50 rounded-lg px-3 py-2"
           >
             <p className="mb-1">{t('achievements.unlockedToast')}</p>
             <p className="flex flex-wrap justify-center gap-x-3 gap-y-1">
@@ -1027,10 +1027,10 @@ function App() {
               {[...foundWords].sort((a, b) => a.localeCompare(b, gameWordlist)).map((word, index) => (
                 <span
                   key={index}
-                  className={`inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
-                    ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 dark:bg-yellow-500/20 scale-110' : ''}`}
+                  className={`chip animate-bounce-in ${justFoundWord === word ? 'chip-just-found' : ''} ${word.length === scrambledLetters.length ? 'chip-full' : ''}`}
                 >
-                  {word} ({t('foundWords.points', { points: word.length * word.length })})
+                  {word}
+                  <span className="chip-points">{t('foundWords.points', { points: word.length * word.length })}</span>
                   {isTimeUp && definitionUrl(word, gameWordlist) && (
                     <a
                       href={definitionUrl(word, gameWordlist)}
@@ -1038,7 +1038,7 @@ function App() {
                       rel="noopener noreferrer"
                       aria-label={t('dictionary.lookupAriaLabel', { word })}
                       title={t('dictionary.lookupTitle')}
-                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-blue-700 dark:hover:text-blue-300"
+                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                     >
                       📖
                     </a>
@@ -1048,7 +1048,7 @@ function App() {
                     disabled={reportedWords.has(word)}
                     aria-label={t('foundWords.reportAriaLabel', { word })}
                     title={t('foundWords.reportTitle')}
-                    className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
+                    className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                   >
                     ⚑
                   </button>
@@ -1066,7 +1066,7 @@ function App() {
               {[...teamWords].sort((a, b) => a.word.localeCompare(b.word, gameWordlist)).map((entry) => (
                 <span
                   key={entry.word}
-                  className="inline-flex items-center gap-1.5 bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm"
+                  className="inline-flex items-center gap-1.5 bg-game-secondary-soft text-game-primary px-3 py-1.5 rounded-full text-sm font-semibold shadow-elev-1"
                   title={entry.by ?? undefined}
                 >
                   {entry.word}
@@ -1079,10 +1079,10 @@ function App() {
 
         {/* Remaining Words Dropdown (Only after game end) */}
         {isTimeUp && allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length > 0 && (
-            <div className="mt-6 pt-4 border-t border-dashed border-gray-200 dark:border-slate-700">
+            <div className="mt-6 pt-4 border-t border-dashed border-game-border">
                 <button
                   onClick={() => setShowRemainingWords(!showRemainingWords)}
-                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-blue-700 dark:hover:text-blue-300 flex items-center justify-center gap-2"
+                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-game-primary flex items-center justify-center gap-2"
                 >
                   {showRemainingWords
                     ? t('remainingWords.hide')
@@ -1095,7 +1095,7 @@ function App() {
                             .filter(word => !foundWords.includes(word) && !teamWordSet.has(word))
                             .sort((a, b) => a.localeCompare(b, gameWordlist))
                             .map((word, index) => (
-                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-slate-800 text-game-muted px-2 py-1 rounded border border-gray-200 dark:border-slate-700">
+                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-game-paper text-game-muted px-2 py-1 rounded border border-game-border">
                                     {word}
                                     {definitionUrl(word, gameWordlist) && (
                                       <a
@@ -1104,7 +1104,7 @@ function App() {
                                         rel="noopener noreferrer"
                                         aria-label={t('dictionary.lookupAriaLabel', { word })}
                                         title={t('dictionary.lookupTitle')}
-                                        className="leading-none opacity-60 hover:opacity-100 hover:text-blue-700 dark:hover:text-blue-300"
+                                        className="leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                                       >
                                         📖
                                       </a>
@@ -1114,7 +1114,7 @@ function App() {
                                         disabled={reportedWords.has(word)}
                                         aria-label={t('foundWords.reportAriaLabel', { word })}
                                         title={t('foundWords.reportTitle')}
-                                        className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
+                                        className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                                     >
                                         ⚑
                                     </button>
@@ -1132,7 +1132,7 @@ function App() {
             same batch — kept only so a `error` state introduced by future code has
             somewhere sane to render, rather than silently doing nothing. */}
         {error && (
-          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300">
+          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-game-error-soft text-game-error">
             {t(error)}
           </div>
         )}

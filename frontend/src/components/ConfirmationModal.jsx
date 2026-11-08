@@ -46,15 +46,15 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, message, title, confirm
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
-        className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 max-w-sm w-full relative transform transition-all"
+        className="bg-game-surface rounded-xl shadow-elev-3 p-6 sm:p-8 max-w-sm w-full relative transform transition-all"
       >
         <h3 id="confirm-modal-title" className="text-2xl font-bold text-game-primary mb-4 text-center">{title ?? t('confirmModal.title')}</h3>
-        <p className="text-gray-600 mb-8 text-center">{message}</p>
+        <p className="text-game-muted mb-8 text-center">{message}</p>
         <div className="flex justify-center gap-4">
           <button
             ref={cancelButtonRef}
             onClick={onClose}
-            className="px-6 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition-colors"
+            className="px-6 py-2 rounded-full border-2 border-game-border text-game-primary font-semibold hover:bg-game-paper transition-colors"
           >
             {t('confirmModal.cancel')}
           </button>
@@ -63,7 +63,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, message, title, confirm
               onConfirm();
               onClose();
             }}
-             className="px-6 py-2 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors shadow-md"
+             className="px-6 py-2 rounded-full bg-game-error text-game-on-secondary font-semibold hover:bg-game-error/90 transition-colors shadow-elev-1"
           >
             {confirmLabel ?? t('confirmModal.confirm')}
           </button>

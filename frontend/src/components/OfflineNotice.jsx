@@ -26,7 +26,7 @@ function OfflineNotice() {
   return (
     <div
       role="alert"
-      className="fixed top-0 inset-x-0 z-50 bg-yellow-100 text-yellow-800 text-sm font-semibold text-center py-2 px-4 border-b-2 border-yellow-300"
+      className="fixed top-0 inset-x-0 z-50 bg-game-warning-soft text-game-primary text-sm font-semibold text-center py-2 px-4 border-b-2 border-game-accent-fill/50"
     >
       {t('offline')}
     </div>

@@ -31,7 +31,7 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
   const inputClass =
     'border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary'
   const buttonClass =
-    'px-3 py-1.5 rounded-lg bg-game-button text-white text-sm font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed'
+    'px-3 py-1.5 rounded-lg bg-game-button text-game-on-secondary text-sm font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed'
 
   return (
     <section aria-labelledby="room-panel-title" className="flex flex-col gap-3">
@@ -53,7 +53,7 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
               className={`${inputClass} w-32`}
             />
           </label>
-          {nameMissing && <p className="text-xs text-red-600 dark:text-red-400 -mt-2">{t('room.nameRequired')}</p>}
+          {nameMissing && <p className="text-xs text-game-error -mt-2">{t('room.nameRequired')}</p>}
 
           <fieldset className="flex flex-col gap-1.5 text-sm">
             <legend className="text-game-muted font-semibold mb-1">{t('room.modeLabel')}</legend>
@@ -120,7 +120,7 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
         </>
       )}
       {error && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">{t(error)}</p>
+        <p role="alert" className="text-xs text-game-error">{t(error)}</p>
       )}
     </section>
   )

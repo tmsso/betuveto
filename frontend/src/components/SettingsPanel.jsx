@@ -145,7 +145,7 @@ export default function SettingsPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-panel-title"
-        className="relative h-full w-full max-w-sm overflow-y-auto bg-game-surface shadow-2xl border-l-4 border-game-border p-6 flex flex-col gap-5"
+        className="relative h-full w-full max-w-sm overflow-y-auto bg-game-surface shadow-elev-3 border-l-4 border-game-border p-6 flex flex-col gap-5"
       >
         <div className="flex items-center justify-between">
           <h2 id="settings-panel-title" className="text-2xl font-bold text-game-primary font-display">
@@ -155,7 +155,7 @@ export default function SettingsPanel({
             ref={closeButtonRef}
             onClick={onClose}
             aria-label={t('settings.close')}
-            className="rounded-full w-9 h-9 flex items-center justify-center text-xl text-game-muted hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="rounded-full w-9 h-9 flex items-center justify-center text-xl text-game-muted hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
             ✕
           </button>
@@ -180,7 +180,7 @@ export default function SettingsPanel({
             />
           </div>
           {nameError && (
-            <p className="text-xs text-red-600 dark:text-red-400 -mt-2">{nameError}</p>
+            <p className="text-xs text-game-error -mt-2">{nameError}</p>
           )}
           <div className={fieldRow}>
             <label htmlFor="settings-language" className="text-game-muted font-semibold">
@@ -291,7 +291,7 @@ export default function SettingsPanel({
           <button
             onClick={onToggleHighScores}
             aria-expanded={showHighScores}
-            className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300 self-start"
+            className="text-xs text-game-secondary underline hover:text-game-primary self-start"
           >
             {showHighScores ? t('highScores.hide') : t('highScores.show', { length: targetLength })}
           </button>
@@ -310,7 +310,7 @@ export default function SettingsPanel({
           <button
             onClick={onToggleStats}
             aria-expanded={showStats}
-            className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300 self-start"
+            className="text-xs text-game-secondary underline hover:text-game-primary self-start"
           >
             {showStats ? t('stats.hide') : t('stats.show')}
           </button>

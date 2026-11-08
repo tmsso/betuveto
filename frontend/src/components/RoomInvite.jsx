@@ -27,11 +27,11 @@ export default function RoomInvite({ code, displayName, busy, error, onJoin, onD
         type="button"
         disabled={busy || !trimmed}
         onClick={() => onJoin(code, trimmed)}
-        className="h-12 px-8 rounded-full shadow-lg bg-game-button text-white font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-12 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {t('room.join')}
       </button>
-      {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{t(error)}</p>}
+      {error && <p role="alert" className="text-xs text-game-error">{t(error)}</p>}
       <button type="button" onClick={onDismiss} className="text-xs text-game-muted underline">
         {t('room.notNow')}
       </button>

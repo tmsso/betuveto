@@ -12,7 +12,7 @@ export default function Timer({ timeLeft }) {
   return (
     <div className="flex items-center justify-center space-x-2">
       <div
-        className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600 dark:text-red-400 animate-pulse' : 'text-game-primary'}`}
+        className={`text-2xl font-bold ${timeLeft < 60 ? 'text-game-error animate-pulse' : 'text-game-primary'}`}
         role="timer"
         aria-label={t('score.timerAriaLabel', { time: `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` })}
       >

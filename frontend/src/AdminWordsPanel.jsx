@@ -190,7 +190,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
         <button
           type="submit"
           disabled={loading}
-          className="bg-game-button text-white font-semibold rounded px-4 py-2 hover:bg-game-button-hover transition-colors disabled:opacity-40"
+          className="bg-game-button text-game-on-secondary font-semibold rounded px-4 py-2 hover:bg-game-button-hover transition-colors disabled:opacity-40"
         >
           {t('common.search')}
         </button>

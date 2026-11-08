@@ -11,7 +11,7 @@ export default function HighScoresPanel({ serverScores, serverScoresLoading, hig
   const { t } = useTranslation()
 
   return (
-    <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700">
+    <div className="p-4 bg-game-paper rounded-lg border-2 border-dashed border-game-border">
       <h4 className="text-sm font-bold mb-2 text-center text-game-muted">
         {t('highScores.panelTitle', { length: targetLength })}
       </h4>
