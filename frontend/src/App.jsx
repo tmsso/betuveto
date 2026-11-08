@@ -361,6 +361,7 @@ function App() {
     }
   }, [isTimeUp, scoreAtExpiry, updateHighScores]);
 
+  const refreshDailyViewRef = useRef(null)
   const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST, easyMode = false, daily = false) => {
     try {
       setIsLoading(true)
@@ -384,6 +385,13 @@ function App() {
       // dependency-free useCallback (the mount effect below relies on that to avoid
       // restarting the game every time the UI language changes elsewhere) — the JSX
       // below translates this with the render's own (always-current) `t`.
+      // One daily per player per day: a second daily/start is a 409 — say so, and refresh
+      // the daily view so its "play" button turns into "done for today".
+      if (daily && err?.status === 409) {
+        setError('errors.dailyAlreadyPlayed')
+        refreshDailyViewRef.current?.()
+        return
+      }
       setError('errors.startGame')
       console.error('Error starting game:', err)
     } finally {
@@ -671,6 +679,9 @@ function App() {
       setDailyLoading(false)
     }
   }, [selectedWordlist, selectedLength])
+  // startNewGame is declared earlier and must stay dependency-free, so it reaches this
+  // through a ref (for the one-a-day 409 refresh).
+  useEffect(() => { refreshDailyViewRef.current = refreshDailyView }, [refreshDailyView])
 
   // The desktop side rail (design refresh 17c) shows the daily card without Settings being
   // opened, so load the view on mount when the rail is actually visible (lg+, 1024px).
