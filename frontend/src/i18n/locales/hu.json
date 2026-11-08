@@ -360,9 +360,9 @@
   "room": {
     "panelTitle": "Játék barátokkal",
     "alreadyInRoom": "Egy szobában vagy — nézd a táblát.",
-    "nameLabel": "Neved",
-    "namePlaceholder": "ezt látják a többiek",
-    "nameRequired": "Adj meg egy nevet — a többiek ezt látják.",
+    "nameLabel": "Megjelenített név",
+    "namePlaceholder": "pl. Anna",
+    "nameRequired": "Szobához megjelenített név kell — add meg fent, a Megjelenés résznél.",
     "modeLabel": "Mód",
     "mode": {
       "coop": {
@@ -454,7 +454,11 @@
         "explain": "Mindenki látja a megtalált szavakat. Egy szó csak az első megtalálójának ér pontot."
       }
     },
-    "winner": "Győztes"
+    "winner": "Győztes",
+    "revealWords": {
+      "name": "Hiányzó szavak mutatása a végén",
+      "explain": "Ha be van kapcsolva, a kör végén mindenki látja, milyen szavakat nem talált meg senki."
+    }
   },
   "summary": {
     "title": "Vége a körnek",

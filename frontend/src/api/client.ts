@@ -227,6 +227,9 @@ export interface RoomSnapshot {
   reveal?: {
     target_word: string;
     remaining_words: string[];
+    /** Host turned the reveal off (default): remaining_words is empty, the count stays. */
+    remaining_hidden?: boolean;
+    remaining_count?: number;
     members: RoomRevealMember[];
     end_reason: 'cleared' | 'all_done' | 'expired' | null;
     room_cleared: boolean;
@@ -600,7 +603,7 @@ class BetuAPIClient {
   }
 
   // --- Multiplayer rooms (ROADMAP 7.2) ---------------------------------------------
-  async createRoom(opts: { display_name: string; mode: RoomMode; visibility?: RoomVisibility; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
+  async createRoom(opts: { display_name: string; mode: RoomMode; visibility?: RoomVisibility; reveal_words?: boolean; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
     return roomJson(await fetch(`${this.baseUrl}/v1/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

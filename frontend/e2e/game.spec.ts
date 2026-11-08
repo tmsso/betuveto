@@ -205,10 +205,12 @@ test('typing into other text fields does not leak into the guess', async ({ page
   await expect(guessInput).toHaveValue('')
 
   await page.getByRole('button', { name: 'Beállítások' }).click()
-  const roomName = page.getByLabel('Neved')
-  await roomName.fill('')
-  await roomName.pressSequentially('Anna')
-  await expect(roomName).toHaveValue('Anna')
+  // The room-code field: a settings text input that saves nothing (the display-name field
+  // would durably rename the pinned CI player on blur).
+  const roomCode = page.getByLabel('Szobakód')
+  await roomCode.fill('')
+  await roomCode.pressSequentially('ABC123')
+  await expect(roomCode).toHaveValue('ABC123')
   await page.keyboard.press('Escape')
   await expect(guessInput).toHaveValue('')
 

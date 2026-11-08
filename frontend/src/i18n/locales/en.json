@@ -360,9 +360,9 @@
   "room": {
     "panelTitle": "Play with friends",
     "alreadyInRoom": "You're in a room — see the board.",
-    "nameLabel": "Your name",
-    "namePlaceholder": "shown to others",
-    "nameRequired": "Enter a name — the others will see it.",
+    "nameLabel": "Display name",
+    "namePlaceholder": "e.g. Anna",
+    "nameRequired": "Rooms need a display name — set it above, under Display.",
     "modeLabel": "Mode",
     "mode": {
       "coop": {
@@ -454,7 +454,11 @@
         "explain": "Everyone sees the words found. A word only scores for whoever found it first."
       }
     },
-    "winner": "Winner"
+    "winner": "Winner",
+    "revealWords": {
+      "name": "Show missing words at the end",
+      "explain": "When on, everyone sees the words nobody found once the round ends."
+    }
   },
   "summary": {
     "title": "Round over",

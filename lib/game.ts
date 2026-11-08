@@ -426,6 +426,12 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
   };
 }
 
+/** The host's room reveal toggle (owner review 2026-11-08) — default off. */
+async function roomRevealsWords(sql: ReturnType<typeof db>, roomId: string): Promise<boolean> {
+  const [row] = await sql<{ reveal_words: boolean }[]>`select reveal_words from rooms where id = ${roomId}`;
+  return row?.reveal_words === true;
+}
+
 export async function giveUp(gameId: string): Promise<Reply> {
   const sql = db();
   const game = await loadGame(sql, gameId);
@@ -455,6 +461,9 @@ export async function giveUp(gameId: string): Promise<Reply> {
   // A daily reveals nothing (owner review 2026-11-08): everyone gets the same board today.
   if (game.daily_puzzle_id) {
     return { status: 200, body: { target_word: null, possible_words: null, daily_hidden: true } };
+  }
+  if (game.room_id && !(await roomRevealsWords(sql, game.room_id))) {
+    return { status: 200, body: { target_word: game.target_word, possible_words: null, room_hidden: true } };
   }
 
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);
@@ -534,6 +543,9 @@ export async function getPossibleWords(gameId: string): Promise<Reply> {
   }
   if (game.daily_puzzle_id) {
     return { status: 403, body: { detail: "daily_hidden" } };
+  }
+  if (game.room_id && !(await roomRevealsWords(sql, game.room_id))) {
+    return { status: 403, body: { detail: "room_hidden" } };
   }
 
   const possible = await findableWords(sql, game.wordlist_id, game.target_word, config.min_word_length);

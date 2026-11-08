@@ -1,32 +1,24 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-const NAME_MAX = 20 // mirrors lib/players.ts's DISPLAY_NAME_MAX_LENGTH
-
 /**
  * ROADMAP 7.2.5 — "play with friends" entry point inside <SettingsPanel> (the DailyPanel
- * pattern). A display name is required for rooms (docs/multiplayer.md §1), so the field
- * is prefilled from the player's saved name and sent with create/join. Creating a room
- * uses the current length / wordlist selection; the mode is fixed at creation.
+ * pattern). A display name is required for rooms (docs/multiplayer.md §1). Since the owner
+ * review of 2026-11-08 there is no second name field here: rooms use the Settings
+ * "Megjelenített név" just above, and create/join stay disabled until it is set. Creating
+ * a room uses the current length / wordlist selection; mode, co-op variant and the reveal
+ * toggle are fixed at creation.
  */
 export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, onJoin }) {
   const { t } = useTranslation()
-  const [name, setName] = useState(displayName ?? '')
   const [mode, setMode] = useState('coop')
   // ROADMAP 15.1: the co-op variant. Only offered for co-op; the server ignores it for versus.
   const [visibility, setVisibility] = useState('private')
   const [code, setCode] = useState('')
-  const [nameMissing, setNameMissing] = useState(false)
-
-  const withName = (action) => {
-    const trimmed = name.trim()
-    if (!trimmed) {
-      setNameMissing(true)
-      return
-    }
-    setNameMissing(false)
-    action(trimmed)
-  }
+  // Off by default (owner review 2026-11-08): the words nobody found stay hidden.
+  const [revealWords, setRevealWords] = useState(false)
+  const name = (displayName ?? '').trim()
+  const nameMissing = name.length === 0
 
   const inputClass =
     'border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary'
@@ -42,18 +34,7 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
         <p className="text-sm text-game-muted">{t('room.alreadyInRoom')}</p>
       ) : (
         <>
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-game-muted font-semibold">{t('room.nameLabel')}</span>
-            <input
-              type="text"
-              value={name}
-              maxLength={NAME_MAX}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('room.namePlaceholder')}
-              className={`${inputClass} w-32`}
-            />
-          </label>
-          {nameMissing && <p className="text-xs text-game-error -mt-2">{t('room.nameRequired')}</p>}
+          {nameMissing && <p className="text-xs text-game-error">{t('room.nameRequired')}</p>}
 
           <fieldset className="flex flex-col gap-1.5 text-sm">
             <legend className="text-game-muted font-semibold mb-1">{t('room.modeLabel')}</legend>
@@ -95,7 +76,19 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
               ))}
             </fieldset>
           )}
-          <button type="button" disabled={busy} onClick={() => withName((n) => onCreate(n, mode, mode === 'coop' ? visibility : undefined))} className={buttonClass}>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={revealWords}
+              onChange={(e) => setRevealWords(e.target.checked)}
+              className="mt-1 accent-game-secondary"
+            />
+            <span>
+              <span className="font-semibold">{t('room.revealWords.name')}</span>
+              <span className="block text-xs text-game-muted">{t('room.revealWords.explain')}</span>
+            </span>
+          </label>
+          <button type="button" disabled={busy || nameMissing} onClick={() => onCreate(name, mode, mode === 'coop' ? visibility : undefined, revealWords)} className={buttonClass}>
             {t('room.create')}
           </button>
 
@@ -110,8 +103,8 @@ export default function RoomPanel({ displayName, busy, error, inRoom, onCreate, 
             />
             <button
               type="button"
-              disabled={busy || code.length !== 6}
-              onClick={() => withName((n) => onJoin(code, n))}
+              disabled={busy || nameMissing || code.length !== 6}
+              onClick={() => onJoin(code, name)}
               className={buttonClass}
             >
               {t('room.join')}

@@ -34,7 +34,7 @@ export default function RoomResults({ room, busy, error, onRematch, onJoinRematc
         <p className="text-center text-sm font-semibold">
           {reveal.room_cleared
             ? t('room.clearedTogether', { bonus: reveal.bonus_per_member })
-            : t('room.notCleared', { count: reveal.remaining_words.length })}
+            : t('room.notCleared', { count: reveal.remaining_count ?? reveal.remaining_words.length })}
         </p>
       )}
       <p className="text-center text-sm">

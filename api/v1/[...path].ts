@@ -348,6 +348,7 @@ async function createRoomRoute(req: VercelRequest): Promise<Reply> {
     resolvedPlayerId,
     setCookieHeader,
     bodyField(req, "visibility"),
+    bodyField(req, "reveal_words"),
   );
 }
 

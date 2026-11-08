@@ -2166,6 +2166,7 @@ describeApi("Betűvető API contract", () => {
       status: string;
       mode: string;
       visibility: string;
+      reveal_words: boolean;
       wordlist: string;
       target_length: number;
       is_host: boolean;
@@ -2682,6 +2683,16 @@ describeApi("Betűvető API contract", () => {
     const versus = await call("POST", "/api/v1/rooms", { display_name: "Host", mode: "versus", visibility: "shared" });
     expect(versus.json.room.visibility).toBe("private"); // not offered in versus
     const bad = await call("POST", "/api/v1/rooms", { display_name: "Host", visibility: "public" });
+    expect(bad.status).toBe(422);
+  }, 60_000);
+
+  it("the reveal toggle is the host's choice at creation and defaults to off", async () => {
+    if (IS_PRODUCTION) return; // mints players + rooms — previews only
+    const byDefault = await createRoomWithCookie("Host");
+    expect(byDefault.result.room.reveal_words).toBe(false);
+    const on = await call("POST", "/api/v1/rooms", { display_name: "Host", reveal_words: true });
+    expect(on.json.room.reveal_words).toBe(true);
+    const bad = await call("POST", "/api/v1/rooms", { display_name: "Host", reveal_words: "yes" });
     expect(bad.status).toBe(422);
   }, 60_000);
 
