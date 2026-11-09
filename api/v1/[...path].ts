@@ -334,7 +334,24 @@ async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
 }
 
 async function preferencesPatchRoute(req: VercelRequest): Promise<Reply> {
-  const id = playerId(req);
+  // A display name is now required before creating or joining a room from Settings (#138),
+  // so setting one must work for a first-time visitor who hasn't played yet: mint the
+  // identity here like room create does. Other preferences still need an existing player.
+  let id = playerId(req);
+  let setCookieHeader: string | undefined;
+  if (!id && bodyField(req, "display_name") !== undefined) {
+    const identity = await resolveOrMintIdentity(req);
+    if (!identity) return MINT_THROTTLED;
+    id = identity.playerId;
+    setCookieHeader = identity.setCookieHeader;
+  }
+  const reply = await applyPreferences(req, id);
+  return setCookieHeader
+    ? { ...reply, headers: { ...reply.headers, "Set-Cookie": setCookieHeader } }
+    : reply;
+}
+
+async function applyPreferences(req: VercelRequest, id: string | null): Promise<Reply> {
   const body: Record<string, unknown> = {};
 
   if (bodyField(req, "preferred_length") !== undefined) {

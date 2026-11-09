@@ -784,6 +784,17 @@ describeApi("Betűvető API contract", () => {
     expect(patch.status).toBe(401);
   });
 
+  it("lets a first-time visitor set a display name (mints the identity), so rooms can be created", async () => {
+    const patch = await call("PATCH", "/api/v1/me/preferences", { display_name: "Új Vendég" });
+    expect(patch.status).toBe(200);
+    expect(patch.json.display_name).toBe("Új Vendég");
+    const cookie = patch.headers.get("set-cookie") ?? "";
+    expect(cookie).toMatch(/^bv_anon=[^;]+/);
+    const auth = { Cookie: cookie.split(";")[0]! };
+    const after = await call("GET", "/api/v1/me/preferences", undefined, auth);
+    expect(after.json.display_name).toBe("Új Vendég");
+  });
+
   it("health route confirms a live DB connection (ROADMAP 1.4)", async () => {
     const { status, json } = await call("GET", "/api/v1/health");
     expect(status).toBe(200);
