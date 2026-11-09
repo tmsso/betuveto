@@ -29,6 +29,15 @@ export type LinkPlan =
   | { outcome: "switched"; playerId: string }
   | { outcome: "created" };
 
+/** A phone with this many finished games is probably someone's real history, not a quick
+ *  try — merging it into a Google account then needs an explicit yes (a tester signing in
+ *  on a friend's phone would otherwise take the friend's games, with no undo). */
+export const MERGE_CONFIRM_MIN_GAMES = 10;
+
+export function needsMergeConfirmation(deviceGames: number, confirmed: boolean): boolean {
+  return !confirmed && deviceGames >= MERGE_CONFIRM_MIN_GAMES;
+}
+
 /** The decision alone, as a pure function so every branch is unit-testable.
  *  `device` is the cookie's player (null when there is none), `owner` the player that
  *  already carries this auth user id (null when none does). */
@@ -51,7 +60,11 @@ export function planLink(
 export async function linkAccount(
   devicePlayerId: string | null,
   authUserId: string,
-): Promise<{ outcome: LinkOutcome; playerId: string }> {
+  confirmMerge = false,
+): Promise<
+  | { outcome: LinkOutcome; playerId: string }
+  | { outcome: "confirm_merge"; deviceGames: number }
+> {
   const sql = db();
   return sql.begin(async (tx) => {
     const [owner] = await tx<{ id: string }[]>`
@@ -71,9 +84,17 @@ export async function linkAccount(
       case "linked":
         await tx`update players set auth_user_id = ${authUserId} where id = ${plan.playerId}`;
         return { outcome: plan.outcome, playerId: plan.playerId };
-      case "merged":
+      case "merged": {
+        const [{ n }] = await tx<{ n: number }[]>`
+          select count(*)::int as n from games
+          where player_id = ${plan.mergeFrom} and status <> 'active'
+        `;
+        if (needsMergeConfirmation(n, confirmMerge)) {
+          return { outcome: "confirm_merge" as const, deviceGames: n };
+        }
         await tx`select merge_players(${plan.mergeFrom}::uuid, ${plan.playerId}::uuid)`;
         return { outcome: plan.outcome, playerId: plan.playerId };
+      }
       case "already_linked":
       case "switched":
         return { outcome: plan.outcome, playerId: plan.playerId };

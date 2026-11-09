@@ -5,6 +5,7 @@ import { isJwtShaped } from './admin/jwtShape'
 
 const RETURN_PARAM = 'account'
 const OUTCOME_KEY = 'bv_account_outcome'
+const PENDING_MERGE_KEY = 'bv_account_pending_merge'
 
 async function client() {
   const { authClient } = await import('./neonAuth.js')
@@ -51,11 +52,19 @@ export async function completeGoogleSignInIfReturning() {
         headers: { Authorization: `Bearer ${jwt}` },
       })
       if (response.ok) outcome = (await response.json()).outcome
+      // The phone has real history (10+ games): nothing merged yet, ask the player first.
+      else if (response.status === 409) {
+        const body = await response.json()
+        try { sessionStorage.setItem(PENDING_MERGE_KEY, String(body.device_games ?? '')) } catch { /* storage blocked */ }
+        outcome = null
+      }
     }
   } catch {
     // keep 'failed'
   }
-  try { sessionStorage.setItem(OUTCOME_KEY, outcome) } catch { /* storage blocked */ }
+  if (outcome) {
+    try { sessionStorage.setItem(OUTCOME_KEY, outcome) } catch { /* storage blocked */ }
+  }
   url.searchParams.delete(RETURN_PARAM)
   url.searchParams.delete('neon_auth_session_verifier')
   window.history.replaceState(null, '', url.pathname + url.search + url.hash)
@@ -82,6 +91,43 @@ export async function signedInEmail() {
   } catch {
     return null
   }
+}
+
+/** The number of games on this phone when a merge is waiting for the player's yes, or null. */
+export function takePendingMerge() {
+  try {
+    const value = sessionStorage.getItem(PENDING_MERGE_KEY)
+    sessionStorage.removeItem(PENDING_MERGE_KEY)
+    return value === null ? null : Number(value) || 0
+  } catch {
+    return null
+  }
+}
+
+/** The player said yes: repeat the link with confirm_merge, then reload onto the account. */
+export async function confirmMerge() {
+  let outcome = 'failed'
+  try {
+    const jwt = await sessionJwt(await client())
+    if (jwt) {
+      const response = await fetch('/api/v1/account/link', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm_merge: true }),
+      })
+      if (response.ok) outcome = (await response.json()).outcome
+    }
+  } catch {
+    // keep 'failed'
+  }
+  try { sessionStorage.setItem(OUTCOME_KEY, outcome) } catch { /* storage blocked */ }
+  window.location.reload()
+}
+
+/** The player said no: drop the Google session, the phone keeps its own player untouched. */
+export async function cancelMerge() {
+  try { await (await client()).signOut() } catch { /* nothing was linked anyway */ }
+  try { sessionStorage.setItem(OUTCOME_KEY, 'cancelled') } catch { /* storage blocked */ }
 }
 
 /** Device goes back to a fresh anonymous player; the linked one stays on the account. */

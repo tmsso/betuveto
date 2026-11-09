@@ -485,7 +485,14 @@
       "merged": "Kész, az eszközön játszott játékaidat egyesítettük a fiókodéval.",
       "switched": "Bejelentkeztél, a fiókod eredményei betöltve.",
       "created": "Kész, a Google-fiókodhoz új profil készült.",
-      "failed": "A bejelentkezés nem sikerült. Próbáld újra később."
+      "failed": "A bejelentkezés nem sikerült. Próbáld újra később.",
+      "cancelled": "Rendben, semmi nem változott: az eszköz megtartotta a saját játékait, és kijelentkeztél a Google-fiókból."
+    },
+    "mergeConfirm": {
+      "title": "Egyesíted a játékokat?",
+      "message_one": "Ezen az eszközön már {{count}} játék van. Ha folytatod, mind átkerül a Google-fiókodba, és az eszköz saját profilja megszűnik. Ezt nem lehet visszavonni. Csak akkor folytasd, ha ez a saját eszközöd.",
+      "message_other": "Ezen az eszközön már {{count}} játék van. Ha folytatod, mind átkerül a Google-fiókodba, és az eszköz saját profilja megszűnik. Ezt nem lehet visszavonni. Csak akkor folytasd, ha ez a saját eszközöd.",
+      "confirm": "Egyesítés"
     }
   }
 }
