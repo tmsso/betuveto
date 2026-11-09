@@ -72,6 +72,18 @@ export function takeSignInOutcome() {
   }
 }
 
+/** The signed-in Google account's email, read from the Neon Auth session in the browser
+ *  only (our API never receives or stores it). Null when the Neon session has lapsed —
+ *  the device stays linked either way. */
+export async function signedInEmail() {
+  try {
+    const result = await (await client()).getSession()
+    return result?.data?.user?.email ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Device goes back to a fresh anonymous player; the linked one stays on the account. */
 export async function signOutGoogle() {
   try { await (await client()).signOut() } catch { /* still drop the device cookie */ }

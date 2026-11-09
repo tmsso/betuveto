@@ -208,7 +208,7 @@
       },
       "google": {
         "heading": "Nem kötelező Google-bejelentkezés",
-        "body": "Ha a Beállításokban a „Haladás mentése Google-fiókkal” lehetőséget választod, a bejelentkezést a Neon Auth (hitelesítési szolgáltatónk, adatfeldolgozó) végzi: a Google-tól megkapja a fiókod nevét, e-mail-címét és azonosítóját. A játék saját adatbázisa csak egy belső fiókazonosítót tárol, amely a játékosodat ehhez a bejelentkezéshez köti, az e-mail-címedet soha, és az e-mail-cím a játékban sem jelenik meg. Ha olyan eszközön jelentkezel be, ahol már vannak játékaid, azokat egyesítjük a fiókodéval. Kijelentkezéskor a fiókod megmarad; az adataid törlése (lásd lent) törli a játékosodat és annak kapcsolatát a fiókkal."
+        "body": "Ha a Beállításokban a „Haladás mentése Google-fiókkal” lehetőséget választod, a bejelentkezést a Neon Auth (hitelesítési szolgáltatónk, adatfeldolgozó) végzi: a Google-tól megkapja a fiókod nevét, e-mail-címét és azonosítóját. A játék saját adatbázisa csak egy belső fiókazonosítót tárol, amely a játékosodat ehhez a bejelentkezéshez köti, az e-mail-címedet soha. Az e-mail-címed csak neked látszik a Beállításokban, közvetlenül a bejelentkezésből olvasva; más játékosok soha nem látják. Ha olyan eszközön jelentkezel be, ahol már vannak játékaid, azokat egyesítjük a fiókodéval. Kijelentkezéskor a fiókod megmarad; az adataid törlése (lásd lent) törli a játékosodat és annak kapcsolatát a fiókkal."
       },
       "hosting": {
         "heading": "Hol tároljuk",
@@ -476,7 +476,7 @@
   },
   "account": {
     "keepProgress": "Haladás mentése Google-fiókkal",
-    "explain": "Nem kötelező. Így másik eszközön vagy újratelepítés után is megmarad az eredményed. Az e-mail-címed nem jelenik meg a játékban.",
+    "explain": "Nem kötelező. Így másik eszközön vagy újratelepítés után is megmarad az eredményed. Az e-mail-címedet más játékosok soha nem látják.",
     "linked": "Google-fiókhoz kapcsolva",
     "signOut": "Kijelentkezés",
     "outcome": {
