@@ -2,10 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { betuAPI } from './api/client'
 import ReactCanvasConfetti from 'react-canvas-confetti'
+import { LogoMark, Wordmark } from './components/Logo'
+import RoundSummary from './components/RoundSummary'
+// Lucide icon set (handback §6) — one consistent outline style instead of OS-dependent emoji.
+import {
+  BookOpen, CalendarDays, Check, ChevronDown, ChevronUp, CircleHelp, Dices, Flag, Lightbulb,
+  LogOut, Shuffle, SlidersHorizontal, Sparkles, Sprout, Swords, Trophy, Users,
+} from 'lucide-react'
 import ConfirmationModal from './components/ConfirmationModal'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import SettingsPanel from './components/SettingsPanel'
+import DailyPanel from './components/DailyPanel'
+import HighScoresPanel from './components/HighScoresPanel'
 import HelpPanel from './components/HelpPanel'
 import RoomLobby from './components/RoomLobby'
 import RoomInvite from './components/RoomInvite'
@@ -100,23 +109,48 @@ function App() {
     confettiRef.current = instance;
   }, []);
 
-  const fireConfetti = useCallback(() => {
+  // Celebration tiers (design handback §5). Each tier is a distinct confetti config in
+  // the brand's celebrate-1/2/3 colours, read from the CSS tokens at fire time so dark
+  // mode gets its own brighter set. Reduced motion: no particles at all — the static
+  // fallbacks (chip colours, board outline, summary card) carry the moment instead.
+  const celebrate = useCallback((tier) => {
     if (prefersReducedMotion()) return;
-    confettiRef.current?.({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
+    const fire = confettiRef.current;
+    if (!fire) return;
+    const css = getComputedStyle(document.documentElement);
+    const colors = [1, 2, 3].map((i) => {
+      const [r, g, b] = css.getPropertyValue(`--game-celebrate-${i}`).trim().split(/\s+/).map(Number);
+      return '#' + [r, g, b].map((n) => (n || 0).toString(16).padStart(2, '0')).join('');
     });
+    const base = { colors, shapes: ['square'], disableForReducedMotion: true };
+    if (tier === 1) {
+      // Valid word: a small puff from the guess input.
+      fire({ ...base, particleCount: 24, spread: 50, startVelocity: 25, ticks: 90, origin: { y: 0.62 } });
+    } else if (tier === 2) {
+      // Full-length word.
+      fire({ ...base, particleCount: 90, spread: 100, origin: { y: 0.45 } });
+    } else if (tier === 3 || tier === 5) {
+      // Board cleared (3): two side cannons, three bursts over ~1.4 s. Room winner (5): one.
+      const bursts = tier === 3 ? [0, 450, 900] : [0];
+      bursts.forEach((delay) => setTimeout(() => {
+        fire({ ...base, particleCount: 60, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
+        if (tier === 3) fire({ ...base, particleCount: 60, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
+      }, delay));
+    } else if (tier === 4) {
+      // Daily solved: a gentle shower from the top.
+      fire({ ...base, particleCount: 70, spread: 120, gravity: 0.6, startVelocity: 20, origin: { y: 0 } });
+    }
   }, []);
 
+  // Tier 2's board glow: the class runs a 900 ms swell and then holds a faint outline
+  // until it's removed at 1.5 s — under reduced motion only that static outline shows.
+  const [boardGlow, setBoardGlow] = useState(false);
+  const fireConfetti = useCallback(() => celebrate(1), [celebrate]);
   const fireExplosion = useCallback(() => {
-    if (prefersReducedMotion()) return;
-    confettiRef.current?.({
-      particleCount: 200,
-      spread: 160,
-      origin: { y: 0.3 }
-    });
-  }, []);
+    celebrate(2);
+    setBoardGlow(true);
+    setTimeout(() => setBoardGlow(false), 1500);
+  }, [celebrate]);
 
   // ROADMAP 7.2.1 — the single-game state machine (board, guess, timer, hints, word
   // curation, ...). See useGame.js's own top comment for exactly what stayed here instead
@@ -130,9 +164,9 @@ function App() {
     currentGuess, foundWords, scrambledLetters, guessCount, isTimeUp, timeLeft,
     isGuessShaking, guessErrorMsg, justFoundWord, currentAnimatingIndex, isScoreFlashing,
     preGame, targetLength, uiConfig, gameWordlist, gameEasyMode, isDailyGame,
-    hintLoading, hintMessage, reportedWords, suggestPrompt, suggestLoading, suggestThanks,
+    hintLoading, hintMessage, reportedWords, reportToast, suggestPrompt, suggestLoading, suggestThanks,
     possibleWordsCount, allPossibleWords, showRemainingWords, allPossibleWordsFound,
-    displayScore, usedLetters, scoreAtExpiry,
+    displayScore, usedLetters, scoreAtExpiry, hintPenalty,
     setCurrentGuess, setShowRemainingWords, setUiConfig,
     beginFromStartResponse, enterPreGame,
     handleGuessChange, handleSubmit, handleLetterClick, handleScramble, handleGiveUp,
@@ -327,6 +361,7 @@ function App() {
     }
   }, [isTimeUp, scoreAtExpiry, updateHighScores]);
 
+  const refreshDailyViewRef = useRef(null)
   const startNewGame = useCallback(async (length = DEFAULT_TARGET_LENGTH, wordlist = DEFAULT_WORDLIST, easyMode = false, daily = false) => {
     try {
       setIsLoading(true)
@@ -350,6 +385,13 @@ function App() {
       // dependency-free useCallback (the mount effect below relies on that to avoid
       // restarting the game every time the UI language changes elsewhere) — the JSX
       // below translates this with the render's own (always-current) `t`.
+      // One daily per player per day: a second daily/start is a 409 — say so, and refresh
+      // the daily view so its "play" button turns into "done for today".
+      if (daily && err?.status === 409) {
+        setError('errors.dailyAlreadyPlayed')
+        refreshDailyViewRef.current?.()
+        return
+      }
       setError('errors.startGame')
       console.error('Error starting game:', err)
     } finally {
@@ -386,13 +428,14 @@ function App() {
 
   // Rooms (ROADMAP 7.2.5). Creating or joining a room leaves any solo game in progress
   // (confirmed first, like every other restart) and shows the lobby on the pre-game board.
-  const handleCreateRoom = useCallback((name, mode, visibility) => {
+  const handleCreateRoom = useCallback((name, mode, visibility, revealWords) => {
     requestRestart(async () => {
       enterPreGame()
       const snapshot = await rooms.create({
         display_name: name,
         mode,
         ...(visibility ? { visibility } : {}),
+        reveal_words: Boolean(revealWords),
         wordlist: selectedWordlist,
         target_length: selectedLength,
       })
@@ -479,6 +522,44 @@ function App() {
   }, [rooms, room, displayName, enterPreGame])
 
   const inRoomRound = Boolean(room && isRoomGame && ['playing', 'finished'].includes(room.status))
+
+  // ── Celebrations + end-of-round summary (design refresh 17e) ──────────────────────
+  // Personal best (tier 6): the best score on record *before* this round ended. The
+  // leaderboard refetches as soon as isTimeUp flips, so the value is latched while the
+  // round is still running and compared once it's over.
+  const bestBeforeRoundRef = useRef(null)
+  if (!isTimeUp) bestBeforeRoundRef.current = serverScores?.your_best?.final_score ?? null
+  const soloRound = !preGame && !inRoomRound && !isRoomGame
+  const isNewBest = soloRound && isTimeUp && !isDailyGame &&
+    bestBeforeRoundRef.current != null && scoreAtExpiry - hintPenalty > bestBeforeRoundRef.current
+
+  // Tier 3 / 4 — fire once when the round ends in a full clear (daily: the gentler shower).
+  useEffect(() => {
+    if (!allPossibleWordsFound || inRoomRound) return
+    celebrate(isDailyGame ? 4 : 3)
+    if (isDailyGame) play('daily')
+  }, [allPossibleWordsFound, inRoomRound, isDailyGame, celebrate, play])
+  // Tier 6 — chime once per round that beats the previous best.
+  useEffect(() => {
+    if (isNewBest) play('chime')
+  }, [isNewBest, play])
+
+  const roundSummary = soloRound && isTimeUp ? (() => {
+    const lettersCount = scrambledLetters.filter((l) => l !== ' ').length
+    const longestWord = [...foundWords].sort((a, b) => b.length - a.length || a.localeCompare(b))[0] ?? null
+    return {
+      score: displayScore,
+      foundCount: foundWords.length,
+      totalCount: possibleWordsCount,
+      longestWord,
+      fullWord: allPossibleWords.find((w) => w.length === lettersCount) ?? null,
+      cleared: allPossibleWordsFound,
+      noHint: hintPenalty === 0,
+      newBest: isNewBest,
+      isDaily: isDailyGame,
+      streak: isDailyGame ? (dailyView?.streak?.current ?? 0) : 0,
+    }
+  })() : null
 
   // ROADMAP 15.1: in a shared co-op room, the words teammates found. Own words stay in
   // `foundWords` (they are scored and reportable); these are shown read-only next to them.
@@ -599,6 +680,15 @@ function App() {
       setDailyLoading(false)
     }
   }, [selectedWordlist, selectedLength])
+  // startNewGame is declared earlier and must stay dependency-free, so it reaches this
+  // through a ref (for the one-a-day 409 refresh).
+  useEffect(() => { refreshDailyViewRef.current = refreshDailyView }, [refreshDailyView])
+
+  // The desktop side rail (design refresh 17c) shows the daily card without Settings being
+  // opened, so load the view on mount when the rail is actually visible (lg+, 1024px).
+  useEffect(() => {
+    if (window.matchMedia?.('(min-width: 1024px)').matches) refreshDailyView()
+  }, [refreshDailyView])
 
   // Starting the daily routes through the same confirm-before-restart funnel as the
   // length/wordlist selectors — losing real progress still prompts first.
@@ -720,7 +810,7 @@ function App() {
         <div className="min-h-screen flex items-center justify-center bg-game-paper p-4 font-sans">
             <OfflineNotice />
             <InstallPrompt />
-            <div className="bg-red-100 dark:bg-red-950/40 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-center max-w-md mx-auto">
+            <div className="bg-game-error-soft border border-game-error/40 text-game-error px-4 py-3 rounded-lg text-center max-w-md mx-auto">
                 <strong className="font-bold">{t('errorScreen.title')}</strong>
                 <span className="block sm:inline"> {t(error)}</span>
                 <div className="mt-4">
@@ -728,7 +818,7 @@ function App() {
                         // Not `onClick={startNewGame}`: the click event would land in the
                         // `length` parameter and reach the API as target_length=[object Object].
                         onClick={() => startNewGame(selectedLength, selectedWordlist, selectedEasyMode)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                        className="bg-game-error text-game-on-secondary px-4 py-2 rounded-lg hover:bg-game-error/90 transition-colors"
                     >
                         {t('errorScreen.retry')}
                     </button>
@@ -739,76 +829,96 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-game-paper p-4 flex flex-col items-center justify-center font-sans text-game-primary">
+    // Framing (design handback §3): top-aligned page with the header outside the card; on
+    // phones the card is the page (edge to edge), from sm up it's a floating 600px card,
+    // and from lg a 320px side rail joins it. `app-shell` adds the safe-area padding and
+    // the scattered-tile backdrop (index.css).
+    <div className="app-shell min-h-screen bg-game-paper flex flex-col items-center font-sans text-game-primary">
       <OfflineNotice />
       <InstallPrompt />
+      {reportToast && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full bg-game-error-soft text-game-error border border-game-error/40 px-4 py-2 text-sm font-semibold shadow-elev-2 animate-bounce-in"
+        >
+          <Flag size={16} aria-hidden="true" />
+          {t('foundWords.reportedToast', { word: reportToast })}
+        </div>
+      )}
       <ReactCanvasConfetti ref={getInstance} style={canvasStyles} />
 
-      {/* Header */}
-      <div className="text-center mb-8 w-full flex flex-col items-center">
-        <h1 className="text-5xl font-extrabold text-game-primary mb-2 font-display leading-tight">{t('app.title')}</h1>
+      {/* Header: logo left, controls right. 64px with a hairline on phones, 80px from lg. */}
+      <header className="app-header w-full sm:max-w-[600px] lg:max-w-[952px] px-4 sm:px-0 flex items-center justify-between gap-3 max-sm:border-b max-sm:border-game-border">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <LogoMark size={48} className="w-[38px] h-[38px] lg:w-12 lg:h-12 shrink-0" />
+          <Wordmark text={t('app.title')} className="text-[27px] sm:text-[32px] lg:text-[40px]" />
+        </div>
         {/* ROADMAP Batch 10 item 15 — every non-core control (language, theme, sound,
             length, wordlist, easy mode, leaderboard, stats) now lives behind this one
             gear button, in <SettingsPanel>, leaving the board / input / score / timer /
             actions as the default view. */}
-        <div className="mt-1 flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* ROADMAP 12.5 — the rules, for testers who arrive from a shared link. */}
           <button
             type="button"
             onClick={() => setIsHelpOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            <span aria-hidden="true">❓</span>
-            <span>{t('help.open')}</span>
+            <CircleHelp size={18} aria-hidden="true" />
+            <span className="max-sm:sr-only">{t('help.open')}</span>
           </button>
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
             aria-label={t('settings.open')}
             title={t('settings.open')}
-            className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+            className="header-btn hover:bg-game-paper focus:outline-none focus:ring-2 focus:ring-game-secondary"
           >
-            <span aria-hidden="true">⚙️</span>
-            <span>{t('settings.open')}</span>
+            <SlidersHorizontal size={18} aria-hidden="true" />
+            <span className="max-sm:sr-only">{t('settings.open')}</span>
           </button>
           {showLeaveGame && (
             <button
               type="button"
               onClick={handleLeaveGameClick}
               data-testid="leave-game"
-              className="inline-flex items-center gap-1.5 text-xs border border-game-border rounded-lg px-3 py-1 text-game-primary bg-game-surface hover:bg-red-50 dark:hover:bg-red-950/40 focus:outline-none focus:ring-2 focus:ring-game-secondary"
+              className="header-btn hover:bg-game-error-soft focus:outline-none focus:ring-2 focus:ring-game-secondary"
             >
-              <span aria-hidden="true">🚪</span>
-              <span>{t('room.leaveGame')}</span>
+              <LogOut size={18} aria-hidden="true" />
+              <span className="max-sm:sr-only">{t('room.leaveGame')}</span>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="bg-game-surface rounded-xl shadow-2xl p-6 sm:p-8 max-w-xl w-full border-4 border-game-border relative overflow-hidden">
+      <div className="w-full flex justify-center gap-8 sm:mt-4 max-sm:flex-1">
+      <main className="game-card bg-game-surface w-full sm:max-w-[600px] px-4 pt-5 pb-8 sm:px-9 sm:pt-7 sm:pb-8 sm:rounded-3xl sm:shadow-elev-2 relative overflow-hidden">
         {/* Easy-mode indicator (ROADMAP Batch 10) — the checkbox alone can't show a
             silent server-side fallback to a normal pick (lib/game.ts: no word yet
             qualifies), so this reflects gameEasyMode, the server's echoed actual outcome,
             not the request. */}
         {gameEasyMode && (
-            <div className="absolute top-0 left-0 p-2 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-green-200 dark:border-green-900">
-                🌱 {t('easyModeBadge')}
+            <div className="absolute top-0 left-0 p-2 bg-game-success-soft text-game-primary text-xs font-bold rounded-br-lg border-r-2 border-b-2 border-game-success/30">
+                <Sprout size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('easyModeBadge')}
             </div>
         )}
 
         {/* Room indicator (ROADMAP 7.2.6) — mode + code, where the daily badge would sit
             (a room game is never a daily). */}
         {inRoomRound && (
-            <div className="absolute top-0 right-0 p-2 bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-purple-200 dark:border-purple-900" title={t('room.boardBadge', { code: room.code })}>
-                {room.mode === 'versus' ? '⚔️' : '👥'} {room.code}
+            <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30" title={t('room.boardBadge', { code: room.code })}>
+                {room.mode === 'versus'
+                  ? <Swords size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />
+                  : <Users size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />}
+                {room.code}
             </div>
         )}
 
         {/* Daily-puzzle indicator (ROADMAP Batch 10 item 1) — the current game is today's
             shared board; the result is graded once, at its terminal transition. */}
         {isDailyGame && (
-            <div className="absolute top-0 right-0 p-2 bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-blue-200 dark:border-blue-900">
-                🗓️ {t('daily.badge')}
+            <div className="absolute top-0 right-0 p-2 bg-game-secondary-soft text-game-primary text-xs font-bold rounded-bl-lg border-l-2 border-b-2 border-game-secondary/30">
+                <CalendarDays size={14} aria-hidden="true" className="inline -mt-0.5 mr-1" />{t('daily.badge')}
             </div>
         )}
 
@@ -877,6 +987,7 @@ function App() {
             onRematch={handleRematch}
             onJoinRematch={handleJoinRematch}
             onBackToSolo={leaveRoomToSolo}
+            onCelebrate={(tier) => { celebrate(tier); play(tier === 5 ? 'fanfare' : 'fullClear') }}
           />
         )}
         {inRoomRound && room.status === 'playing' && <RoomStrip room={room} />}
@@ -887,6 +998,7 @@ function App() {
             button; otherwise Enter after clicking Keverés would reshuffle and wipe the
             typed word. `contents` keeps the wrapper out of the layout. */}
         <div data-game-keys className="contents">
+        <div className={`rounded-2xl ${boardGlow ? 'animate-board-glow' : ''}`}>
         <Board
           preGame={preGame}
           gameWordlist={gameWordlist}
@@ -897,6 +1009,7 @@ function App() {
           onLetterClick={handleLetterClick}
         />
         </div>
+        </div>
 
         {/* Pre-game start (ROADMAP Batch 10 item 17) — the empty board's only control. It
             reuses handleNewGameClick, so it is literally the "Új játék" action; there is no
@@ -906,9 +1019,9 @@ function App() {
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="animate-breathe h-14 px-8 rounded-full shadow-lg bg-game-secondary text-white text-lg font-semibold hover:bg-blue-600 transition-colors inline-flex items-center justify-center gap-2"
+              className="animate-breathe h-14 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-lg font-semibold hover:bg-game-button-hover transition-colors inline-flex items-center justify-center gap-2"
             >
-              <span aria-hidden="true">🎲</span>
+              <Dices size={20} aria-hidden="true" />
               <span>{t('actions.newGame')}</span>
             </button>
           </div>
@@ -932,28 +1045,30 @@ function App() {
         />
 
         {/* Action Buttons */}
-        <div className="mb-6 flex items-center justify-between gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
+        {/* Phones: a 3-column grid of 52px buttons, each with icon + label (handback §3.3);
+            from sm the original row. `contents` lets the inner group's buttons join the grid. */}
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+          <div className="contents sm:flex sm:items-center sm:gap-3">
             {/* In a room round "new game" would silently walk out of the room — the room's
                 own results offer Rematch / Back to solo instead (ROADMAP 7.2.6). */}
             {!inRoomRound && (
             <button
               onClick={handleNewGameClick}
               aria-label={t('actions.newGameAriaLabel')}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-secondary text-white text-sm sm:text-base font-semibold hover:bg-blue-600 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary text-sm sm:text-base font-semibold hover:bg-game-button-hover transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
             >
-              <span>🎲</span>
-              <span className="max-[420px]:hidden">{t('actions.newGame')}</span>
+              <Dices size={20} aria-hidden="true" />
+              <span>{t('actions.newGame')}</span>
             </button>
             )}
             <button
               onClick={handleScramble}
-              className="h-12 sm:h-14 w-28 sm:w-32 max-[420px]:w-12 rounded-full shadow-lg bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-gray-100 dark:hover:bg-slate-700 transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
+              className="h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-1 bg-game-surface border-2 border-game-border text-game-primary text-sm sm:text-base font-semibold hover:bg-game-paper transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center gap-2"
               aria-label={t('actions.scrambleAriaLabel')}
               title={t('actions.scrambleAriaLabel')}
             >
-              <span>🔀</span>
-              <span className="max-[420px]:hidden">{t('actions.scramble')}</span>
+              <Shuffle size={20} aria-hidden="true" />
+              <span>{t('actions.scramble')}</span>
             </button>
           </div>
 
@@ -961,14 +1076,14 @@ function App() {
             onClick={handleSubmit}
             aria-label={t('actions.submitAriaLabel')}
             disabled={!currentGuess.trim()}
-            className={`h-12 sm:h-14 w-28 sm:w-32 max-[360px]:w-12 rounded-full shadow-lg text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
+            className={`h-[52px] sm:h-14 w-full sm:w-32 rounded-full shadow-elev-2 text-sm sm:text-base font-semibold transition-all transform whitespace-nowrap inline-flex items-center justify-center gap-2
               ${currentGuess.trim()
-                ? 'bg-game-success text-white hover:bg-green-600 hover:scale-105 active:scale-95'
-                : 'bg-gray-300 dark:bg-slate-700 cursor-not-allowed text-game-muted'
+                ? 'bg-game-go text-game-on-secondary hover:bg-game-go-hover hover:scale-105 active:scale-95'
+                : 'bg-game-tile-used cursor-not-allowed text-game-muted'
               }`}
           >
-            <span>✅</span>
-            <span className="max-[360px]:hidden">{t('actions.submit')}</span>
+            <Check size={20} strokeWidth={2.5} aria-hidden="true" />
+            <span>{t('actions.submit')}</span>
           </button>
         </div>
 
@@ -977,23 +1092,25 @@ function App() {
           <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <button
               onClick={handleGiveUpClick}
-              className="text-xs text-game-muted underline hover:text-red-600"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-game-muted hover:text-game-error"
             >
+              <Flag size={16} aria-hidden="true" />
               {t('giveUpHint.giveUp')}
             </button>
             <button
               onClick={handleUseHint}
               disabled={hintLoading || foundWords.length >= possibleWordsCount}
               title={t('giveUpHint.hintTitle', { cost: hintCost })}
-              className="text-xs text-game-secondary underline hover:text-blue-700 dark:hover:text-blue-300 disabled:text-gray-300 dark:disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed"
+              className="min-h-11 inline-flex items-center gap-1.5 text-sm text-game-secondary hover:text-game-primary disabled:text-game-muted/50 disabled:cursor-not-allowed"
             >
+              <Lightbulb size={16} aria-hidden="true" />
               {t('giveUpHint.hint', { cost: hintCost })}
             </button>
           </div>
         )}
 
         {hintMessage && (
-          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900 rounded-lg px-3 py-2">
+          <div role="status" aria-live="polite" className="mb-4 text-center text-sm font-semibold text-game-primary bg-game-warning-soft border border-game-accent-fill/50 rounded-lg px-3 py-2">
             {hintMessage}
           </div>
         )}
@@ -1006,18 +1123,22 @@ function App() {
           <div
             role="status"
             aria-live="polite"
-            className="mb-4 text-center text-sm font-semibold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 rounded-lg px-3 py-2"
+            className="mb-4 text-center text-sm font-semibold text-game-primary bg-game-warning-soft border border-game-accent-fill/50 rounded-lg px-3 py-2"
           >
             <p className="mb-1">{t('achievements.unlockedToast')}</p>
             <p className="flex flex-wrap justify-center gap-x-3 gap-y-1">
               {achievementToast.map((key) => (
-                <span key={key}>🏆 {t(`achievements.items.${key}.name`)}</span>
+                <span key={key} className="inline-flex items-center gap-1"><Trophy size={14} aria-hidden="true" />{t(`achievements.items.${key}.name`)}</span>
               ))}
             </p>
           </div>
         )}
 
         {/* Stats toggle + panel moved into <SettingsPanel> (ROADMAP Batch 10 item 15). */}
+
+        {/* End-of-round summary (design refresh 17e) — solo and daily games only; a room
+            round has its own results panel above the board. */}
+        {roundSummary && <RoundSummary {...roundSummary} onNewGame={handleNewGameClick} />}
 
         {/* Found words display (Alphabetical Sort) */}
         {foundWords.length > 0 && (
@@ -1027,10 +1148,11 @@ function App() {
               {[...foundWords].sort((a, b) => a.localeCompare(b, gameWordlist)).map((word, index) => (
                 <span
                   key={index}
-                  className={`inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 px-4 py-2 rounded-full text-md font-semibold shadow-sm animate-bounce-in transition-all duration-500
-                    ${justFoundWord === word ? 'ring-4 ring-yellow-400 bg-yellow-100 dark:bg-yellow-500/20 scale-110' : ''}`}
+                  className={`chip animate-bounce-in ${justFoundWord === word ? 'chip-just-found' : ''} ${word.length === scrambledLetters.length ? 'chip-full' : ''} ${reportedWords.has(word) ? 'chip-flagged' : ''}`}
                 >
-                  {word} ({t('foundWords.points', { points: word.length * word.length })})
+                  {word.length === scrambledLetters.length && <Sparkles size={14} aria-hidden="true" className="text-game-accent-fill" />}
+                  {word}
+                  <span className="chip-points">{t('foundWords.points', { points: word.length * word.length })}</span>
                   {isTimeUp && definitionUrl(word, gameWordlist) && (
                     <a
                       href={definitionUrl(word, gameWordlist)}
@@ -1038,9 +1160,9 @@ function App() {
                       rel="noopener noreferrer"
                       aria-label={t('dictionary.lookupAriaLabel', { word })}
                       title={t('dictionary.lookupTitle')}
-                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-blue-700 dark:hover:text-blue-300"
+                      className="text-xs leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                     >
-                      📖
+                      <BookOpen size={14} aria-hidden="true" />
                     </a>
                   )}
                   <button
@@ -1048,9 +1170,9 @@ function App() {
                     disabled={reportedWords.has(word)}
                     aria-label={t('foundWords.reportAriaLabel', { word })}
                     title={t('foundWords.reportTitle')}
-                    className={`text-xs leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
+                    className={`text-xs leading-none ${reportedWords.has(word) ? 'text-game-error cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                   >
-                    ⚑
+                    <Flag size={14} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -1066,7 +1188,7 @@ function App() {
               {[...teamWords].sort((a, b) => a.word.localeCompare(b.word, gameWordlist)).map((entry) => (
                 <span
                   key={entry.word}
-                  className="inline-flex items-center gap-1.5 bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm"
+                  className="inline-flex items-center gap-1.5 bg-game-secondary-soft text-game-primary px-3 py-1.5 rounded-full text-sm font-semibold shadow-elev-1"
                   title={entry.by ?? undefined}
                 >
                   {entry.word}
@@ -1079,11 +1201,14 @@ function App() {
 
         {/* Remaining Words Dropdown (Only after game end) */}
         {isTimeUp && allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length > 0 && (
-            <div className="mt-6 pt-4 border-t border-dashed border-gray-200 dark:border-slate-700">
+            <div className="mt-6 pt-4 border-t border-dashed border-game-border">
                 <button
                   onClick={() => setShowRemainingWords(!showRemainingWords)}
-                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-blue-700 dark:hover:text-blue-300 flex items-center justify-center gap-2"
+                  className="w-full text-center text-sm font-bold text-game-secondary hover:text-game-primary flex items-center justify-center gap-2"
                 >
+                  {showRemainingWords
+                    ? <ChevronUp size={16} aria-hidden="true" />
+                    : <ChevronDown size={16} aria-hidden="true" />}
                   {showRemainingWords
                     ? t('remainingWords.hide')
                     : t('remainingWords.show', { count: allPossibleWords.filter((word) => !foundWords.includes(word) && !teamWordSet.has(word)).length })}
@@ -1095,7 +1220,7 @@ function App() {
                             .filter(word => !foundWords.includes(word) && !teamWordSet.has(word))
                             .sort((a, b) => a.localeCompare(b, gameWordlist))
                             .map((word, index) => (
-                                <span key={index} className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-slate-800 text-game-muted px-2 py-1 rounded border border-gray-200 dark:border-slate-700">
+                                <span key={index} className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border ${reportedWords.has(word) ? 'bg-game-error-soft text-game-error border-game-error/40' : 'bg-game-paper text-game-muted border-game-border'}`}>
                                     {word}
                                     {definitionUrl(word, gameWordlist) && (
                                       <a
@@ -1104,9 +1229,9 @@ function App() {
                                         rel="noopener noreferrer"
                                         aria-label={t('dictionary.lookupAriaLabel', { word })}
                                         title={t('dictionary.lookupTitle')}
-                                        className="leading-none opacity-60 hover:opacity-100 hover:text-blue-700 dark:hover:text-blue-300"
+                                        className="leading-none opacity-60 hover:opacity-100 hover:text-game-primary"
                                       >
-                                        📖
+                                        <BookOpen size={14} aria-hidden="true" />
                                       </a>
                                     )}
                                     <button
@@ -1114,9 +1239,9 @@ function App() {
                                         disabled={reportedWords.has(word)}
                                         aria-label={t('foundWords.reportAriaLabel', { word })}
                                         title={t('foundWords.reportTitle')}
-                                        className={`leading-none ${reportedWords.has(word) ? 'opacity-30 cursor-default' : 'opacity-60 hover:opacity-100 hover:text-red-700'}`}
+                                        className={`leading-none ${reportedWords.has(word) ? 'text-game-error cursor-default' : 'opacity-60 hover:opacity-100 hover:text-game-error'}`}
                                     >
-                                        ⚑
+                                        <Flag size={14} aria-hidden="true" />
                                     </button>
                                 </span>
                             ))
@@ -1132,10 +1257,36 @@ function App() {
             same batch — kept only so a `error` state introduced by future code has
             somewhere sane to render, rather than silently doing nothing. */}
         {error && (
-          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300">
+          <div className="mt-6 p-4 rounded-lg text-center font-semibold bg-game-error-soft text-game-error">
             {t(error)}
           </div>
         )}
+      </main>
+
+      {/* Desktop side rail (handback §3.2): the daily puzzle and the leaderboard, same data
+          and components as in Settings, always visible where there's room. Below lg they
+          stay in Settings only. */}
+      <aside className="hidden lg:flex w-80 shrink-0 flex-col gap-4" aria-label={t('rail.ariaLabel')}>
+        {!roomActive && (
+          <section className="rounded-3xl bg-game-surface shadow-elev-1 p-5">
+            <DailyPanel
+              daily={dailyView}
+              loading={dailyLoading}
+              isDailyGame={isDailyGame}
+              onPlayDaily={handlePlayDaily}
+              controlsDisabled={isLoading}
+            />
+          </section>
+        )}
+        <section className="rounded-3xl bg-game-surface shadow-elev-1 p-5">
+          <HighScoresPanel
+            serverScores={serverScores}
+            serverScoresLoading={serverScoresLoading}
+            highScores={highScores}
+            targetLength={targetLength}
+          />
+        </section>
+      </aside>
       </div>
 
       <SettingsPanel

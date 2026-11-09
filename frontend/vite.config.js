@@ -46,9 +46,9 @@ export default defineConfig({
         short_name: 'Betűvető',
         description: 'Magyar szójáték — rakj ki minél több szót a betűkből!',
         lang: 'hu',
-        // The accent since ROADMAP 16.3 (#121); also the Android status bar colour in the TWA.
-        theme_color: '#2272b8',
-        background_color: '#f8f9fa',
+        // Design refresh teal; also the Android status bar colour in the TWA.
+        theme_color: '#0b6b6b',
+        background_color: '#f4efe4',
         icons: [
           {
             src: 'pwa-192x192.png',

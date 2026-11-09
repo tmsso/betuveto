@@ -96,3 +96,4 @@ zrinyi_*/
 # Playwright (ROADMAP Batch 10 item 5's E2E smoke test)
 frontend/test-results/
 frontend/playwright-report/
+.neon

@@ -76,7 +76,11 @@ for (const mode of ['coop', 'versus'] as const) {
     await host.goto(URL!)
     await host.getByRole('button', { name: /Beállítások/ }).click()
     const settings = host.getByRole('dialog')
-    await settings.getByLabel('Neved').fill('Anna')
+    // Rooms use the Settings display name (owner review 2026-11-08); blur saves it.
+    const nameField = settings.getByLabel('Megjelenített név:')
+    await nameField.fill('Anna')
+    await nameField.press('Tab')
+    await expect(settings.getByRole('button', { name: 'Szoba létrehozása' })).toBeEnabled()
     await settings.getByLabel(mode === 'coop' ? /Együtt/ : /Egymás ellen/).check()
     await settings.getByRole('button', { name: 'Szoba létrehozása' }).click()
     const lobby = host.getByTestId('room-lobby')
@@ -87,7 +91,7 @@ for (const mode of ['coop', 'versus'] as const) {
     // Guest joins through the invite link.
     await guest.goto(`${URL}/?room=${code}`)
     const invite = guest.getByTestId('room-invite')
-    await invite.getByLabel('Neved').fill('Béla')
+    await invite.getByLabel('Megjelenített név').fill('Béla')
     await invite.getByRole('button', { name: 'Csatlakozás' }).click()
     await expect(guest.getByTestId('room-lobby')).toContainText('Anna')
 
@@ -98,7 +102,8 @@ for (const mode of ['coop', 'versus'] as const) {
     // Both boards appear — the guest's purely from polling — with the same letters.
     const [hostLetters, guestLetters] = await Promise.all([boardLetters(host), boardLetters(guest)])
     expect([...hostLetters].sort().join('')).toBe([...guestLetters].sort().join(''))
-    await expect(host.getByText(`${mode === 'versus' ? '⚔️' : '👥'} ${code}`)).toBeVisible()
+    // The board badge: mode icon (Lucide, aria-hidden) + the room code (design refresh 17d).
+    await expect(host.getByTitle(new RegExp(code))).toContainText(code)
 
     // One find each; the other side's strip shows it.
     expect(await findAcceptedWord(host, dictionary, hostLetters)).not.toBeNull()
@@ -121,7 +126,7 @@ for (const mode of ['coop', 'versus'] as const) {
       await expect(results).toContainText('Anna')
       await expect(results).toContainText('Béla')
       await expect(results).toContainText('A teljes szó:')
-      if (mode === 'versus') await expect(results).toContainText('🏆')
+      if (mode === 'versus') await expect(results.getByRole('img', { name: 'Győztes' })).toBeVisible()
     }
 
     // Rematch: the host opens a new lobby, the guest follows the pointer.
@@ -143,7 +148,11 @@ test('room round (coop, visible words): teammates see found words and cannot re-
   await host.goto(URL!)
   await host.getByRole('button', { name: /Beállítások/ }).click()
   const settings = host.getByRole('dialog')
-  await settings.getByLabel('Neved').fill('Anna')
+  // Rooms use the Settings display name (owner review 2026-11-08); blur saves it.
+    const nameField = settings.getByLabel('Megjelenített név:')
+    await nameField.fill('Anna')
+    await nameField.press('Tab')
+    await expect(settings.getByRole('button', { name: 'Szoba létrehozása' })).toBeEnabled()
   await settings.getByLabel(/Látható szavak/).check()
   await settings.getByRole('button', { name: 'Szoba létrehozása' }).click()
   const lobby = host.getByTestId('room-lobby')
@@ -152,7 +161,7 @@ test('room round (coop, visible words): teammates see found words and cannot re-
 
   await guest.goto(`${URL}/?room=${code}`)
   const invite = guest.getByTestId('room-invite')
-  await invite.getByLabel('Neved').fill('Béla')
+  await invite.getByLabel('Megjelenített név').fill('Béla')
   await invite.getByRole('button', { name: 'Csatlakozás' }).click()
   await expect(lobby).toContainText('Béla', { timeout: 10_000 })
   await host.getByRole('button', { name: 'Indítás' }).click()
@@ -185,14 +194,18 @@ test('room round (coop): joiner chrome, rules text, reload resumes, leave, left-
   await host.goto(URL!)
   await host.getByRole('button', { name: /Beállítások/ }).click()
   const settings = host.getByRole('dialog')
-  await settings.getByLabel('Neved').fill('Anna')
+  // Rooms use the Settings display name (owner review 2026-11-08); blur saves it.
+    const nameField = settings.getByLabel('Megjelenített név:')
+    await nameField.fill('Anna')
+    await nameField.press('Tab')
+    await expect(settings.getByRole('button', { name: 'Szoba létrehozása' })).toBeEnabled()
   await settings.getByRole('button', { name: 'Szoba létrehozása' }).click()
   const lobby = host.getByTestId('room-lobby')
   const code = (await lobby.getByLabel(/^Szobakód:/).textContent())!.trim()
 
   await guest.goto(`${URL}/?room=${code}`)
   const invite = guest.getByTestId('room-invite')
-  await invite.getByLabel('Neved').fill('Béla')
+  await invite.getByLabel('Megjelenített név').fill('Béla')
   await invite.getByRole('button', { name: 'Csatlakozás' }).click()
   await expect(lobby).toContainText('Béla', { timeout: 10_000 })
   await host.getByRole('button', { name: 'Indítás' }).click()

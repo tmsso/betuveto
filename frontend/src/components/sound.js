@@ -2,7 +2,7 @@
  * ROADMAP Batch 10 item 8 — sound effects, synthesised with the Web Audio API rather
  * than shipped as audio files: no assets to license, bundle, or PWA-precache, and it
  * matches this repo's "hand-roll the small thing" convention (no chart lib, no component
- * lib). Four short cues, all built from a plain oscillator + gain envelope.
+ * lib). Short cues, all built from a plain oscillator + gain envelope.
  *
  * The AudioContext is created lazily on the first `playCue` call — which only ever
  * happens inside a user-gesture handler (a guess submit, a hint click), so the browser
@@ -48,6 +48,29 @@ const CUES = {
   // A single soft mid ping for a revealed hint letter.
   hint: (c, t) => {
     note(c, { freq: 880, type: 'triangle', start: t, duration: 0.14, peak: 0.14 })
+  },
+  // Design refresh tier 2 — a rising three-note figure for the full-length word.
+  target: (c, t) => {
+    ;[587.33, 739.99, 987.77].forEach((freq, i) => {
+      note(c, { freq, type: 'triangle', start: t + i * 0.09, duration: 0.2, peak: 0.16 })
+    })
+  },
+  // Tier 4 — a softer, slower arpeggio when today's daily puzzle is solved.
+  daily: (c, t) => {
+    ;[392, 493.88, 587.33, 783.99].forEach((freq, i) => {
+      note(c, { freq, start: t + i * 0.14, duration: 0.3, peak: 0.12 })
+    })
+  },
+  // Tier 5 — a short fanfare for the room winner.
+  fanfare: (c, t) => {
+    ;[[523.25, 0], [523.25, 0.12], [659.25, 0.24], [783.99, 0.4]].forEach(([freq, d]) => {
+      note(c, { freq, type: 'square', start: t + d, duration: d === 0.4 ? 0.4 : 0.1, peak: 0.08 })
+    })
+  },
+  // Tier 6 — a bright two-note chime for a new personal best.
+  chime: (c, t) => {
+    note(c, { freq: 1318.5, type: 'triangle', start: t, duration: 0.25, peak: 0.12 })
+    note(c, { freq: 1760, type: 'triangle', start: t + 0.1, duration: 0.35, peak: 0.1 })
   },
   // A C-major arpeggio for clearing the whole board.
   fullClear: (c, t) => {

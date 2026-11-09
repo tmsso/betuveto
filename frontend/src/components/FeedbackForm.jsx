@@ -45,7 +45,7 @@ export default function FeedbackForm({ compact = false }) {
         onClick={() => { setOpen(true); setStatus('idle') }}
         className={compact
           ? 'text-xs text-game-muted underline hover:text-game-secondary focus:outline-none focus:ring-2 focus:ring-game-secondary rounded'
-          : 'underline text-game-secondary hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-game-secondary rounded'}
+          : 'underline text-game-secondary hover:text-game-primary focus:outline-none focus:ring-2 focus:ring-game-secondary rounded'}
       >
         {compact ? t('feedback.openFromSettings') : t('feedback.open')}
       </button>
@@ -78,7 +78,7 @@ export default function FeedbackForm({ compact = false }) {
         <button
           type="submit"
           disabled={!trimmed || status === 'sending'}
-          className="rounded-lg bg-game-secondary text-white font-bold px-3 py-1.5 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
+          className="rounded-lg bg-game-button text-game-on-secondary font-bold px-3 py-1.5 hover:bg-game-button-hover focus:outline-none focus:ring-2 focus:ring-game-secondary disabled:opacity-50"
         >
           {status === 'sending' ? t('feedback.sending') : t('feedback.send')}
         </button>

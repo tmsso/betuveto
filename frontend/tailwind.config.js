@@ -27,6 +27,37 @@ export default {
         // `muted` replaces the recurring `text-gray-500` secondary text.
         'game-surface': 'rgb(var(--game-surface) / <alpha-value>)',
         'game-muted': 'rgb(var(--game-muted) / <alpha-value>)',
+        // Design handback 2026-11-07 (docs/design-handback.md §2): label-on-fill, saffron
+        // accent, soft chip/note grounds, the letter-tile set and confetti colours.
+        'game-on-secondary': 'rgb(var(--game-on-secondary) / <alpha-value>)',
+        'game-accent': 'rgb(var(--game-accent) / <alpha-value>)',
+        'game-accent-fill': 'rgb(var(--game-accent-fill) / <alpha-value>)',
+        'game-on-accent': 'rgb(var(--game-on-accent) / <alpha-value>)',
+        'game-success-soft': 'rgb(var(--game-success-soft) / <alpha-value>)',
+        'game-secondary-soft': 'rgb(var(--game-secondary-soft) / <alpha-value>)',
+        'game-warning-soft': 'rgb(var(--game-warning-soft) / <alpha-value>)',
+        'game-error-soft': 'rgb(var(--game-error-soft) / <alpha-value>)',
+        'game-tile-face': 'rgb(var(--game-tile-face) / <alpha-value>)',
+        'game-tile-edge': 'rgb(var(--game-tile-edge) / <alpha-value>)',
+        'game-tile-ink': 'rgb(var(--game-tile-ink) / <alpha-value>)',
+        'game-tile-used': 'rgb(var(--game-tile-used) / <alpha-value>)',
+        'game-tile-used-ink': 'rgb(var(--game-tile-used-ink) / <alpha-value>)',
+        'game-tile-highlight': 'rgb(var(--game-tile-highlight) / <alpha-value>)',
+        'game-celebrate-1': 'rgb(var(--game-celebrate-1) / <alpha-value>)',
+        'game-celebrate-2': 'rgb(var(--game-celebrate-2) / <alpha-value>)',
+        'game-celebrate-3': 'rgb(var(--game-celebrate-3) / <alpha-value>)',
+        // Fills under white text (ROADMAP 16.3): see index.css for why these are separate.
+        'game-button': 'rgb(var(--game-button) / <alpha-value>)',
+        'game-button-hover': 'rgb(var(--game-button-hover) / <alpha-value>)',
+        'game-go': 'rgb(var(--game-go) / <alpha-value>)',
+        'game-go-hover': 'rgb(var(--game-go-hover) / <alpha-value>)',
+      },
+      // Elevation scale (handback §3.1) replaces ad-hoc shadow-md/lg/2xl. The shadow colour
+      // is a variable so dark mode can swap the teal-ink tint for plain black.
+      boxShadow: {
+        'elev-1': '0 1px 2px rgb(var(--shadow-ink) / .08)',
+        'elev-2': '0 1px 2px rgb(var(--shadow-ink) / .06), 0 8px 24px rgb(var(--shadow-ink) / .08)',
+        'elev-3': '0 4px 8px rgb(var(--shadow-ink) / .08), 0 24px 56px rgb(var(--shadow-ink) / .18)',
       },
       fontFamily: {
         // Rounded, readable base face with full Hungarian (ő/ű) support.
@@ -43,8 +74,33 @@ export default {
         // empty board reads as "waiting for you" rather than broken. Auto-neutralised by
         // the prefers-reduced-motion block in index.css like every other animation here.
         'breathe': 'breathe 2.6s ease-in-out infinite',
+        // Design refresh celebrations (handback §5). All neutralised by the
+        // prefers-reduced-motion rule in index.css, leaving the static end state.
+        'summary-in': 'summaryIn 300ms ease-out both',
+        'stamp': 'stamp 260ms cubic-bezier(.34,1.56,.64,1) both',
+        'flame': 'flame 450ms cubic-bezier(.34,1.56,.64,1) both',
+        'board-glow': 'boardGlow 900ms ease-in-out both',
       },
       keyframes: {
+        summaryIn: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        stamp: {
+          '0%': { opacity: '0', transform: 'rotate(-8deg) scale(1.4)' },
+          '100%': { opacity: '1', transform: 'rotate(0) scale(1)' },
+        },
+        flame: {
+          '0%': { transform: 'scale(0)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        // Tier 2: a saffron glow that swells and fades around the board. The end state
+        // (100%) keeps a faint static outline only while the class is on (1.5 s).
+        boardGlow: {
+          '0%': { boxShadow: '0 0 0 0 rgb(var(--game-accent-fill) / 0)' },
+          '40%': { boxShadow: '0 0 0 6px rgb(var(--game-accent-fill) / .9), 0 0 40px 12px rgb(var(--game-accent-fill) / .45)' },
+          '100%': { boxShadow: '0 0 0 3px rgb(var(--game-accent-fill) / .8)' },
+        },
         // A pulsing glow ring only — deliberately no `transform: scale`, so the button's
         // hit target never moves (a scaling interactive element wobbles under the cursor
         // and fails Playwright's "element is stable" actionability check).

@@ -36,6 +36,7 @@ interface RoomRow {
   target_length: number;
   mode: string;
   visibility: string;
+  reveal_words: boolean;
   status: string;
   next_room_code: string | null;
   created_at: string;
@@ -84,7 +85,7 @@ async function loadRoomForCode(sql: Sql, rawCode: string): Promise<RoomRow | nul
   const code = rawCode.trim().toUpperCase();
   const [room] = await sql<RoomRow[]>`
     select r.id, r.code, r.host_player_id, r.wordlist_id, wl.code as wordlist,
-           r.target_length, r.mode, r.visibility, r.status, r.next_room_code, r.created_at,
+           r.target_length, r.mode, r.visibility, r.reveal_words, r.status, r.next_room_code, r.created_at,
            r.target_word, r.scrambled_letters, r.possible_count, r.started_at, r.ends_at,
            r.end_reason, r.bonus_per_member, r.solo_bonus_at, r.solo_ack_at
       from rooms r
@@ -204,6 +205,7 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
     status: room.status,
     mode: room.mode,
     visibility: room.visibility,
+    reveal_words: room.reveal_words,
     wordlist: room.wordlist,
     target_length: room.target_length,
     is_host: room.host_player_id === callerId,
@@ -283,7 +285,12 @@ async function buildSnapshot(sql: Sql, room: RoomRow, callerId: string): Promise
     const ranks = rankMembers(members);
     snapshot.reveal = {
       target_word: room.target_word,
-      remaining_words: possible.filter((word) => !everyoneFound.has(word)),
+      // The host's reveal toggle (owner review 2026-11-08, default off): without it the
+      // words nobody found stay hidden; the target word and everyone's finds still show.
+      remaining_words: room.reveal_words ? possible.filter((word) => !everyoneFound.has(word)) : [],
+      remaining_hidden: !room.reveal_words,
+      // A count is not a spoiler, and co-op's "N words left" line needs it either way.
+      remaining_count: possible.filter((word) => !everyoneFound.has(word)).length,
       members: members
         .map((m) => ({
           player_id: m.player_id,
@@ -351,13 +358,14 @@ async function insertLobbyRoom(
   targetLength: number,
   mode: string,
   visibility: string,
+  revealWords: boolean,
 ): Promise<{ id: string; code: string } | null> {
   for (let attempt = 0; attempt < CODE_GENERATION_ATTEMPTS; attempt++) {
     const candidate = generateCode();
     try {
       const [inserted] = await sql<{ id: string }[]>`
-        insert into rooms (code, host_player_id, wordlist_id, target_length, mode, visibility)
-        values (${candidate}, ${hostId}, ${listId}, ${targetLength}, ${mode}, ${visibility})
+        insert into rooms (code, host_player_id, wordlist_id, target_length, mode, visibility, reveal_words)
+        values (${candidate}, ${hostId}, ${listId}, ${targetLength}, ${mode}, ${visibility}, ${revealWords})
         returning id
       `;
       await sql`insert into room_players (room_id, player_id) values (${inserted.id}, ${hostId})`;
@@ -378,6 +386,7 @@ export async function createRoom(
   playerId: string,
   setCookieHeader: string | undefined,
   rawVisibility?: unknown,
+  rawRevealWords?: unknown,
 ): Promise<Reply> {
   const nameResult = validatePlayerDisplayName(rawDisplayName);
   if ("error" in nameResult) return { status: 422, body: { detail: nameResult.error } };
@@ -393,6 +402,10 @@ export async function createRoom(
     return { status: 422, body: { detail: "visibility must be 'private' or 'shared'." } };
   }
   const visibility = mode === "coop" ? requestedVisibility : "private";
+  if (rawRevealWords !== undefined && typeof rawRevealWords !== "boolean") {
+    return { status: 422, body: { detail: "reveal_words must be a boolean." } };
+  }
+  const revealWords = rawRevealWords === true;
 
   // ROADMAP Batch 10 item 14 hidden-selector forcing, same pattern as lib/daily.ts's
   // resolveDailyAxes and lib/game.ts's startGame — a hidden control is a fixed axis for
@@ -426,7 +439,7 @@ export async function createRoom(
     on conflict (id) do update set display_name = excluded.display_name
   `;
 
-  const created = await insertLobbyRoom(sql, playerId, listId, targetLength, mode, visibility);
+  const created = await insertLobbyRoom(sql, playerId, listId, targetLength, mode, visibility, revealWords);
   if (!created) {
     return { status: 503, body: { detail: "Could not generate a unique room code, try again." } };
   }
@@ -703,7 +716,7 @@ export async function rematchRoom(code: string, playerId: string | null): Promis
   if (room.next_room_code) return { status: 200, body: { code: room.next_room_code } };
 
   const created = await insertLobbyRoom(
-    sql, playerId, room.wordlist_id, room.target_length, room.mode, room.visibility,
+    sql, playerId, room.wordlist_id, room.target_length, room.mode, room.visibility, room.reveal_words,
   );
   if (!created) return { status: 503, body: { detail: "Could not generate a unique room code, try again." } };
   // Guarded so two concurrent rematch clicks can't leave the old room pointing at a

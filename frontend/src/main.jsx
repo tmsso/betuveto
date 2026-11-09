@@ -27,6 +27,7 @@ import '@fontsource/baloo-2/latin-ext-700.css'
 import '@fontsource/baloo-2/latin-800.css'
 import '@fontsource/baloo-2/latin-ext-800.css'
 import './index.css'
+import { completeGoogleSignInIfReturning } from './googleAccount.js'
 
 // No router library (ROADMAP 5.1): the app has a few static top-level paths — "/",
 // "/admin", "/privacy", "/terms" — with no nested or dynamic routes, so a pathname check here is
@@ -51,7 +52,11 @@ if (isAdminRoute) document.documentElement.classList.remove('dark')
 // an admin ever uses. A dynamic import makes it its own chunk, fetched only on /admin.
 const AdminApp = lazy(() => import('./AdminApp.jsx'))
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// Finish a Google sign-in redirect (ROADMAP 8.1) BEFORE the app's first API calls, so they
+// already carry the re-issued identity cookie. A no-op on every other page load.
+const ready = isAdminRoute ? Promise.resolve() : completeGoogleSignInIfReturning()
+
+ready.then(() => ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       {isAdminRoute ? (
@@ -67,4 +72,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       )}
     </ErrorBoundary>
   </React.StrictMode>,
-)
+))

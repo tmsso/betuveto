@@ -72,6 +72,8 @@ export interface DailyView {
   target_length: number;
   possible_count: number;
   already_played: boolean;
+  /** Any daily started today, on any combo — the one-a-day rule. */
+  played_today: boolean;
   /** found_count = words found in the graded first attempt (ROADMAP 11.20 share card). */
   your_result: { completed: boolean; final_score: number; found_count: number } | null;
   streak: { current: number; best: number };
@@ -225,6 +227,9 @@ export interface RoomSnapshot {
   reveal?: {
     target_word: string;
     remaining_words: string[];
+    /** Host turned the reveal off (default): remaining_words is empty, the count stays. */
+    remaining_hidden?: boolean;
+    remaining_count?: number;
     members: RoomRevealMember[];
     end_reason: 'cleared' | 'all_done' | 'expired' | null;
     room_cleared: boolean;
@@ -421,7 +426,10 @@ class BetuAPIClient {
     const response = await fetch(`${this.baseUrl}/v1/daily/start${qs ? `?${qs}` : ''}`, {
       method: 'POST',
     });
-    if (!response.ok) throw new Error('Failed to start daily game');
+    if (!response.ok) {
+      // `status` lets the caller tell the one-a-day 409 apart from a real failure.
+      throw Object.assign(new Error(`Failed to start daily game (${response.status})`), { status: response.status });
+    }
     const data: StartGameResult = await response.json();
     this.gameId = data.game_id;
     return data;
@@ -595,7 +603,7 @@ class BetuAPIClient {
   }
 
   // --- Multiplayer rooms (ROADMAP 7.2) ---------------------------------------------
-  async createRoom(opts: { display_name: string; mode: RoomMode; visibility?: RoomVisibility; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
+  async createRoom(opts: { display_name: string; mode: RoomMode; visibility?: RoomVisibility; reveal_words?: boolean; wordlist?: string; target_length?: number }): Promise<{ code: string; room: RoomSnapshot }> {
     return roomJson(await fetch(`${this.baseUrl}/v1/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

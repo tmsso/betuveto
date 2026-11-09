@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -30,7 +31,7 @@ export default function GuessInput({
           {/* role="alert" (ROADMAP Batch 10 accessibility pass): an implicit
               assertive live region, so a screen reader announces a rejected guess
               even though nothing else on the page changes when it appears. */}
-          <span role="alert" className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded shadow-lg animate-fade-out-up">
+          <span role="alert" className="bg-game-error text-game-on-secondary text-sm font-bold px-3 py-1 rounded shadow-elev-2 animate-fade-out-up">
             {errorMessage}
           </span>
         </div>
@@ -50,7 +51,7 @@ export default function GuessInput({
           className={
             `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 font-extrabold text-game-primary text-center uppercase
             shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary
-            ${isShaking ? 'animate-shake border-game-error bg-red-50 dark:bg-red-950/40 ' : 'border-game-border'}
+            ${isShaking ? 'animate-shake border-game-error bg-game-error-soft ' : 'border-game-border'}
             ${value.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'}`
           }
           placeholder={t('guessInput.placeholder')}
@@ -63,9 +64,9 @@ export default function GuessInput({
           <button
             onClick={onClear}
             aria-label={t('guessInput.clearAriaLabel')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 dark:text-slate-200 text-xl"
+            className="absolute right-3 top-1/2 -translate-y-1/2 bg-game-paper hover:bg-game-border rounded-full w-10 h-10 flex items-center justify-center text-game-primary text-xl"
           >
-            ✖️
+            <X size={20} aria-hidden="true" />
           </button>
         )}
       </div>

@@ -61,8 +61,7 @@
     "badge": "Napi rejtvény",
     "loading": "Betöltés...",
     "forDate": "{{date}}",
-    "play": "▶ Mai rejtvény indítása",
-    "replay": "↻ Újra (csak szórakozásból)",
+    "play": "Mai rejtvény indítása",
     "playing": "A mai rejtvényt játszod",
     "currentStreak": "{{count}} napos sorozat",
     "bestStreak": "legjobb: {{count}}",
@@ -76,7 +75,8 @@
       "copied": "Vágólapra másolva",
       "failed": "Nem sikerült a másolás",
       "text": "Betűvető 🗓️ {{date}} · {{length}} betű\n{{found}}/{{total}} szó · {{score}} pont{{solved}}\n🔥 {{streak}} napos sorozat\n{{url}}"
-    }
+    },
+    "doneForToday": "Mára megvan — holnap jön az új rejtvény."
   },
   "score": {
     "pointsSuffix": "pont",
@@ -85,7 +85,7 @@
     "timerAriaLabel": "Hátralévő idő: {{time}}"
   },
   "highScores": {
-    "show": "🏆 Ranglista ({{length}} betűs)",
+    "show": "Ranglista ({{length}} betűs)",
     "hide": "Ranglista elrejtése",
     "panelTitle": "Legjobbak — {{length}} betűs szavak",
     "loading": "Betöltés...",
@@ -134,16 +134,16 @@
     "submitAriaLabel": "Tipp beküldése"
   },
   "giveUpHint": {
-    "giveUp": "🏳️ Feladom (megoldás felfedése)",
+    "giveUp": "Feladom (megoldás felfedése)",
     "confirmGiveUp": "Biztosan feladod? Felfedjük a megoldást.",
     "confirmGiveUpTitle": "Feladod?",
     "confirmGiveUpButton": "Feladom",
-    "hint": "💡 Segítség (-{{cost}} pont)",
+    "hint": "Segítség (-{{cost}} pont)",
     "hintTitle": "Egy szó első betűjének felfedése (-{{cost}} pont)"
   },
-  "hintMessage": "💡 Egy {{length}} betűs szó eleje: \"{{letter}}\" (-{{cost}} pont)",
+  "hintMessage": "Egy {{length}} betűs szó eleje: \"{{letter}}\" (-{{cost}} pont)",
   "stats": {
-    "show": "📊 Statisztikám",
+    "show": "Statisztikám",
     "hide": "Elrejtés",
     "loading": "Betöltés...",
     "noGames": "Még nincs befejezett játékod.",
@@ -154,7 +154,7 @@
     "offline": "Nincs kapcsolat a szerverrel."
   },
   "achievements": {
-    "title": "🏆 Kitüntetések",
+    "title": "Kitüntetések",
     "unlockedToast": "Új kitüntetés!",
     "unlockedOn": "Megszerezve: {{date}}",
     "items": {
@@ -204,7 +204,11 @@
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
-        "body": "Nincs fiók, jelszó vagy e-mail-cím: a játék ilyet nem is kér. Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Ha valami hiba történik, technikai részleteket (böngésző, oldalcím, hibaüzenet) tartalmazó hibajelentés kerül a hibakövető szolgáltatásunkhoz; ez soha nem tartalmazza a tippjeidet vagy a pontszámaidat."
+        "body": "Nincs jelszó, és nincs fiók vagy e-mail-cím, hacsak nem választod a Google-bejelentkezést (lásd lent). Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Ha valami hiba történik, technikai részleteket (böngésző, oldalcím, hibaüzenet) tartalmazó hibajelentés kerül a hibakövető szolgáltatásunkhoz; ez soha nem tartalmazza a tippjeidet vagy a pontszámaidat."
+      },
+      "google": {
+        "heading": "Nem kötelező Google-bejelentkezés",
+        "body": "Ha a Beállításokban a „Haladás mentése Google-fiókkal” lehetőséget választod, a bejelentkezést a Neon Auth (hitelesítési szolgáltatónk, adatfeldolgozó) végzi: a Google-tól megkapja a fiókod nevét, e-mail-címét és azonosítóját. A játék saját adatbázisa csak egy belső fiókazonosítót tárol, amely a játékosodat ehhez a bejelentkezéshez köti, az e-mail-címedet soha. Az e-mail-címed csak neked látszik a Beállításokban, közvetlenül a bejelentkezésből olvasva; más játékosok soha nem látják. Ha olyan eszközön jelentkezel be, ahol már vannak játékaid, azokat egyesítjük a fiókodéval. Kijelentkezéskor a fiókod megmarad; az adataid törlése (lásd lent) törli a játékosodat és annak kapcsolatát a fiókkal."
       },
       "hosting": {
         "heading": "Hol tároljuk",
@@ -262,7 +266,7 @@
       },
       "contact": {
         "heading": "Kapcsolat",
-        "body": "Kérdésed vagy problémád van? Használd a visszajelzési űrlapot a súgóban vagy a Beállításokban. Egy játékos nevét a ranglistán vagy a szobában a neve melletti ⚑ jellel jelentheted."
+        "body": "Kérdésed vagy problémád van? Használd a visszajelzési űrlapot a súgóban vagy a Beállításokban. Egy játékos nevét a ranglistán vagy a szobában a neve melletti zászló ikonnal jelentheted."
       }
     }
   },
@@ -271,6 +275,7 @@
     "points": "{{points}} pont",
     "reportAriaLabel": "{{word}} jelentése hibás szóként",
     "reportTitle": "Jelentés hibás szóként",
+    "reportedToast": "„{{word}}” jelentve — ellenőrzésre küldtük. Köszönjük!",
     "teamHeader": "Csapattársak szavai"
   },
   "dictionary": {
@@ -278,8 +283,8 @@
     "lookupTitle": "Jelentés keresése a Wikiszótárban"
   },
   "remainingWords": {
-    "show": "🔽 Hiányzó szavak megjelenítése ({{count}} szó)",
-    "hide": "🔼 Rejtett szavak elrejtése"
+    "show": "Hiányzó szavak megjelenítése ({{count}} szó)",
+    "hide": "Rejtett szavak elrejtése"
   },
   "confirmModal": {
     "title": "Biztosan újrakezded?",
@@ -289,11 +294,11 @@
     "confirm": "Új játék"
   },
   "install": {
-    "prompt": "📲 Telepítsd az appot!",
+    "prompt": "Telepítsd az appot!",
     "install": "Telepítés",
     "dismissAriaLabel": "Bezárás"
   },
-  "offline": "📡 Nincs internetkapcsolat — a Betűvető élő szervert használ, csatlakozz újra a játékhoz.",
+  "offline": "Nincs internetkapcsolat — a Betűvető élő szervert használ, csatlakozz újra a játékhoz.",
   "errors": {
     "startGame": "Hiba történt az új játék indításakor.",
     "tooShort": "Legalább {{count}} betűs szót adj meg!",
@@ -315,28 +320,33 @@
     "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
     "suggestFailed": "Hiba történt a javaslat küldésekor.",
     "foundByTeammate": "{{name}} már megtalálta ezt a szót.",
-    "foundByTeammateAnon": "Ezt a szót már megtalálta valaki."
+    "foundByTeammateAnon": "Ezt a szót már megtalálta valaki.",
+    "dailyGaveUp": "Feladtad. A napi rejtvény megoldását nem mutatjuk meg, hogy másoknak ne rontsuk el.",
+    "dailyAlreadyPlayed": "Ma már játszottál napi rejtvényt — holnap jön az új."
+  },
+  "rail": {
+    "ariaLabel": "Napi rejtvény és ranglista"
   },
   "help": {
     "open": "Játékszabály",
     "title": "Hogyan játssz?",
     "close": "Bezárás",
-    "goal": "🎯 Rakj ki minél több szót a megkevert betűkből, mielőtt lejár az idő! Van egy szó, amely az összes betűt felhasználja – ez ér a legtöbbet.",
-    "words": "✍️ A szavak legalább {{count}} betűsek legyenek, és minden betűt csak egyszer használhatsz fel. Koppints a betűkre, vagy gépelj, majd nyomj Entert, vagy koppints a ✅ gombra.",
+    "goal": "Rakj ki minél több szót a megkevert betűkből, mielőtt lejár az idő! Van egy szó, amely az összes betűt felhasználja – ez ér a legtöbbet.",
+    "words": "A szavak legalább {{count}} betűsek legyenek, és minden betűt csak egyszer használhatsz fel. Koppints a betűkre, vagy gépelj, majd nyomj Entert, vagy koppints az OK gombra.",
     "scoring": "⭐ Minden szó a hossza négyzetének megfelelő pontot ér, így a hosszú szavak sokkal többet hoznak: egy 7 betűs szó 49 pontot. Ha az összes szót megtalálod, a hátralévő idő bónuszpontként jár.",
-    "buttons": "🔀 újrakeveri a betűket · 💡 megmutatja egy még meg nem talált szó első betűjét ({{cost}} pontba kerül) · 🏳️ feladja a játékot, és megmutatja az összes szót",
-    "curation": "⚑ A szó melletti zászlóval jelezheted, hogy a szó hibás. Ha a játék nem fogad el egy létező szót, beküldheted, hogy felvegyük a szótárba.",
-    "more": "⚙️ A Beállításokban választhatsz szóhosszt és szótárnyelvet, és itt találod a napi rejtvényt (mindenki ugyanazt a táblát kapja, és sorozatot gyűjthetsz), a közös játékot barátokkal, a ranglistákat és a statisztikáidat.",
+    "buttons": "A Kever gomb újrakeveri a betűket · a Segítség megmutatja egy még meg nem talált szó első betűjét ({{cost}} pontba kerül) · a Feladom befejezi a játékot, és megmutatja az összes szót.",
+    "curation": "A szó melletti zászló ikonnal jelezheted, hogy a szó hibás. Ha a játék nem fogad el egy létező szót, beküldheted, hogy felvegyük a szótárba.",
+    "more": "A Beállításokban választhatsz szóhosszt és szótárnyelvet, és itt találod a napi rejtvényt (mindenki ugyanazt a táblát kapja, és sorozatot gyűjthetsz), a közös játékot barátokkal, a ranglistákat és a statisztikáidat.",
     "feedbackIntro": "Valami nem működik, zavaros vagy hiányzik?",
-    "daily": "🗓️ Napi rejtvény: ma mindenki ugyanazt a táblát kapja. Naponta egy eredmény számít, és sorozatot gyűjthetsz.",
-    "moreRoom": "⚙️ A Beállításokban a megjelenést (nyelv, színséma, hang) és a ranglistákat találod – a szoba játéka közben a játékot érintő beállítások rejtve vannak.",
+    "daily": "Napi rejtvény: ma mindenki ugyanazt a táblát kapja. Naponta egy eredmény számít, és sorozatot gyűjthetsz.",
+    "moreRoom": "A Beállításokban a megjelenést (nyelv, színséma, hang) és a ranglistákat találod – a szoba játéka közben a játékot érintő beállítások rejtve vannak.",
     "room": {
-      "common": "👥 Szobajáték: mindenki ugyanazt a táblát kapja, és egyetlen közös határidő van. A betűk megkeverése és a segítség csak a tiéd. A megoldásokat akkor látod, amikor a szoba játéka véget ért.",
-      "roomCoopPrivate": "🤝 Együtt, rejtve: mindenki a saját játékát játssza, a többiek nem látják, mely szavakat találtad meg – csak a pontjaidat és azt, hány szó van még hátra. Ha ugyanazt a szót ketten is megtalálják, mindkettőnek pont jár. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
-      "roomCoopShared": "🤝 Együtt, látható szavakkal: a megtalált szavakat mindenki látja, és egy szó csak az első megtalálójának ér pontot – a már megtalált szót nem kell újra beírni. Mindenki látja a pontokat és azt, hány szó van még hátra. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
-      "roomVersus": "⚔️ Egymás ellen: a legtöbb pontot szerző játékos nyer. A többiek pontjait és mérföldköveit látod, a szavaikat nem. Nincs közös időbónusz.",
-      "leave": "🚪 A „Játék elhagyása” gombbal kilépsz: a saját játékod véget ér, a többiek folytatják, te pedig nem látod a megoldásokat. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz.",
-      "leaveHost": "🚪 A „Játék elhagyása” kivesz a játékból: a saját játékod véget ér, a többiek folytatják, a megoldásokat nem látod. Ha a házigazda a váróteremben kilép, a legrégebben várakozó játékos veszi át a szerepét. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz."
+      "common": "Szobajáték: mindenki ugyanazt a táblát kapja, és egyetlen közös határidő van. A betűk megkeverése és a segítség csak a tiéd. A megoldásokat akkor látod, amikor a szoba játéka véget ért.",
+      "roomCoopPrivate": "Együtt, rejtve: mindenki a saját játékát játssza, a többiek nem látják, mely szavakat találtad meg – csak a pontjaidat és azt, hány szó van még hátra. Ha ugyanazt a szót ketten is megtalálják, mindkettőnek pont jár. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
+      "roomCoopShared": "Együtt, látható szavakkal: a megtalált szavakat mindenki látja, és egy szó csak az első megtalálójának ér pontot – a már megtalált szót nem kell újra beírni. Mindenki látja a pontokat és azt, hány szó van még hátra. Ha együtt megtaláljátok az összes szót, a játék véget ér, és az időbónuszon egyenlően osztoztok.",
+      "roomVersus": "Egymás ellen: a legtöbb pontot szerző játékos nyer. A többiek pontjait és mérföldköveit látod, a szavaikat nem. Nincs közös időbónusz.",
+      "leave": "A „Játék elhagyása” gombbal kilépsz: a saját játékod véget ér, a többiek folytatják, te pedig nem látod a megoldásokat. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz.",
+      "leaveHost": "A „Játék elhagyása” kivesz a játékból: a saját játékod véget ér, a többiek folytatják, a megoldásokat nem látod. Ha a házigazda a váróteremben kilép, a legrégebben várakozó játékos veszi át a szerepét. Ha mindenki más kilépett, felajánljuk, hogy egyedül folytasd; ezért +{{seconds}} másodpercet kapsz."
     }
   },
   "feedback": {
@@ -354,9 +364,9 @@
   "room": {
     "panelTitle": "Játék barátokkal",
     "alreadyInRoom": "Egy szobában vagy — nézd a táblát.",
-    "nameLabel": "Neved",
-    "namePlaceholder": "ezt látják a többiek",
-    "nameRequired": "Adj meg egy nevet — a többiek ezt látják.",
+    "nameLabel": "Megjelenített név",
+    "namePlaceholder": "pl. Anna",
+    "nameRequired": "Szobához megjelenített név kell — add meg fent, a Megjelenés résznél.",
     "modeLabel": "Mód",
     "mode": {
       "coop": {
@@ -447,6 +457,35 @@
         "name": "Látható szavak",
         "explain": "Mindenki látja a megtalált szavakat. Egy szó csak az első megtalálójának ér pontot."
       }
+    },
+    "winner": "Győztes",
+    "revealWords": {
+      "name": "Hiányzó szavak mutatása a végén",
+      "explain": "Ha be van kapcsolva, a kör végén mindenki látja, milyen szavakat nem talált meg senki."
+    }
+  },
+  "summary": {
+    "title": "Vége a körnek",
+    "cleared": "Tábla kész!",
+    "newBest": "Új rekord!",
+    "words": "Megtalált szavak",
+    "longest": "Leghosszabb szavad",
+    "fullWord": "A teljes szó",
+    "newGame": "Új játék",
+    "noHint": "Segítség nélkül"
+  },
+  "account": {
+    "keepProgress": "Haladás mentése Google-fiókkal",
+    "explain": "Nem kötelező. Így másik eszközön vagy újratelepítés után is megmarad az eredményed. Az e-mail-címedet más játékosok soha nem látják.",
+    "linked": "Google-fiókhoz kapcsolva",
+    "signOut": "Kijelentkezés",
+    "outcome": {
+      "linked": "Kész, a haladásod a Google-fiókodhoz kapcsoltuk.",
+      "already_linked": "Ez az eszköz már a Google-fiókodhoz kapcsolódik.",
+      "merged": "Kész, az eszközön játszott játékaidat egyesítettük a fiókodéval.",
+      "switched": "Bejelentkeztél, a fiókod eredményei betöltve.",
+      "created": "Kész, a Google-fiókodhoz új profil készült.",
+      "failed": "A bejelentkezés nem sikerült. Próbáld újra később."
     }
   }
 }

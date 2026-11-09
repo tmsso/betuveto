@@ -12,7 +12,7 @@ export default function RoomInvite({ code, displayName, busy, error, onJoin, onD
   return (
     <div className="mb-6 flex flex-col items-center gap-3 text-center" data-testid="room-invite">
       <p className="text-lg font-bold">{t('room.invited', { code })}</p>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex w-full max-w-xs flex-col items-stretch gap-1 text-sm text-left">
         <span className="text-game-muted font-semibold">{t('room.nameLabel')}</span>
         <input
           type="text"
@@ -20,18 +20,18 @@ export default function RoomInvite({ code, displayName, busy, error, onJoin, onD
           maxLength={20}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('room.namePlaceholder')}
-          className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary w-36"
+          className="border-2 border-game-border rounded-lg px-2 py-1 font-bold text-game-primary bg-game-surface focus:outline-none focus:ring-2 focus:ring-game-secondary w-full"
         />
       </label>
       <button
         type="button"
         disabled={busy || !trimmed}
         onClick={() => onJoin(code, trimmed)}
-        className="h-12 px-8 rounded-full shadow-lg bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-12 px-8 rounded-full shadow-elev-2 bg-game-button text-game-on-secondary font-semibold hover:bg-game-button-hover disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {t('room.join')}
       </button>
-      {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{t(error)}</p>}
+      {error && <p role="alert" className="text-xs text-game-error">{t(error)}</p>}
       <button type="button" onClick={onDismiss} className="text-xs text-game-muted underline">
         {t('room.notNow')}
       </button>

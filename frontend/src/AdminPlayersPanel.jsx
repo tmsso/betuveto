@@ -154,7 +154,7 @@ export default function AdminPlayersPanel({ authHeaders, onAuthError }) {
           />
           <button
             type="submit"
-            className="bg-game-secondary text-white font-semibold rounded px-4 py-2 hover:bg-blue-600 transition-colors"
+            className="bg-game-button text-game-on-secondary font-semibold rounded px-4 py-2 hover:bg-game-button-hover transition-colors"
           >
             {t('common.search')}
           </button>

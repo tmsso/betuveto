@@ -15,6 +15,11 @@
  *   - a streak day = that day's puzzle *completed* (target word found), not merely played
  *   - one graded attempt per day; replayable for fun, but only the first attempt to reach
  *     a terminal state counts for the streak / leaderboard
+ *   - SUPERSEDED 2026-11-08 (owner review): one daily attempt per player per day, across
+ *     every (wordlist, length) combo — a second daily/start the same day is a 409
+ *     `daily_already_played`. Keyed to the player identity, not IP (shared networks). And a
+ *     daily never reveals its missing words or its target word (lib/game.ts), so the shared
+ *     board can't be spoiled.
  *
  * Why "completed" = target found (not `status='finished'`): a Betűvető game only reaches
  * 'finished' on a full board clear (found_count >= possible_count), which is rare — using
@@ -119,6 +124,21 @@ async function getOrCreateTodaysPuzzle(
   return row ?? null;
 }
 
+/** Has this player started any daily puzzle today (Budapest day), on any combo? A started
+ *  game counts, not just a graded one — otherwise abandoning a board mid-game would let a
+ *  player peek at a second one. */
+async function playedDailyToday(sql: Sql, playerId: string): Promise<boolean> {
+  const [row] = await sql<{ x: number }[]>`
+    select 1 as x
+      from games g
+      join daily_puzzles dp on dp.id = g.daily_puzzle_id
+     where g.player_id = ${playerId}
+       and dp.puzzle_date = (now() at time zone 'Europe/Budapest')::date
+     limit 1
+  `;
+  return Boolean(row);
+}
+
 interface DailyLeaderEntry {
   /** null = never set a name; the client renders its localised "anonymous player". */
   display_name: string | null;
@@ -191,6 +211,7 @@ export async function getDailyView(
   // game, which is terminal by then, so the number can't drift on a later replay.
   let yourResult: { completed: boolean; final_score: number; found_count: number } | null = null;
   let streak: StreakInfo = { current: 0, best: 0 };
+  let playedToday = false;
   if (playerId) {
     const [row] = await sql<{ completed: boolean; final_score: number; found_count: number }[]>`
       select dr.completed, dr.final_score, g.found_count
@@ -206,6 +227,7 @@ export async function getDailyView(
       };
     }
     streak = await computeStreak(sql, playerId);
+    playedToday = await playedDailyToday(sql, playerId);
   }
 
   const leaderboard = await dailyLeaderboard(sql, puzzle.id);
@@ -218,6 +240,8 @@ export async function getDailyView(
       target_length: puzzle.target_length,
       possible_count: puzzle.possible_count,
       already_played: yourResult !== null,
+      // Any daily today, on any combo (the one-a-day rule) — the client hides "play".
+      played_today: playedToday,
       your_result: yourResult,
       streak,
       leaderboard,
@@ -254,11 +278,9 @@ export async function startDailyGame(
     await sql`insert into players (id) values (${playerId}) on conflict do nothing`;
   }
 
-  const [graded] = await sql<{ x: number }[]>`
-    select 1 as x from daily_results
-     where puzzle_id = ${puzzle.id} and player_id = ${playerId}
-     limit 1
-  `;
+  if (await playedDailyToday(sql, playerId)) {
+    return { status: 409, body: { detail: "daily_already_played" } };
+  }
 
   // Full length-scaled duration, no client override — a daily game is once a day and
   // shared, so there is no need for the shorter-timer handling game/start has for tests.
@@ -303,9 +325,9 @@ export async function startDailyGame(
       player_id: playerId,
       daily: {
         puzzle_date: puzzle.puzzle_date,
-        // A replay after the first graded attempt still plays, but won't overwrite the
-        // recorded result — the frontend uses this to say so.
-        already_graded: Boolean(graded),
+        // Always false since the one-a-day rule (a second start is a 409); kept so older
+        // clients reading it keep working.
+        already_graded: false,
       },
     },
     ...(setCookieHeader ? { headers: { "Set-Cookie": setCookieHeader } } : {}),

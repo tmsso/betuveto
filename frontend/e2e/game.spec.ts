@@ -24,6 +24,7 @@
  * `npx playwright test` run falls back to the old fresh-mint behaviour unchanged).
  */
 import { expect, test } from './fixtures'
+import AxeBuilder from '@axe-core/playwright'
 import { findAcceptedWord, loadDictionary } from './helpers'
 
 const CI_PLAYER_COOKIE = process.env.E2E_CI_PLAYER_COOKIE
@@ -32,15 +33,7 @@ const CI_PLAYER_COOKIE = process.env.E2E_CI_PLAYER_COOKIE
 // press "Új játék", the pre-game board's only control (ROADMAP Batch 10 item 17). Returns
 // the started board's own letters, read off the rendered <button>s.
 async function startGame(page: import('@playwright/test').Page): Promise<string> {
-  if (CI_PLAYER_COOKIE) {
-    const baseURL = test.info().project.use.baseURL
-    if (!baseURL) throw new Error('playwright.config.ts must set use.baseURL for cookie scoping.')
-    await page.context().addCookies([
-      { name: 'bv_anon', value: CI_PLAYER_COOKIE, url: baseURL },
-    ])
-  }
-
-  await page.goto('/')
+  await openApp(page)
   // Pre-game the board holds plain <div> placeholder tiles, so the real letter <button>s
   // appear only once the game has started.
   await page.getByRole('button', { name: 'Új játék', exact: true }).click()
@@ -51,6 +44,19 @@ async function startGame(page: import('@playwright/test').Page): Promise<string>
   const letters = (await board.getByRole('button').allTextContents()).join('')
   expect(letters.length).toBeGreaterThan(0)
   return letters
+}
+
+// The identity half of startGame (CI's pinned player when available), then the app.
+async function openApp(page: import('@playwright/test').Page): Promise<void> {
+  if (CI_PLAYER_COOKIE) {
+    const baseURL = test.info().project.use.baseURL
+    if (!baseURL) throw new Error('playwright.config.ts must set use.baseURL for cookie scoping.')
+    await page.context().addCookies([
+      { name: 'bv_anon', value: CI_PLAYER_COOKIE, url: baseURL },
+    ])
+  }
+
+  await page.goto('/')
 }
 
 test('start a game, guess a word, and see the score update', async ({ page }) => {
@@ -199,10 +205,12 @@ test('typing into other text fields does not leak into the guess', async ({ page
   await expect(guessInput).toHaveValue('')
 
   await page.getByRole('button', { name: 'Beállítások' }).click()
-  const roomName = page.getByLabel('Neved')
-  await roomName.fill('')
-  await roomName.pressSequentially('Anna')
-  await expect(roomName).toHaveValue('Anna')
+  // The room-code field: a settings text input that saves nothing (the display-name field
+  // would durably rename the pinned CI player on blur).
+  const roomCode = page.getByLabel('Szobakód')
+  await roomCode.fill('')
+  await roomCode.pressSequentially('ABC123')
+  await expect(roomCode).toHaveValue('ABC123')
   await page.keyboard.press('Escape')
   await expect(guessInput).toHaveValue('')
 
@@ -324,3 +332,36 @@ test('terms of use is reachable from settings and links back to privacy', async 
   await expect(page).toHaveURL(/\/privacy$/)
   await expect(page.getByRole('link', { name: 'Felhasználási feltételek' })).toBeVisible()
 })
+
+// ROADMAP 16.3 (2026-11-03) — text contrast meets WCAG AA (4.5:1) in BOTH themes, on the
+// start screen and in a running game. A letter is pressed first so the guess-submit button is
+// enabled: axe skips disabled controls, which is how its 2.1:1 green slipped past Lighthouse.
+// The dark run uses the OS-level scheme, which theme-init.js follows when no theme is stored.
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`text contrast meets WCAG AA in ${colorScheme} mode`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme })
+    const contrast = async (where: string) => {
+      // Let the button "breathe" animation and colour transitions settle before measuring.
+      await page.waitForTimeout(800)
+      // Prove the premise: the theme really is the one under test. CI's pinned player could
+      // carry a stored server-side theme that useTheme applies after mount, which would make
+      // the "dark" run silently audit light mode.
+      const html = page.locator('html')
+      if (colorScheme === 'dark') await expect(html).toHaveClass(/(^|\s)dark(\s|$)/)
+      else await expect(html).not.toHaveClass(/(^|\s)dark(\s|$)/)
+      const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
+      const found = violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.any[0]?.message}`))
+      expect(found, `contrast failures on the ${where} (${colorScheme})`).toEqual([])
+    }
+
+    // Start screen first: after a game, reloading resumes it instead of showing this screen.
+    await openApp(page)
+    // Same budget click() gets in startGame: the first API round trip can be slow.
+    await expect(page.getByRole('button', { name: 'Új játék', exact: true })).toBeVisible({ timeout: 30_000 })
+    await contrast('start screen')
+
+    await startGame(page)
+    await page.getByRole('group', { name: 'Kirakható betűk' }).getByRole('button').first().click()
+    await contrast('game screen')
+  })
+}

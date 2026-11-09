@@ -1,3 +1,4 @@
+import { Lock, Trophy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -23,7 +24,7 @@ export default function StatsPanel({ stats, statsLoading, achievements, achievem
   })
 
   return (
-    <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700 space-y-4">
+    <div className="p-4 bg-game-paper rounded-lg border-2 border-dashed border-game-border space-y-4">
       <div>
         {statsLoading && <p className="text-xs text-center text-game-muted">{t('stats.loading')}</p>}
         {!statsLoading && stats && stats.games_played === 0 && (
@@ -40,7 +41,7 @@ export default function StatsPanel({ stats, statsLoading, achievements, achievem
                 <p className="font-bold mb-1">{t('stats.avgScoreHeader')}</p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {Object.entries(stats.average_score_by_length).map(([len, avg]) => (
-                    <span key={len} className="px-2 py-1 bg-game-surface rounded border border-gray-200 dark:border-slate-700">
+                    <span key={len} className="px-2 py-1 bg-game-surface rounded border border-game-border">
                       {t('stats.avgScoreEntry', { length: len, avg: Math.round(avg) })}
                     </span>
                   ))}
@@ -54,7 +55,7 @@ export default function StatsPanel({ stats, statsLoading, achievements, achievem
         )}
       </div>
 
-      <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
+      <div className="border-t border-game-border pt-4">
         <p className="text-xs font-bold text-center text-game-muted mb-3">{t('achievements.title')}</p>
         {achievementsLoading && !achievements && (
           <p className="text-xs text-center text-game-muted">{t('stats.loading')}</p>
@@ -71,12 +72,12 @@ export default function StatsPanel({ stats, statsLoading, achievements, achievem
                   key={a.key}
                   className={`flex gap-2 items-start rounded-lg border px-2.5 py-2 text-xs ${
                     unlocked
-                      ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-900 text-amber-900 dark:text-amber-200'
-                      : 'bg-game-surface border-gray-200 dark:border-slate-700 text-game-muted opacity-70'
+                      ? 'bg-game-warning-soft border-game-accent-fill/50 text-game-primary'
+                      : 'bg-game-surface border-game-border text-game-muted opacity-70'
                   }`}
                 >
                   <span aria-hidden="true" className="text-base leading-none mt-0.5">
-                    {unlocked ? '🏆' : '🔒'}
+                    {unlocked ? <Trophy size={16} aria-hidden="true" className="text-game-accent" /> : <Lock size={16} aria-hidden="true" />}
                   </span>
                   <span className="flex-1">
                     <span className="block font-semibold">{t(`achievements.items.${a.key}.name`)}</span>

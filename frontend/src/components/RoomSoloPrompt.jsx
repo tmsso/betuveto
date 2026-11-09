@@ -28,7 +28,7 @@ export default function RoomSoloPrompt({ bonusSeconds, busy, onContinue, onFinis
         aria-modal="true"
         aria-labelledby="room-solo-title"
         data-testid="room-solo-prompt"
-        className="relative w-full max-w-sm bg-game-surface text-game-primary rounded-xl shadow-2xl border-4 border-game-border p-6 text-center"
+        className="relative w-full max-w-sm bg-game-surface text-game-primary rounded-xl shadow-elev-3 border-4 border-game-border p-6 text-center"
       >
         <h2 id="room-solo-title" className="text-xl font-bold font-display mb-2">{t('room.solo.title')}</h2>
         <p className="text-sm mb-1">{t('room.solo.message')}</p>
@@ -39,7 +39,7 @@ export default function RoomSoloPrompt({ bonusSeconds, busy, onContinue, onFinis
             type="button"
             disabled={busy}
             onClick={onContinue}
-            className="px-4 py-2 rounded-lg bg-game-secondary text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-game-button text-game-on-secondary font-semibold hover:bg-game-button-hover disabled:opacity-50"
           >
             {t('room.solo.continue')}
           </button>
@@ -47,7 +47,7 @@ export default function RoomSoloPrompt({ bonusSeconds, busy, onContinue, onFinis
             type="button"
             disabled={busy}
             onClick={onFinish}
-            className="px-4 py-2 rounded-lg border-2 border-game-border font-semibold hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg border-2 border-game-border font-semibold hover:bg-game-paper disabled:opacity-50"
           >
             {t('room.solo.finish')}
           </button>

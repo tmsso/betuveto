@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -62,20 +63,20 @@ function InstallPrompt() {
   if (!visible) return null
 
   return (
-    <div className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-50 bg-white border-2 border-game-border rounded-full shadow-lg px-4 py-2 flex items-center justify-center gap-3">
+    <div className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-50 bg-game-surface border-2 border-game-border rounded-full shadow-elev-2 px-4 py-2 flex items-center justify-center gap-3">
       <span className="text-sm font-semibold text-game-primary whitespace-nowrap">{t('install.prompt')}</span>
       <button
         onClick={handleInstall}
-        className="text-sm font-semibold bg-game-secondary text-white px-3 py-1 rounded-full hover:bg-blue-600 transition-colors whitespace-nowrap"
+        className="text-sm font-semibold bg-game-button text-game-on-secondary px-3 py-1 rounded-full hover:bg-game-button-hover transition-colors whitespace-nowrap"
       >
         {t('install.install')}
       </button>
       <button
         onClick={handleDismiss}
         aria-label={t('install.dismissAriaLabel')}
-        className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+        className="text-game-muted hover:text-game-primary text-lg leading-none"
       >
-        ✖️
+        <X size={18} aria-hidden="true" />
       </button>
     </div>
   )

@@ -190,7 +190,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
         <button
           type="submit"
           disabled={loading}
-          className="bg-game-secondary text-white font-semibold rounded px-4 py-2 hover:bg-blue-600 transition-colors disabled:opacity-40"
+          className="bg-game-button text-game-on-secondary font-semibold rounded px-4 py-2 hover:bg-game-button-hover transition-colors disabled:opacity-40"
         >
           {t('common.search')}
         </button>
@@ -218,7 +218,7 @@ export default function AdminWordsPanel({ authHeaders, onAuthError }) {
           type="button"
           disabled={loading}
           onClick={runSuspiciousScan}
-          className="bg-amber-600 text-white font-semibold rounded px-4 py-2 hover:bg-amber-700 disabled:opacity-40"
+          className="bg-amber-700 text-white font-semibold rounded px-4 py-2 hover:bg-amber-800 disabled:opacity-40"
         >
           {t('words.suspiciousButton')}
         </button>

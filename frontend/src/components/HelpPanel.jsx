@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import FeedbackForm from './FeedbackForm'
@@ -79,7 +80,7 @@ export default function HelpPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="help-panel-title"
-        className="relative max-h-full w-full max-w-md overflow-y-auto bg-game-surface text-game-primary rounded-xl shadow-2xl border-4 border-game-border p-6"
+        className="relative max-h-full w-full max-w-md overflow-y-auto bg-game-surface text-game-primary rounded-xl shadow-elev-3 border-4 border-game-border p-6"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 id="help-panel-title" className="text-2xl font-bold font-display">{t('help.title')}</h2>
@@ -90,7 +91,7 @@ export default function HelpPanel({
             aria-label={t('help.close')}
             className="text-2xl leading-none px-2 text-game-muted hover:text-game-primary focus:outline-none focus:ring-2 focus:ring-game-secondary rounded"
           >
-            ×
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
         <ul className="space-y-3 text-sm leading-relaxed list-none">
