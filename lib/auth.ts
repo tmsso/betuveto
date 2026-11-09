@@ -14,6 +14,12 @@ function sign(secret: string, playerId: string): string {
   return createHmac("sha256", secret).update(playerId).digest("hex");
 }
 
+/** The cookie value for an EXISTING player id — used when a Google sign-in moves this
+ *  device onto the player that account is linked to (ROADMAP 8.1). */
+export function identityCookieValue(secret: string, playerId: string): string {
+  return `${playerId}.${sign(secret, playerId)}`;
+}
+
 /** A fresh device identity: a new player id and the `<uuid>.<hmac>` value to cookie it in. */
 export function mintIdentity(secret: string): { playerId: string; cookieValue: string } {
   const playerId = randomUUID();

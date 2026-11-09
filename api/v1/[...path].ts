@@ -39,7 +39,9 @@ import {
   suspicionParamsFrom,
 } from "../../lib/admin-words.js";
 import { type AdminIdentity, authorizeAdmin } from "../../lib/admin.js";
-import { mintIdentity, verifyIdentity } from "../../lib/auth.js";
+import { identityCookieValue, mintIdentity, verifyIdentity } from "../../lib/auth.js";
+import { isLinked, linkAccount } from "../../lib/account-link.js";
+import { verifyNeonAuthToken } from "../../lib/neon-auth.js";
 import { allowIdentityMint } from "../../lib/identity-throttle.js";
 import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
 import type { Reply } from "../../lib/game.js";
@@ -145,6 +147,43 @@ async function resolveOrMintIdentity(req: VercelRequest): Promise<ResolvedIdenti
       `bv_anon=${minted.cookieValue}; Path=/; HttpOnly; Secure; SameSite=Lax; ` +
       `Max-Age=${ANON_COOKIE_MAX_AGE_SECONDS}`,
   };
+}
+
+function anonCookieHeader(cookieValue: string): string {
+  return `bv_anon=${cookieValue}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ANON_COOKIE_MAX_AGE_SECONDS}`;
+}
+
+// ROADMAP 8.1 — POST /api/v1/account/link. The Neon Auth JWT from a just-completed Google
+// sign-in (Bearer, verified exactly like the admin login) links this device's player to
+// that account, or moves the device onto the player the account already owns. The cookie
+// is re-issued every time so the device always ends up on the returned player.
+async function linkAccountRoute(req: VercelRequest): Promise<Reply> {
+  const secret = process.env.ANON_SESSION_SECRET;
+  if (!secret) throw new Error("ANON_SESSION_SECRET is not set.");
+  const header = req.headers.authorization;
+  const value = Array.isArray(header) ? header[0] : header;
+  const verified = value?.startsWith("Bearer ")
+    ? await verifyNeonAuthToken(value.slice("Bearer ".length))
+    : null;
+  if (!verified) return { status: 401, body: { detail: "sign_in_required" } };
+
+  const result = await linkAccount(verifyIdentity(secret, req.headers.cookie), verified.userId);
+  return {
+    status: 200,
+    body: { outcome: result.outcome, player_id: result.playerId, google_linked: true },
+    headers: { "Set-Cookie": anonCookieHeader(identityCookieValue(secret, result.playerId)) },
+  };
+}
+
+// ROADMAP 8.1 — POST /api/v1/account/sign-out: the device drops its (linked) player and
+// the next request mints a fresh anonymous one. Nothing is deleted — signing in again
+// brings the linked player back.
+function signOutRoute(): Promise<Reply> {
+  return Promise.resolve({
+    status: 200,
+    body: { signed_out: true },
+    headers: { "Set-Cookie": "bv_anon=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0" },
+  });
 }
 
 async function startGameRoute(req: VercelRequest): Promise<Reply> {
@@ -273,12 +312,13 @@ function listLeaderboardEntriesRoute(req: VercelRequest) {
 // the others.
 async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
   const id = playerId(req);
-  const [length, language, theme, sound, displayName] = await Promise.all([
+  const [length, language, theme, sound, displayName, googleLinked] = await Promise.all([
     getPreferredLength(id),
     getPreferredLanguage(id),
     getPreferredTheme(id),
     getSoundEnabled(id),
     getDisplayName(id),
+    isLinked(id),
   ]);
   return {
     status: 200,
@@ -288,6 +328,7 @@ async function preferencesGetRoute(req: VercelRequest): Promise<Reply> {
       ...(theme.body as object),
       ...(sound.body as object),
       ...(displayName.body as object),
+      google_linked: googleLinked,
     },
   };
 }
@@ -474,6 +515,12 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
   // DELETE /api/v1/me — wipe the caller's player record + personal data, anonymise their
   // games (ROADMAP "Privacy page + data deletion endpoint"). Identity from the same
   // signed anon cookie the other /me routes use.
+  if (segments.length === 2 && a === "account") {
+    if (b === "link") return methodHandler({ POST: linkAccountRoute });
+    if (b === "sign-out") return methodHandler({ POST: signOutRoute });
+    return undefined;
+  }
+
   if (segments.length === 1 && a === "me") {
     return methodHandler({ DELETE: (req) => deleteMe(playerId(req)) });
   }

@@ -204,7 +204,11 @@
       },
       "notStored": {
         "heading": "Mit nem tárolunk",
-        "body": "Nincs fiók, jelszó vagy e-mail-cím: a játék ilyet nem is kér. Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Ha valami hiba történik, technikai részleteket (böngésző, oldalcím, hibaüzenet) tartalmazó hibajelentés kerül a hibakövető szolgáltatásunkhoz; ez soha nem tartalmazza a tippjeidet vagy a pontszámaidat."
+        "body": "Nincs jelszó, és nincs fiók vagy e-mail-cím, hacsak nem választod a Google-bejelentkezést (lásd lent). Nincs hirdetés, és nincs harmadik féltől származó analitika vagy nyomkövetés. Ha valami hiba történik, technikai részleteket (böngésző, oldalcím, hibaüzenet) tartalmazó hibajelentés kerül a hibakövető szolgáltatásunkhoz; ez soha nem tartalmazza a tippjeidet vagy a pontszámaidat."
+      },
+      "google": {
+        "heading": "Nem kötelező Google-bejelentkezés",
+        "body": "Ha a Beállításokban a „Haladás mentése Google-fiókkal” lehetőséget választod, a bejelentkezést a Neon Auth (hitelesítési szolgáltatónk, adatfeldolgozó) végzi: a Google-tól megkapja a fiókod nevét, e-mail-címét és azonosítóját. A játék saját adatbázisa csak egy belső fiókazonosítót tárol, amely a játékosodat ehhez a bejelentkezéshez köti, az e-mail-címedet soha, és az e-mail-cím a játékban sem jelenik meg. Ha olyan eszközön jelentkezel be, ahol már vannak játékaid, azokat egyesítjük a fiókodéval. Kijelentkezéskor a fiókod megmarad; az adataid törlése (lásd lent) törli a játékosodat és annak kapcsolatát a fiókkal."
       },
       "hosting": {
         "heading": "Hol tároljuk",
@@ -469,5 +473,19 @@
     "fullWord": "A teljes szó",
     "newGame": "Új játék",
     "noHint": "Segítség nélkül"
+  },
+  "account": {
+    "keepProgress": "Haladás mentése Google-fiókkal",
+    "explain": "Nem kötelező. Így másik eszközön vagy újratelepítés után is megmarad az eredményed. Az e-mail-címed nem jelenik meg a játékban.",
+    "linked": "Google-fiókhoz kapcsolva",
+    "signOut": "Kijelentkezés",
+    "outcome": {
+      "linked": "Kész, a haladásod a Google-fiókodhoz kapcsoltuk.",
+      "already_linked": "Ez az eszköz már a Google-fiókodhoz kapcsolódik.",
+      "merged": "Kész, az eszközön játszott játékaidat egyesítettük a fiókodéval.",
+      "switched": "Bejelentkeztél, a fiókod eredményei betöltve.",
+      "created": "Kész, a Google-fiókodhoz új profil készült.",
+      "failed": "A bejelentkezés nem sikerült. Próbáld újra később."
+    }
   }
 }

@@ -1059,7 +1059,7 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
 
 ## Batch 8 — Google OAuth (identity upgrade) 
 
-### 8.1 `[ ]` Google sign-in via Neon Auth identity linking
+### 8.1 `[~]` Google sign-in via Neon Auth identity linking
 - "Keep my progress" links a Google identity to the current user via **Neon Auth** (Better
   Auth's account-linking) — history and scores are kept because the user id doesn't change.
   On a new device, signing in with Google resolves to the already-linked user — cross-device
@@ -1076,6 +1076,14 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
   function; it's the fiddliest part.
 - Admin login switches from `ADMIN_TOKEN` header to `is_admin` on the Google-linked player.
 - Keep anonymous play fully functional forever.
+- **Built 2026-11-09 (PR feat/8-google-signin), decisions:** admin login stays on Magic Link
+  (no `is_admin` move); built before the closed test; the Google email is never stored in
+  our DB (only `players.auth_user_id`, reused from migration 0008). Merge is the SQL
+  function `merge_players()` (migration 0028), tested in-process with PGlite
+  (tests/merge-players.test.ts); the link decision is the pure `planLink()`
+  (lib/account-link.ts). Endpoints: `POST /api/v1/account/link` (Bearer Neon JWT),
+  `POST /api/v1/account/sign-out`; `google_linked` on GET /me/preferences. Real sign-in can
+  only be checked on prod (Google redirect URI is prod-only).
 
 ---
 
