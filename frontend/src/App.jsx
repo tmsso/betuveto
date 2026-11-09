@@ -851,7 +851,7 @@ function App() {
       <header className="app-header w-full sm:max-w-[600px] lg:max-w-[952px] px-4 sm:px-0 flex items-center justify-between gap-3 max-sm:border-b max-sm:border-game-border">
         <div className="flex items-center gap-2.5 min-w-0">
           <LogoMark size={48} className="w-[38px] h-[38px] lg:w-12 lg:h-12 shrink-0" />
-          <Wordmark text={t('app.title')} className="text-[26px] sm:text-[32px] lg:text-[40px]" />
+          <Wordmark text={t('app.title')} className="text-[27px] sm:text-[32px] lg:text-[40px]" />
         </div>
         {/* ROADMAP Batch 10 item 15 — every non-core control (language, theme, sound,
             length, wordlist, easy mode, leaderboard, stats) now lives behind this one
