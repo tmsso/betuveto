@@ -153,7 +153,9 @@ for (const { lang, locale, words: file, frequency, wordlist } of LANGS) {
     if (lang !== 'hu') await chooseWordlist(host, t, wordlist)
     await host.getByRole('button', { name: t('settings.open') }).first().click()
     const settings = host.getByRole('dialog')
-    await settings.getByLabel(t('room.nameLabel')).fill('Anna')
+    // Since #138 the room uses the Settings display name (no separate room-name field).
+    await settings.getByLabel(t('settings.displayNameLabel')).fill('Anna')
+    await settings.getByLabel(t('settings.displayNameLabel')).press('Tab')
     await settings.getByLabel(new RegExp(t('room.mode.coop.name'))).check()
     await settings.getByRole('button', { name: t('room.create') }).click()
     const lobby = host.getByTestId('room-lobby')
