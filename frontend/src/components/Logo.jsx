@@ -20,9 +20,8 @@ export function LogoMark({ size = 48, onBrand = false, className = '' }) {
 }
 
 /**
- * The wordmark as plain live text. The owner review of 2026-11-08 dropped the saffron
- * accent overlay and the extra-bold display face: the title is now the app's normal
- * Nunito in a lighter teal (`--game-title`), nothing else.
+ * The wordmark as plain live text: Baloo 2 700 (the letter-tile face) in the button teal
+ * (`--game-secondary`), no accent overlay. Owner picked it from six variants, 2026-11-09.
  */
 export function Wordmark({ text, className = '' }) {
   return <h1 className={`wordmark ${className}`}>{text}</h1>
