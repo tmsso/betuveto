@@ -130,7 +130,7 @@ Expected result: PEGI 3 / Everyone, possibly PEGI 7 for the user-interaction ele
 Every claim above is checked against the app as of 2026-11-03 (room size `MAX_MEMBERS` = 8 in
 `lib/rooms.ts`; lengths 5–10; daily streaks; achievements). Re-check before each listing update.
 
-- **Screenshots (generated, 2026-11-03):** `docs/play-store/screenshots/{hu,en}/01–05*.jpg`,
+- **Screenshots (generated 2026-11-03, regenerated 2026-11-09 with the design refresh + new title):** `docs/play-store/screenshots/{hu,en}/01–05*.jpg`,
   1080×1920 JPEG (Play's portrait size for games; JPEG because Play rejects PNGs with alpha).
   Start screen, a game in progress, the daily puzzle, a room lobby, a room mid-game. Upload the
   hu set to the Hungarian (default) listing and the en set to the English translation.
