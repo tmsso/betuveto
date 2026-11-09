@@ -24,7 +24,7 @@ export default function PrivacyPage() {
     }
   }
 
-  const sections = ['stored', 'notStored', 'hosting', 'retention']
+  const sections = ['stored', 'notStored', 'google', 'hosting', 'retention']
 
   return (
     <div className="min-h-screen bg-game-paper text-game-primary px-4 py-10">

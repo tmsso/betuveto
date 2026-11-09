@@ -204,7 +204,11 @@
       },
       "notStored": {
         "heading": "What we don't store",
-        "body": "No account, no password, no email (the game never asks for one). No advertising, and no third-party analytics or tracking. When something goes wrong, an error report with technical details (browser, page address, error message) is sent to our error-tracking service; it never includes your guesses or scores."
+        "body": "No password, and no account or email unless you choose Google sign-in (see below). No advertising, and no third-party analytics or tracking. When something goes wrong, an error report with technical details (browser, page address, error message) is sent to our error-tracking service; it never includes your guesses or scores."
+      },
+      "google": {
+        "heading": "Optional Google sign-in",
+        "body": "If you choose \"Keep my progress with Google\" in Settings, sign-in is handled by Neon Auth (our authentication provider, a data processor): it receives your Google account's name, email address and ID from Google. The game's own database stores only an internal account ID linking your player to that sign-in, never your email, and the email is never shown in the game. If you sign in on a device that already has games, those games are merged into your account. Signing out keeps your account; deleting your data (see below) removes your player and its link to the account."
       },
       "hosting": {
         "heading": "Where it's stored",
@@ -469,5 +473,19 @@
     "fullWord": "The full word",
     "newGame": "New game",
     "noHint": "No hints used"
+  },
+  "account": {
+    "keepProgress": "Keep my progress with Google",
+    "explain": "Optional. Keeps your results on another device or after reinstalling. Your email is never shown in the game.",
+    "linked": "Linked to Google",
+    "signOut": "Sign out",
+    "outcome": {
+      "linked": "Done, your progress is linked to your Google account.",
+      "already_linked": "This device is already linked to your Google account.",
+      "merged": "Done, the games on this device were merged into your account.",
+      "switched": "Signed in, your account's results are loaded.",
+      "created": "Done, a new profile was created for your Google account.",
+      "failed": "Sign-in didn't work. Please try again later."
+    }
   }
 }

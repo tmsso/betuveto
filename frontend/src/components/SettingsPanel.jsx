@@ -26,6 +26,8 @@ import FeedbackForm from './FeedbackForm'
  * wordlist, easy mode), the daily puzzle and the room panel start or leave a game, so
  * they are hidden, and the privacy page opens in a new tab instead of navigating away.
  */
+import AccountLink from './AccountLink'
+
 export default function SettingsPanel({
   isOpen,
   onClose,
@@ -183,6 +185,7 @@ export default function SettingsPanel({
           {nameError && (
             <p className="text-xs text-game-error -mt-2">{nameError}</p>
           )}
+          <AccountLink isOpen={isOpen} />
           <div className={fieldRow}>
             <label htmlFor="settings-language" className="text-game-muted font-semibold">
               {t('settings.languageLabel')}
