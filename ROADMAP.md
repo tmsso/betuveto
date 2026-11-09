@@ -1059,7 +1059,7 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
 
 ## Batch 8 — Google OAuth (identity upgrade) 
 
-### 8.1 `[~]` Google sign-in via Neon Auth identity linking
+### 8.1 `[x]` Google sign-in via Neon Auth identity linking
 - "Keep my progress" links a Google identity to the current user via **Neon Auth** (Better
   Auth's account-linking) — history and scores are kept because the user id doesn't change.
   On a new device, signing in with Google resolves to the already-linked user — cross-device
@@ -1083,7 +1083,8 @@ before starting any of them (§7 holds the owner's D1–D4 answers; they are set
   (tests/merge-players.test.ts); the link decision is the pure `planLink()`
   (lib/account-link.ts). Endpoints: `POST /api/v1/account/link` (Bearer Neon JWT),
   `POST /api/v1/account/sign-out`; `google_linked` on GET /me/preferences. Real sign-in can
-  only be checked on prod (Google redirect URI is prod-only).
+  only be checked on prod (Google redirect URI is prod-only). **Verified live 2026-11-09** by
+  the owner (link + Settings email display, #140); consent screen still shows "neon.tech".
 
 ---
 
