@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  Google Play feature graphic (ROADMAP 16.6): 1024×500, rendered to JPEG by
+  frontend/play-assets/feature-graphic.spec.ts (?lang=hu|en). The app's own fonts (self-hosted
+  @fontsource files) and colours (frontend/src/index.css tokens), so it matches the screenshots.
+  Edit here and re-render; don't edit the JPEGs.
+-->
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>Betűvető feature graphic</title>
+<style>
+  @font-face { font-family: 'Baloo 2'; font-weight: 700; src: url('../../frontend/node_modules/@fontsource/baloo-2/files/baloo-2-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF; }
+  @font-face { font-family: 'Baloo 2'; font-weight: 700; src: url('../../frontend/node_modules/@fontsource/baloo-2/files/baloo-2-latin-ext-700-normal.woff2') format('woff2'); unicode-range: U+0100-024F; }
+  @font-face { font-family: 'Nunito'; font-weight: 700; src: url('../../frontend/node_modules/@fontsource/nunito/files/nunito-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF; }
+  @font-face { font-family: 'Nunito'; font-weight: 700; src: url('../../frontend/node_modules/@fontsource/nunito/files/nunito-latin-ext-700-normal.woff2') format('woff2'); unicode-range: U+0100-024F; }
+  @font-face { font-family: 'Nunito'; font-weight: 800; src: url('../../frontend/node_modules/@fontsource/nunito/files/nunito-latin-800-normal.woff2') format('woff2'); unicode-range: U+0000-00FF; }
+  @font-face { font-family: 'Nunito'; font-weight: 800; src: url('../../frontend/node_modules/@fontsource/nunito/files/nunito-latin-ext-800-normal.woff2') format('woff2'); unicode-range: U+0100-024F; }
+
+  @font-face { font-family: 'Baloo 2'; font-weight: 800; src: url('../../frontend/node_modules/@fontsource/baloo-2/files/baloo-2-latin-800-normal.woff2') format('woff2'); unicode-range: U+0000-00FF; }
+  @font-face { font-family: 'Baloo 2'; font-weight: 800; src: url('../../frontend/node_modules/@fontsource/baloo-2/files/baloo-2-latin-ext-800-normal.woff2') format('woff2'); unicode-range: U+0100-024F; }
+  /* Design refresh tokens (frontend/src/index.css), 2026-11-09: paper ground, ink text,
+     the title in the button teal + Baloo 2 like the app header, tiles like the board. */
+  :root {
+    --primary: #1b2a30;   /* --game-primary */
+    --accent: #0b6b6b;    /* --game-secondary / --game-button (header title) */
+    --saffron: #b86e00;   /* --game-accent */
+    --paper: #f4efe4;     /* --game-paper */
+    --tile-face: #fbf3df; /* --game-tile-face */
+    --tile-edge: #c9b27e; /* --game-tile-edge */
+    --tile-used: #e7e1d4; /* --game-tile-used */
+    --tile-used-ink: #5b6a6f;
+  }
+  html, body { margin: 0; }
+  body {
+    width: 1024px; height: 500px; overflow: hidden;
+    background: radial-gradient(ellipse at 30% 20%, #fffdf8 0%, var(--paper) 60%, #ebe3d2 100%);
+    font-family: 'Nunito', sans-serif; color: var(--primary);
+    display: grid; grid-template-columns: 1fr 1fr; align-items: center;
+  }
+  .text { padding-left: 72px; }
+  h1 { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 108px; line-height: 1; margin: 0 0 18px; color: var(--accent); }
+  p { font-weight: 700; font-size: 30px; line-height: 1.3; margin: 0; color: var(--primary); opacity: .85; }
+  .tagline-2 { margin-top: 14px; font-size: 22px; color: var(--saffron); font-weight: 800; opacity: 1; }
+  .board { display: grid; grid-template-columns: repeat(3, 104px); gap: 16px; justify-content: center; transform: rotate(-4deg); }
+  .tile {
+    width: 104px; height: 104px; border-radius: 20px; display: grid; place-items: center;
+    background: var(--tile-face); box-sizing: border-box;
+    font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 60px; line-height: 1; color: var(--primary);
+    box-shadow: inset 0 -7px 0 var(--tile-edge), 0 6px 14px rgba(27, 42, 48, .15);
+  }
+  .tile.used { background: var(--tile-used); color: var(--tile-used-ink); box-shadow: none; }
+  .tile:nth-child(2n) { transform: translateY(10px); }
+</style>
+</head>
+<body>
+  <div class="text">
+    <h1>Betűvető</h1>
+    <p id="tagline"></p>
+    <p class="tagline-2" id="tagline2"></p>
+  </div>
+  <div class="board" id="board"></div>
+<script>
+  const COPY = {
+    hu: { tagline: 'Rakj ki minél több szót<br>a megkevert betűkből!', tagline2: 'Napi rejtvény · Játék barátokkal', letters: 'SZÓJÁTÉK' },
+    en: { tagline: 'Make as many words as you can<br>from scrambled letters!', tagline2: 'Daily puzzle · Play with friends', letters: 'WORDGAME' },
+  }
+  const lang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'hu'
+  const copy = COPY[lang]
+  document.documentElement.lang = lang
+  document.getElementById('tagline').innerHTML = copy.tagline
+  document.getElementById('tagline2').textContent = copy.tagline2
+  // Nine tiles: eight letters plus Ő, the letter that makes the name Hungarian. Two "used".
+  const letters = [...copy.letters.slice(0, 8), 'Ő']
+  document.getElementById('board').innerHTML = letters
+    .map((l, i) => `<div class="tile${i === 0 || i === 4 ? ' used' : ''}">${l}</div>`).join('')
+</script>
+</body>
+</html>

@@ -93,16 +93,57 @@ Expected result: PEGI 3 / Everyone, possibly PEGI 7 for the user-interaction ele
 
 ## Store listing (draft)
 
+- **App name:** Betűvető
 - **Short description (hu, ≤80):** Rakj ki minél több szót a megkevert betűkből!
 - **Short description (en, ≤80):** Make as many words as you can from scrambled letters.
-- **Full description:** reuse the `og:description` / meta description from
-  `frontend/index.html` and expand it with: daily puzzle, leaderboards, rooms with friends
-  (co-op and versus), Hungarian and English, no sign-up, no ads.
-- **Screenshots:** phone portrait at 1080×1920. These can be generated with Playwright
-  against the live site: start screen, a game in progress, the daily puzzle, a room lobby.
-- **Feature graphic:** 1024×500, still to be made.
+
+**Full description (hu, ≤4000):**
+
+> Rakj ki minél több szót a megkevert betűkből, mielőtt lejár az idő!
+>
+> A Betűvető gyors, ingyenes magyar szójáték. Kapsz néhány betűt, és kirakod belőlük az összes szót, ami eszedbe jut. Minél hosszabb a szó, annál több pont jár érte, és ha a táblán rejlő összes szót megtalálod, bónuszt kapsz.
+>
+> • **Napi rejtvény:** ma mindenki ugyanazt a táblát kapja. Naponta egy eredmény számít, és sorozatot gyűjthetsz.
+> • **Játék barátokkal:** hozz létre egy szobát, küldd el a meghívó linket, és játsszatok együtt (legfeljebb 8-an) vagy egymás ellen.
+> • **Ranglisták és statisztikák:** nézd meg, hol tartasz, és gyűjts kitüntetéseket.
+> • **Te döntöd el a nehézséget:** 5–10 betűs táblák, és ha elakadsz, segítséget is kérhetsz (pontlevonással).
+> • **Magyarul és angolul:** a játék magyar és angol szótárral is játszható.
+> • **Világos és sötét téma.**
+>
+> Nincs regisztráció és nincs reklám. Ha egy szót hibásnak tartasz, vagy hiányzik egy, egy kattintással jelezheted; a szótár így folyamatosan javul.
+
+**Full description (en, ≤4000):**
+
+> Make as many words as you can from scrambled letters before the clock runs out!
+>
+> Betűvető is a quick, free word game, playable in Hungarian and English. You get a handful of letters; spell every word you can find. Longer words score more, and finding every word on the board earns a bonus.
+>
+> • **Daily puzzle:** everyone gets the same board each day. One result counts per day, and you can build a streak.
+> • **Play with friends:** create a room, share the invite link, and play together (up to 8 players) or against each other.
+> • **Leaderboards and stats:** see how you are doing and collect achievements.
+> • **Your difficulty:** boards of 5 to 10 letters, and a hint when you are stuck (it costs points).
+> • **Hungarian and English:** play with either dictionary.
+> • **Light and dark themes.**
+>
+> No sign-up and no ads. If a word looks wrong or one is missing, report it with one tap; that is how the dictionary keeps improving.
+
+Every claim above is checked against the app as of 2026-11-03 (room size `MAX_MEMBERS` = 8 in
+`lib/rooms.ts`; lengths 5–10; daily streaks; achievements). Re-check before each listing update.
+
+- **Screenshots (generated 2026-11-03, regenerated 2026-11-09 with the design refresh + new title):** `docs/play-store/screenshots/{hu,en}/01–05*.jpg`,
+  1080×1920 JPEG (Play's portrait size for games; JPEG because Play rejects PNGs with alpha).
+  Start screen, a game in progress, the daily puzzle, a room lobby, a room mid-game. Upload the
+  hu set to the Hungarian (default) listing and the en set to the English translation.
+  Regenerate with `frontend/play-assets/screenshots.spec.ts` against a PR preview (never
+  production; it writes players, games and a room): instructions in the file header. Only the
+  made-up names Anna and Bence appear; no leaderboard is shot, because a preview database is a
+  copy of production and would show real players' names.
+- **Feature graphic (generated):** `docs/play-store/feature-graphic-{hu,en}.jpg`, 1024×500, from
+  `docs/play-store/feature-graphic.html` (edit the HTML and re-render with
+  `npx playwright test -c playwright.assets.config.ts feature-graphic` in `frontend/`).
+- **App icon:** `frontend/public/pwa-512x512.png` (512×512 PNG, Play's required size).
 - **Privacy policy URL:** `https://betuveto.tmsso.com/privacy`.
-- **Terms:** `https://betuveto.tmsso.com/terms` (wording still needs the owner's sign-off).
+- **Terms:** `https://betuveto.tmsso.com/terms` (wording signed off by the owner 2026-10-29).
 - **Category:** Word (Games). Tags: word, puzzle, Hungarian.
 - **Ads:** none. **In-app purchases:** none. **Target audience:** 13+ is the simplest choice.
   An audience including under-13s pulls in Families policy requirements.
