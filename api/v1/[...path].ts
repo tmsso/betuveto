@@ -167,7 +167,16 @@ async function linkAccountRoute(req: VercelRequest): Promise<Reply> {
     : null;
   if (!verified) return { status: 401, body: { detail: "sign_in_required" } };
 
-  const result = await linkAccount(verifyIdentity(secret, req.headers.cookie), verified.userId);
+  const result = await linkAccount(
+    verifyIdentity(secret, req.headers.cookie),
+    verified.userId,
+    bodyField(req, "confirm_merge") === true,
+  );
+  // A phone with real history about to be merged into this account: nothing changed yet,
+  // the client asks the player first and repeats the call with confirm_merge: true.
+  if (result.outcome === "confirm_merge") {
+    return { status: 409, body: { detail: "merge_confirmation_required", device_games: result.deviceGames } };
+  }
   return {
     status: 200,
     body: { outcome: result.outcome, player_id: result.playerId, google_linked: true },

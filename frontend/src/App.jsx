@@ -10,6 +10,7 @@ import {
   LogOut, Shuffle, SlidersHorizontal, Sparkles, Sprout, Swords, Trophy, Users,
 } from 'lucide-react'
 import ConfirmationModal from './components/ConfirmationModal'
+import { cancelMerge, confirmMerge, takePendingMerge } from './googleAccount'
 import OfflineNotice from './components/OfflineNotice'
 import InstallPrompt from './components/InstallPrompt'
 import SettingsPanel from './components/SettingsPanel'
@@ -190,6 +191,21 @@ function App() {
   // through here so an in-progress game is never discarded without a prompt.
   // Optional `title` / `confirmLabel` override the modal's "new game?" defaults (give-up).
   const [pendingConfirm, setPendingConfirm] = useState(null)
+  // ROADMAP 8.1 follow-up: a Google sign-in that would merge a phone with 10+ games into the
+  // account waits for an explicit yes (it may be someone else's phone). No = sign out of
+  // Google; the phone's own player is untouched.
+  useEffect(() => {
+    const games = takePendingMerge()
+    if (games === null) return
+    const entry = {
+      title: t('account.mergeConfirm.title'),
+      message: t('account.mergeConfirm.message', { count: games }),
+      confirmLabel: t('account.mergeConfirm.confirm'),
+      onCancel: cancelMerge,
+    }
+    entry.run = () => { entry.confirmed = true; confirmMerge() }
+    setPendingConfirm(entry)
+  }, [t])
   // Local top-3, kept only as an offline/error fallback now that scores are
   // server-side (ROADMAP 2.2) — the panel below prefers `serverScores` whenever it loads.
   const [highScores, setHighScores] = useState([])
@@ -1359,7 +1375,11 @@ function App() {
 
       <ConfirmationModal
         isOpen={pendingConfirm !== null}
-        onClose={() => setPendingConfirm(null)}
+        onClose={() => {
+          const closing = pendingConfirm
+          setPendingConfirm(null)
+          if (closing?.onCancel && !closing.confirmed) closing.onCancel()
+        }}
         onConfirm={() => pendingConfirm?.run()}
         message={pendingConfirm?.message ?? ''}
         title={pendingConfirm?.title}

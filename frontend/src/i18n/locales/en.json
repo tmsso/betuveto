@@ -485,7 +485,14 @@
       "merged": "Done, the games on this device were merged into your account.",
       "switched": "Signed in, your account's results are loaded.",
       "created": "Done, a new profile was created for your Google account.",
-      "failed": "Sign-in didn't work. Please try again later."
+      "failed": "Sign-in didn't work. Please try again later.",
+      "cancelled": "OK, nothing changed: this device kept its own games and you were signed out of Google."
+    },
+    "mergeConfirm": {
+      "title": "Merge these games?",
+      "message_one": "This device already has {{count}} game. If you continue, it moves to your Google account and the device's own profile is removed. This can't be undone. Only continue if this is your own device.",
+      "message_other": "This device already has {{count}} games. If you continue, they all move to your Google account and the device's own profile is removed. This can't be undone. Only continue if this is your own device.",
+      "confirm": "Merge"
     }
   }
 }

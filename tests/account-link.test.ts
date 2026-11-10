@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planLink } from "../lib/account-link.js";
+import { MERGE_CONFIRM_MIN_GAMES, needsMergeConfirmation, planLink } from "../lib/account-link.js";
 
 const anon = (id: string) => ({ id, authUserId: null });
 
@@ -22,5 +22,17 @@ describe("planLink (ROADMAP 8.1)", () => {
   it("creates a player for a new account when the device can't take it", () => {
     expect(planLink(null, null)).toEqual({ outcome: "created" });
     expect(planLink({ id: "b", authUserId: "other" }, null)).toEqual({ outcome: "created" });
+  });
+});
+
+describe("needsMergeConfirmation", () => {
+  it("merges a quick try silently", () => {
+    expect(needsMergeConfirmation(MERGE_CONFIRM_MIN_GAMES - 1, false)).toBe(false);
+  });
+  it("asks first when the phone has real history", () => {
+    expect(needsMergeConfirmation(MERGE_CONFIRM_MIN_GAMES, false)).toBe(true);
+  });
+  it("proceeds once the player said yes", () => {
+    expect(needsMergeConfirmation(50, true)).toBe(false);
   });
 });
