@@ -98,6 +98,25 @@ export async function startGame(
     return { status: 422, body: { detail: "duration_seconds must be an integer." } };
   }
 
+  // Pre-Play hardening (2026-11): one identity could otherwise create `games` rows without
+  // limit (free-tier storage). A human can't start anywhere near this many in an hour.
+  // Skipped for a just-minted identity (it has no games), for the pinned CI players (the
+  // contract suite starts 100+ boards per run) and on previews (throwaway branch database),
+  // the same exemptions lib/identity-throttle.ts makes. A plain count-then-insert: a burst
+  // of parallel requests can overshoot by a few, which doesn't matter for a storage cap.
+  const startCap = config.game_starts_per_player_per_hour;
+  if (startCap > 0 && !setCookieHeader && process.env.VERCEL_ENV !== "preview") {
+    const [usage] = await sql<{ recent: number; is_ci: boolean | null }[]>`
+      select count(*)::int as recent,
+             (select is_ci from players where id = ${playerId}) as is_ci
+        from games
+       where player_id = ${playerId} and started_at >= now() - interval '1 hour'
+    `;
+    if (!usage.is_ci && usage.recent >= startCap) {
+      return { status: 429, body: { detail: "rate_limited" } };
+    }
+  }
+
   // Longer boards have (combinatorially) many more findable words, so the ceiling itself
   // scales with length (ROADMAP 2.3, admin-editable via lib/config.ts). Below that ceiling,
   // clamped so a client can shorten its own timer (which the tests use to exercise expiry)
@@ -384,9 +403,18 @@ export async function guess(gameId: string, rawWord: string): Promise<Reply> {
                                          where game_id = games.id)
                                    ) + ${remainingSeconds * config.completion_bonus_multiplier}
                               else final_score end
-     where id = ${game.id}
+     where id = ${game.id} and status = 'active'
      returning found_count, (found_count >= possible_count) as game_ended, final_score
   `;
+  // No row: the game stopped being active between the check at the top and here (a
+  // give-up, or another request finalising the expiry, landed in between). Without the
+  // `status = 'active'` guard this guess would have bumped found_count on an already
+  // finalised game, leaving it out of step with final_score. Undo the guess instead.
+  if (!row) {
+    await sql`delete from game_guesses where id = ${inserted[0].id}`;
+    if (game.room_id && roomClaim.kind === "claimed") await releaseRoomWord(sql, game.room_id, game.id, word);
+    return { status: 400, body: { detail: "Game is not active. Start a new game." } };
+  }
   const foundCount = row.found_count;
   const gameEnded = row.game_ended;
   // A full clear is a game's terminal transition too, same as a lazily-discovered timeout

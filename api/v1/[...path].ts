@@ -43,8 +43,8 @@ import { identityCookieValue, mintIdentity, verifyIdentity } from "../../lib/aut
 import { isLinked, linkAccount } from "../../lib/account-link.js";
 import { verifyNeonAuthToken } from "../../lib/neon-auth.js";
 import { allowIdentityMint } from "../../lib/identity-throttle.js";
-import { DEFAULT_WORDLIST_CODE } from "../../lib/db.js";
-import type { Reply } from "../../lib/game.js";
+import { DEFAULT_WORDLIST_CODE, db } from "../../lib/db.js";
+import { NOT_FOUND, type Reply, isGameOwner } from "../../lib/game-core.js";
 import {
   getAvailableLengths,
   getPossibleCount,
@@ -58,7 +58,7 @@ import {
   startGame,
 } from "../../lib/game.js";
 import { useHint } from "../../lib/hints.js";
-import { bodyField, bodyWord, intQuery, methodHandler, stringQuery } from "../../lib/http.js";
+import { bodyField, bodyWord, intQuery, isCrossSiteWrite, methodHandler, stringQuery } from "../../lib/http.js";
 import {
   getDisplayName,
   getPreferredLanguage,
@@ -465,6 +465,16 @@ function scoresTopRoute(req: VercelRequest) {
   );
 }
 
+/** Wraps a /game/{id}/... logic function so it only runs for the player who owns the game
+ *  (lib/game-core.ts isGameOwner). One wrapper for every game route, the same idea as
+ *  requireAdmin below: a future game route can't add itself and forget the check. */
+function ownGame(gameId: string, logic: (req: VercelRequest) => Promise<Reply>) {
+  return async (req: VercelRequest): Promise<Reply> => {
+    if (!(await isGameOwner(db(), gameId, playerId(req)))) return NOT_FOUND;
+    return logic(req);
+  };
+}
+
 function matchRoute(segments: string[]): VercelHandler | undefined {
   const [a, b, c, d] = segments;
 
@@ -487,26 +497,26 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
   if (a === "game" && b !== undefined) {
     const id = b;
     if (segments.length === 2) {
-      return methodHandler({ GET: () => getState(id) });
+      return methodHandler({ GET: ownGame(id, () => getState(id)) });
     }
     if (segments.length === 3) {
       switch (c) {
         case "guess":
-          return methodHandler({ POST: (req) => guess(id, bodyWord(req)) });
+          return methodHandler({ POST: ownGame(id, (req) => guess(id, bodyWord(req))) });
         case "hint":
-          return methodHandler({ POST: () => useHint(id) });
+          return methodHandler({ POST: ownGame(id, () => useHint(id)) });
         case "give_up":
-          return methodHandler({ POST: () => giveUp(id) });
+          return methodHandler({ POST: ownGame(id, () => giveUp(id)) });
         case "rescramble":
-          return methodHandler({ POST: () => rescramble(id) });
+          return methodHandler({ POST: ownGame(id, () => rescramble(id)) });
         case "possible_words":
-          return methodHandler({ GET: () => getPossibleWords(id) });
+          return methodHandler({ GET: ownGame(id, () => getPossibleWords(id)) });
         default:
           return undefined;
       }
     }
     if (segments.length === 4 && c === "possible_words" && d === "count") {
-      return methodHandler({ GET: () => getPossibleCount(id) });
+      return methodHandler({ GET: ownGame(id, () => getPossibleCount(id)) });
     }
     return undefined;
   }
@@ -752,6 +762,11 @@ function matchRoute(segments: string[]): VercelHandler | undefined {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  // Before routing, so no write route can be added without it (lib/http.ts explains why).
+  if (isCrossSiteWrite(req)) {
+    res.status(403).json({ detail: "Cross-site request refused." });
+    return;
+  }
   const route = matchRoute(pathSegments(req));
   if (!route) {
     res.status(404).json({ detail: "Not found." });

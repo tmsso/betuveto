@@ -85,6 +85,24 @@ export async function loadGame(sql: Sql, gameId: string): Promise<GameRow | null
   return game ?? null;
 }
 
+/**
+ * Is this game the caller's? (Pre-Play hardening, 2026-11.) Until now the game id alone
+ * was the key to a game: unguessable, but anything that leaked one (a log line, a
+ * screenshot, a future feature) would have let someone else guess, hint or give up on it.
+ * The dispatcher asks this before every /game/{id}/... route and answers the same 404 as
+ * for an unknown id, so a stranger can't even learn that the game exists.
+ *
+ * A game whose player was deleted (player_id null) belongs to nobody.
+ */
+export async function isGameOwner(sql: Sql, gameId: string, playerId: string | null): Promise<boolean> {
+  if (!playerId) return false;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gameId)) return false;
+  const [row] = await sql<{ player_id: string | null }[]>`
+    select player_id from games where id = ${gameId}
+  `;
+  return row?.player_id === playerId;
+}
+
 /** The effective status: an active game whose deadline has passed is expired, whether or
  *  not anything has written that to the row yet. */
 export function effectiveStatus(game: GameRow, now: Date): string {

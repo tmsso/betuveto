@@ -93,6 +93,11 @@ interface StartResult {
   difficulty: "easy" | "normal";
 }
 
+/** game id -> the identity cookie it was started with (see `call`). */
+const gameOwnerCookie = new Map<string, string>();
+/** Pass as `extraHeaders` to send a game request with no identity at all. */
+const NO_COOKIE = { Cookie: "" };
+
 async function call(
   method: "GET" | "POST" | "PATCH" | "DELETE",
   route: string,
@@ -101,6 +106,14 @@ async function call(
 ): Promise<{ status: number; json: any; headers: Headers }> {
   const headers: Record<string, string> = { ...extraHeaders };
   if (BYPASS) headers["x-vercel-protection-bypass"] = BYPASS;
+  // Game routes answer only the game's owner (pre-Play hardening). A browser's cookie jar
+  // does this by itself; here `call` replays the cookie the game was started with unless
+  // the test passes its own Cookie header (NO_COOKIE to send none at all).
+  const hasCookie = Object.keys(headers).some((name) => name.toLowerCase() === "cookie");
+  const gameInRoute = route.match(/\/game\/([0-9a-f-]{36})(?:[/?]|$)/i)?.[1];
+  if (!hasCookie && gameInRoute && gameOwnerCookie.has(gameInRoute)) {
+    headers.Cookie = gameOwnerCookie.get(gameInRoute)!;
+  }
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   const response = await fetch(`${BASE_URL}${route}`, {
@@ -121,6 +134,13 @@ async function call(
     if (missing.length > 0) {
       throw new Error(`${method} ${route} is missing fields client.ts requires: ${missing.slice(0, 10).join(", ")}`);
     }
+  }
+  // Remember who owns a game the moment a response hands out its id.
+  const startedGame = (json as { game_id?: unknown } | null)?.game_id;
+  if (response.ok && typeof startedGame === "string") {
+    const sent = Object.entries(headers).find(([name]) => name.toLowerCase() === "cookie")?.[1];
+    const owner = response.headers.get("set-cookie")?.split(";", 1)[0] ?? sent;
+    if (owner) gameOwnerCookie.set(startedGame, owner);
   }
   return { status: response.status, json, headers: response.headers };
 }
@@ -341,6 +361,44 @@ function theTarget(game: StartResult): string {
 }
 
 describeApi("Betűvető API contract", () => {
+  // --- Pre-Play hardening: a game answers only its owner --------------------
+  it("game routes are a 404 for anyone but the player who started the game", async () => {
+    const game = await start();
+    const stranger = await startWithCookie();
+    const routes: ["GET" | "POST", string][] = [
+      ["GET", ""],
+      ["GET", "/possible_words/count"],
+      ["GET", "/possible_words"],
+      ["POST", "/guess"],
+      ["POST", "/hint"],
+      ["POST", "/rescramble"],
+      ["POST", "/give_up"], // last: had the check failed, this would end the game
+    ];
+    for (const who of [NO_COOKIE, { Cookie: stranger.cookie }]) {
+      for (const [method, suffix] of routes) {
+        const body = suffix === "/guess" ? { word: "ABC" } : undefined;
+        const { status } = await call(method, `/api/game/${game.game_id}${suffix}`, body, who);
+        expect(status, `${method} ${suffix}`).toBe(404);
+      }
+    }
+    // ...and none of that touched the owner's game.
+    const mine = await call("GET", `/api/game/${game.game_id}`);
+    expect(mine.status).toBe(200);
+    expect(mine.json.status).toBe("active");
+  });
+
+  it("refuses a write sent from another site, but not a read", async () => {
+    const elsewhere = { Origin: "https://example.com" };
+    const write = await call("POST", "/api/game/start?target_length=7", undefined, elsewhere);
+    expect(write.status).toBe(403);
+    expect(write.headers.get("set-cookie")).toBeNull(); // refused before any identity is minted
+    const labelled = await call("POST", "/api/game/start?target_length=7", undefined, {
+      "Sec-Fetch-Site": "same-site",
+    });
+    expect(labelled.status).toBe(403);
+    expect((await call("GET", "/api/v1/health", undefined, elsewhere)).status).toBe(200);
+  });
+
   // --- No solution leaks ---------------------------------------------------
   it("start does not leak the solution", async () => {
     const game = await start();

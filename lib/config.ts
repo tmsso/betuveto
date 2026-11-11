@@ -31,6 +31,9 @@ export interface GameConfig {
   // ROADMAP 12.6 — fresh anonymous identities one client address may mint per hour
   // (lib/identity-throttle.ts). 0 disables the throttle.
   identity_mints_per_ip_per_hour: number;
+  // Pre-Play hardening (2026-11) — solo games one player may start per rolling hour
+  // (lib/game.ts startGame). 0 disables. Like the keys above it has no seed row.
+  game_starts_per_player_per_hour: number;
 }
 
 /** Also the seed values in migrations/0005_config.sql — keep the two in sync if either
@@ -47,6 +50,7 @@ export const CONFIG_DEFAULTS: GameConfig = {
   report_min_completed_games: 3,
   reports_per_player_per_day: 20,
   identity_mints_per_ip_per_hour: 30,
+  game_starts_per_player_per_hour: 120,
 };
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS) as (keyof GameConfig)[];
