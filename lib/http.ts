@@ -48,6 +48,37 @@ export function methodHandler(routes: Partial<Record<Method, Logic>>) {
 }
 
 /**
+ * Should this request be refused as a cross-site write? (Pre-Play hardening, 2026-11.)
+ *
+ * The identity cookie is SameSite=Lax, which stops other *sites* from sending it on a POST
+ * but not other *subdomains of the same site*: a page on any other *.tmsso.com host counts
+ * as same-site and could fire a body-less POST (give up, leave room, sign out) with the
+ * player's cookie attached. Browsers label every request with `Sec-Fetch-Site`; the game's
+ * own pages always send `same-origin` (`none` = typed/bookmarked navigation).
+ *
+ * Deliberately lenient where the header is missing: non-browser clients (the contract
+ * suite, curl) don't send it and carry no ambient cookie to abuse, and a very old browser
+ * falls back to comparing `Origin` with the host it called.
+ */
+export function isCrossSiteWrite(req: Pick<VercelRequest, "method" | "headers">): boolean {
+  if (!req.method || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return false;
+  const header = (name: string) => {
+    const value = req.headers[name];
+    return (Array.isArray(value) ? value[0] : value)?.trim() || undefined;
+  };
+  const site = header("sec-fetch-site");
+  if (site) return site !== "same-origin" && site !== "none";
+  const origin = header("origin");
+  if (!origin) return false;
+  const host = header("x-forwarded-host") ?? header("host");
+  try {
+    return new URL(origin).host !== host;
+  } catch {
+    return true; // "null" or malformed Origin on a write: not one of ours
+  }
+}
+
+/**
  * An integer query parameter. Returns `fallback` when absent (or, with no fallback given,
  * `undefined` — used where "absent" and "explicitly provided" must be told apart, e.g.
  * game/start's duration_seconds, whose default depends on target_length), and NaN when

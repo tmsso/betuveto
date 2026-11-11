@@ -122,14 +122,17 @@ npm run db:verify
 
 ### Restoring a backup
 
-`.github/workflows/backup.yml` runs `pg_dump` every Monday and uploads the dump as a
-90-day workflow artifact — **encrypted** to the public key in
-`.github/backup-public-key.asc`, because artifacts of a public repository are
-downloadable by any signed-in GitHub user. Only the project owner holds the matching
-private key (never stored in GitHub). To restore:
+`.github/workflows/backup.yml` runs `pg_dump` every Monday, **encrypts** the dump to the
+public key in `.github/backup-public-key.asc`, and pushes it to the private repository
+`tmsso/betuveto-backups` as `backups/betuveto-<date>.dump.gpg` (the last 90 days are kept).
+Only the project owner holds the matching private key (never stored in GitHub). The
+workflow pushes with a deploy key limited to that repository;
+`scripts/setup-backup-deploy-key.sh` creates or rotates it. To restore:
 
 ```bash
-gh run download <run-id> -n betuveto-db-backup-<run-id>      # -> betuveto-backup.dump.gpg
+gh api repos/tmsso/betuveto-backups/contents/backups --jq '.[].name'   # what is there
+gh api -H "Accept: application/vnd.github.raw" \
+  repos/tmsso/betuveto-backups/contents/backups/betuveto-<date>.dump.gpg > betuveto-backup.dump.gpg
 export GNUPGHOME=$(mktemp -d)                                  # throwaway keyring
 gpg --import betuveto-backup-private-key.asc
 gpg --output betuveto-backup.dump --decrypt betuveto-backup.dump.gpg

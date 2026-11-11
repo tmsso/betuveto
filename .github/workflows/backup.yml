@@ -7,11 +7,11 @@ name: Weekly DB backup
 # run. `workflow_dispatch` lets you run it once by hand to confirm the secret and the
 # pg_dump version match before trusting the monthly cron.
 #
-# Encrypted before upload (2026-09-30): this repository is public, and a public repo's
-# workflow artifacts can be downloaded by any signed-in GitHub user. The dump is encrypted
-# to the public key in .github/backup-public-key.asc; only the matching private key (held
-# by the project owner, never in GitHub) can decrypt it — so there is no secret here to
-# leak either. Restore steps: README "Restoring a backup".
+# Encrypted before it leaves the runner (2026-09-30): the dump is encrypted to the public
+# key in .github/backup-public-key.asc; only the matching private key (held by the project
+# owner, never in GitHub) can decrypt it. Since 2026-11 it is then pushed to the private
+# repository tmsso/betuveto-backups (see the push step). Restore steps: README "Restoring a
+# backup".
 on:
   schedule:
     - cron: "0 3 * * 1" # 03:00 UTC every Monday
@@ -62,7 +62,74 @@ jobs:
           # Guard: never upload anything if encryption didn't produce the .gpg file.
           test -s betuveto-backup.dump.gpg
 
-      - name: Upload encrypted backup artifact
+      # Where the backup goes (2026-11): a PRIVATE repository, tmsso/betuveto-backups, not a
+      # workflow artifact of this public one. The dump was already encrypted, but an
+      # artifact here is downloadable by any signed-in GitHub user, which leaves the whole
+      # database one leaked private key away from public. The runner pushes with a deploy
+      # key that can write to that one repository and nothing else
+      # (scripts/setup-backup-deploy-key.sh creates it and stores it as the
+      # BACKUP_REPO_DEPLOY_KEY secret).
+      #
+      # Each run rewrites the backups repository as ONE commit and force-pushes it. Git
+      # keeps every version of every file forever, so plain commits would grow the
+      # repository by ~6 MB a week without end and "deleted after 90 days" would be untrue:
+      # a pruned dump would still sit in history. With a single commit, a pruned file is
+      # unreachable and GitHub garbage-collects it.
+      - name: Push the encrypted backup to the private backups repository
+        id: push
+        env:
+          DEPLOY_KEY: ${{ secrets.BACKUP_REPO_DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::warning::BACKUP_REPO_DEPLOY_KEY is not set — falling back to a workflow artifact. Run scripts/setup-backup-deploy-key.sh once."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/backup_key
+          chmod 600 ~/.ssh/backup_key
+          # GitHub's published ed25519 host key, pinned so the push can't be redirected.
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/backup_key -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+
+          git init -q -b main "$RUNNER_TEMP/backups"
+          cd "$RUNNER_TEMP/backups"
+          git remote add origin git@github.com:tmsso/betuveto-backups.git
+          # Bring the existing dumps along (the very first run finds an empty repository).
+          # The branch stays "unborn", so the commit below has no parent.
+          # Told apart on purpose: "no main branch yet" (ls-remote exit 2) starts empty, any
+          # other failure stops the run — carrying on would force-push away the old dumps.
+          if git ls-remote --exit-code origin refs/heads/main > /dev/null; then
+            git fetch -q --depth 1 origin main
+            git checkout -q FETCH_HEAD -- .
+          elif [ $? -ne 2 ]; then
+            echo "::error::Could not read tmsso/betuveto-backups — not pushing."
+            exit 1
+          fi
+
+          today=$(date -u +%F)
+          mkdir -p backups
+          cp "$GITHUB_WORKSPACE/betuveto-backup.dump.gpg" "backups/betuveto-$today.dump.gpg"
+          # Prune by the date in the file name (ISO dates compare correctly as text).
+          cutoff=$(date -u -d '90 days ago' +%F)
+          for file in backups/betuveto-*.dump.gpg; do
+            day=${file#backups/betuveto-}; day=${day%.dump.gpg}
+            if [[ "$day" < "$cutoff" ]]; then rm -f "$file"; fi
+          done
+          printf '%s\n' "Encrypted weekly database backups of Betűvető, written by" \
+            ".github/workflows/backup.yml in tmsso/betuveto. Kept for 90 days." \
+            "Restore steps: that repository's README, \"Restoring a backup\"." > README.md
+
+          git add -A
+          git -c user.name="betuveto-backup" -c user.email="backup@users.noreply.github.com" \
+            commit -q -m "Backups up to $today"
+          git push -q --force origin HEAD:main
+          rm -f ~/.ssh/backup_key
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+          echo "Pushed backups/betuveto-$today.dump.gpg ($(ls backups | wc -l) dump(s) kept)."
+
+      - name: Fallback — upload as a workflow artifact (only while the deploy key is missing)
+        if: steps.push.outputs.pushed != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: betuveto-db-backup-${{ github.run_id }}

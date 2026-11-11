@@ -98,7 +98,7 @@ export default defineConfig({
     headers: cspHeaders,
     proxy: {
       '/api': {
-        target: process.env.E2E_API_TARGET || 'https://betuveto.vercel.app',
+        target: process.env.E2E_API_TARGET || 'https://betuveto.tmsso.com',
         changeOrigin: true,
         headers: process.env.E2E_API_TARGET && process.env.VERCEL_AUTOMATION_BYPASS_SECRET
           ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
