@@ -2231,6 +2231,22 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
   **Owner step:** add `https://betuveto.tmsso.com` as a trusted domain in the Neon Auth
   console, then check the admin Magic Link login from the new address.
   **Open:** a vercel.app → new-domain redirect needs an identity-transfer step first.
+  **D-14b (2026-11-11): the owner chose option C, a plain redirect** (one Vercel domain
+  setting: betuveto.vercel.app → betuveto.tmsso.com, set from the CLI/API), **to be validated
+  by a reviewer LLM before it is applied. Not applied yet.** Claude advised against it for two reasons:
+  - **Progress lost:** `bv_anon` is host-bound, so vercel.app players arrive as new players
+    unless they linked Google first.
+  - **Installed copies break:** the PWA service worker serves pages from cache
+    (`navigateFallback`), so the redirect never reaches those page loads. The cached app's API
+    calls and its `sw.js` update check are redirected cross-origin and fail, which can leave
+    installed copies stuck.
+
+  Claude's alternatives:
+  - **A:** leave both hosts serving the app (recommended).
+  - **B:** a hand-over PR. vercel.app keeps `/api` and `/sw.js` and passes the player id to
+    tmsso.com in a short-lived signed link, then redirects page loads only.
+
+  The reviewer should weigh those two failure modes against the cost of B.
 - **D-14a (DECIDED 2026-10-27, owner took the recommendation: relax the cap on previews only; built, `allowIdentityMint` returns early when `VERCEL_ENV=preview`):** contract-suite runs on per-PR previews hit the identity-mint
   throttle (`identity_mints_per_ip_per_hour`, default 30; one full run mints more). Earlier
   sessions set it to 0 on the throwaway branch DB, but the auto-mode classifier now blocks
