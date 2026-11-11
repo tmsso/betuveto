@@ -93,7 +93,15 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        # --with-deps apt-installs system libraries, and apt on the runners can fail for
+        # reasons that have nothing to do with this repo (2026-11-11: hours of DNS failures
+        # for the Ubuntu mirror failed every run). The runner image already has what
+        # Chromium needs, so fall back to the browser download alone instead of failing.
+        run: |
+          npx playwright install --with-deps chromium || {
+            echo "::warning::apt dependencies could not be installed; continuing with the runner's own libraries."
+            npx playwright install chromium
+          }
 
       - name: E2E smoke test
         working-directory: frontend
