@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { hasPhysicalKeyboard } from './focusGuessInput'
 
 /**
  * The guess text field (ROADMAP Batch 10 item 3, App.jsx -> components/ refactor): input
@@ -22,6 +24,12 @@ export default function GuessInput({
   onSuggestWord,
 }) {
   const { t } = useTranslation()
+
+  // Was a plain `autoFocus`, which opened the phone keyboard on every page load. Now only a
+  // mouse-and-keyboard device gets the cursor here on its own; a touch player taps the field.
+  useEffect(() => {
+    if (hasPhysicalKeyboard()) document.getElementById('guess-input')?.focus()
+  }, [])
 
   return (
     <div className="mb-6 relative">
@@ -58,7 +66,6 @@ export default function GuessInput({
           autoComplete="off"
           autoCorrect="off"
           spellCheck="false"
-          autoFocus // Auto-focus on load
         />
         {value && (
           <button

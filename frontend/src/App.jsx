@@ -191,7 +191,7 @@ function App() {
   // through here so an in-progress game is never discarded without a prompt.
   // Optional `title` / `confirmLabel` override the modal's "new game?" defaults (give-up).
   const [pendingConfirm, setPendingConfirm] = useState(null)
-  // ROADMAP 8.1 follow-up: a Google sign-in that would merge a phone with 10+ games into the
+  // ROADMAP 8.1 follow-up: a Google sign-in that would merge a phone with 5+ games (1+ for an admin account) into the
   // account waits for an explicit yes (it may be someone else's phone). No = sign out of
   // Google; the phone's own player is untouched.
   useEffect(() => {
