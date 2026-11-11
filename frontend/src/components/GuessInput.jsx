@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { hasPhysicalKeyboard } from './focusGuessInput'
+import { unavailableLetters } from './guessLetters'
 
 /**
  * The guess text field (ROADMAP Batch 10 item 3, App.jsx -> components/ refactor): input
@@ -22,6 +23,7 @@ export default function GuessInput({
   suggestThanks,
   suggestLoading,
   onSuggestWord,
+  boardLetters = [],
 }) {
   const { t } = useTranslation()
 
@@ -30,6 +32,15 @@ export default function GuessInput({
   useEffect(() => {
     if (hasPhysicalKeyboard()) document.getElementById('guess-input')?.focus()
   }, [])
+
+  // Letters the board can't supply (not on it, or more of them than it has) are shown in
+  // the error colour as they are typed. A plain <input> can only have one text colour, so
+  // when there is something to mark, the input's own text turns transparent (the caret
+  // stays visible) and an identical line of text is drawn exactly on top of it, one <span>
+  // per letter. With nothing to mark, the input renders by itself as before.
+  const unavailable = unavailableLetters(value, boardLetters)
+  const hasMarks = boardLetters.length > 0 && unavailable.includes(true)
+  const textSize = value.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'
 
   return (
     <div className="mb-6 relative">
@@ -57,16 +68,41 @@ export default function GuessInput({
             if (val.length <= 15) onChange(val);
           }}
           className={
-            `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 font-extrabold text-game-primary text-center uppercase
-            shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary
+            `w-full min-h-[70px] bg-game-paper border-4 rounded-lg p-5 font-extrabold text-center uppercase
+            shadow-inner focus:outline-none focus:ring-4 focus:ring-game-secondary caret-game-primary
+            ${hasMarks ? 'text-transparent' : 'text-game-primary'}
             ${isShaking ? 'animate-shake border-game-error bg-game-error-soft ' : 'border-game-border'}
-            ${value.length > 10 ? 'text-2xl sm:text-3xl' : 'text-4xl'}`
+            ${textSize}`
           }
+          aria-invalid={hasMarks || undefined}
           placeholder={t('guessInput.placeholder')}
           autoComplete="off"
           autoCorrect="off"
           spellCheck="false"
         />
+        {hasMarks && (
+          // Same box, border width, padding and font as the input, so the letters land on
+          // the same pixels. aria-hidden: a screen reader already reads the input itself.
+          <div
+            aria-hidden="true"
+            data-testid="guess-marks"
+            className={`absolute inset-0 border-4 border-transparent p-5 flex items-center justify-center
+              font-extrabold uppercase whitespace-pre overflow-hidden pointer-events-none
+              ${isShaking ? 'animate-shake' : ''} ${textSize}`}
+          >
+            {[...value].map((letter, i) => (
+              <span
+                key={i}
+                className={unavailable[i]
+                  // Underlined too: colour alone is invisible to a colour-blind player.
+                  ? 'text-game-error underline decoration-4 underline-offset-4'
+                  : 'text-game-primary'}
+              >
+                {letter}
+              </span>
+            ))}
+          </div>
+        )}
         {value && (
           <button
             onClick={onClear}

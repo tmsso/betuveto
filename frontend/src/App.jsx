@@ -1058,6 +1058,7 @@ function App() {
           suggestThanks={suggestThanks}
           suggestLoading={suggestLoading}
           onSuggestWord={handleSuggestWord}
+          boardLetters={scrambledLetters}
         />
 
         {/* Action Buttons */}

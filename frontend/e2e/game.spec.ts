@@ -222,6 +222,42 @@ test('typing into other text fields does not leak into the guess', async ({ page
   await expect(guessInput).toHaveValue(letter)
 })
 
+// Letters the board can't supply are marked while typing (components/guessLetters.js).
+// Nothing is submitted, so this writes nothing to the server.
+test('marks typed letters the board cannot supply', async ({ page }) => {
+  const letters = await startGame(page)
+  const guessInput = page.getByLabel('Tipp beírása')
+  const marks = page.getByTestId('guess-marks')
+  const onBoard = [...letters].find((c) => /[A-Z]/.test(c))
+  const offBoard = [...'ABCDEFGHIJKLMNOPRSTUVZ'].find((c) => !letters.includes(c))
+  expect(onBoard && offBoard, `board "${letters}"`).toBeTruthy()
+
+  await guessInput.fill(onBoard!)
+  await expect(marks).toHaveCount(0) // nothing to mark: the plain input, as before
+
+  // A letter that isn't on the board at all.
+  await guessInput.fill(onBoard! + offBoard!)
+  await expect(marks.locator('span')).toHaveText([onBoard!, offBoard!])
+  await expect(marks.locator('span').nth(0)).not.toHaveClass(/text-game-error/)
+  await expect(marks.locator('span').nth(1)).toHaveClass(/text-game-error/)
+
+  // More of a letter than the board has: only the surplus ones are marked.
+  const have = [...letters].filter((c) => c === onBoard).length
+  await guessInput.fill(onBoard!.repeat(have + 1))
+  await expect(marks.locator('span.text-game-error')).toHaveCount(1)
+  await expect(marks.locator('span').last()).toHaveClass(/text-game-error/)
+
+  // The drawn letters sit on top of the input's own (now transparent) text.
+  const drawn = await marks.locator('span').first().boundingBox()
+  const box = await guessInput.boundingBox()
+  const textWidth = await marks.locator('span').evaluateAll((spans) =>
+    spans.reduce((sum, span) => sum + span.getBoundingClientRect().width, 0))
+  expect(Math.abs(drawn!.x - (box!.x + (box!.width - textWidth) / 2))).toBeLessThan(2)
+
+  await guessInput.fill('')
+  await expect(marks).toHaveCount(0)
+})
+
 // ROADMAP 13.1, the other direction: Enter/Space on a focused *play-area* button must still
 // act on the guess. Keverés keeps focus after a click; if Enter pressed it natively, the
 // board would reshuffle and the typed letter would be wiped. A one-letter guess is too
