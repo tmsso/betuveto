@@ -2497,7 +2497,7 @@ describeApi("Betűvető API contract", () => {
     expect(after.members.every((m: any) => m.done)).toBe(true);
     expect(after.your_game.game_active).toBe(false);
 
-    const state = await call("GET", `/api/game/${guestGame}`);
+    const state = await call("GET", `/api/game/${guestGame}`, undefined, { Cookie: guestCookie });
     expect(state.json.status).toBe("expired");
   }, 60_000);
 
@@ -2585,7 +2585,7 @@ describeApi("Betűvető API contract", () => {
     expect(gaveUp.json.room_pending).toBe(true);
     expect(gaveUp.json.target_word).toBeNull();
     expect(gaveUp.json.possible_words).toBeNull();
-    const peek = await call("GET", `/api/game/${room.guestGame.game_id}/possible_words`);
+    const peek = await call("GET", `/api/game/${room.guestGame.game_id}/possible_words`, undefined, { Cookie: room.guestCookie });
     expect(peek.status).toBe(403);
     expect(peek.json.detail).toBe("room_in_progress");
     const guestRow = (await snapshot(room.code, room.hostCookie)).json.members.find((m: any) => !m.is_host);
@@ -2713,7 +2713,7 @@ describeApi("Betűvető API contract", () => {
     expect(alone.ends_at).toBeCloseTo(before.ends_at + 5, 0);
     expect(alone.your_game.ends_at).toBeCloseTo(before.ends_at + 5, 0);
     // The member's own game row moved too, or lazy expiry would still cut it at the old time.
-    const state = await call("GET", `/api/game/${alone.your_game.game_id}`);
+    const state = await call("GET", `/api/game/${alone.your_game.game_id}`, undefined, { Cookie: hostCookie });
     expect(state.json.ends_at).toBeCloseTo(before.ends_at + 5, 0);
 
     // Granted at most once, however often the snapshot is read.
@@ -2961,7 +2961,9 @@ describeApi("Betűvető API contract", () => {
     // The reported player: a fresh identity with a unique display name.
     const minted = await call("POST", "/api/game/start?target_length=7");
     const targetAuth = { Cookie: minted.headers.get("set-cookie")!.split(";", 1)[0] };
-    const name = `Rep${Date.now() % 1e9}`;
+    // Consonants only: with digits in it, a name now and then read as a blocklisted word to
+    // the display-name filter (which undoes look-alike digits) and this test failed at random.
+    const name = `Rep${[...String(Date.now() % 1e9)].map((d) => "bcdfghjklm"[Number(d)]).join("")}`;
     expect((await call("PATCH", "/api/v1/me/preferences", { display_name: name }, targetAuth)).status).toBe(200);
 
     // The reporter has no cookie yet: the route mints one, like feedback.
