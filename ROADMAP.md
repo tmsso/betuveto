@@ -2233,7 +2233,10 @@ docs PR. 11.10 and 11.19 are recorded in Batch 11.*
   **Open:** a vercel.app → new-domain redirect needs an identity-transfer step first.
   **D-14b (2026-11-11): the owner chose option C, a plain redirect** (one Vercel domain
   setting: betuveto.vercel.app → betuveto.tmsso.com, set from the CLI/API), **to be validated
-  by a reviewer LLM before it is applied. Not applied yet.** Claude advised against it for two reasons:
+  by a reviewer LLM before it is applied.** **Applied 2026-11-11** (after PR #146 moved the E2E
+  proxy target to betuveto.tmsso.com): betuveto.vercel.app now answers 308 → betuveto.tmsso.com,
+  set via a `vercel api` PATCH on the project domain. The production-guard host lists in the
+  tests keep both hosts on purpose. Claude had advised against it for two reasons:
   - **Progress lost:** `bv_anon` is host-bound, so vercel.app players arrive as new players
     unless they linked Google first.
   - **Installed copies break:** the PWA service worker serves pages from cache
@@ -2414,10 +2417,25 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   plan's 1-hour retention). Check the count a week after merge. Which October requests were
   this bug and which were bots is unverified. **CSP enforcing deferred again:** the owner's
   console-day status was not given on 2026-11-03.
+  **2026-11-11, PR #146 (merged, verified live):** `script-src` CSP now **enforcing**; game
+  routes (`/game/{id}/...`) return 404 unless the cookie's player owns the game; a cross-site
+  write guard returns 403 (Sec-Fetch-Site, then Origin); a per-player game-start cap (config key
+  `game_starts_per_player_per_hour`, default 120; CI players and previews exempt; no automated
+  test covers it); the guess UPDATE only touches `status='active'` games; weekly encrypted
+  backups go to the private repo `tmsso/betuveto-backups` (falls back to the public artifact
+  until the owner runs `scripts/setup-backup-deploy-key.sh`). Privacy page: operator, rights
+  and children sections; Terms no longer claim open-source word lists. Sentry "prevent storing
+  IP addresses" done (owner). Still open: IP/2FA posture for `/admin`; retiring the legacy
+  `ADMIN_TOKEN` path; a Vercel Firewall rate-limit rule (owner decision).
+  **PR #147 (merged):** the guess input marks typed letters the board cannot supply.
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
   discussed in a later batch.** Pairs with 11.21 (licence accepted, ready to build).
+  **2026-11-11 finding:** the hu list's source gist carries **no licence**, and the
+  Blkzer0/Wordlists repo has none either (rejected as a replacement). Plan: rebuild the hu list
+  against Magyar Ispell (hunspell hu_HU) and inactivate non-matching words; its own batch, not a
+  chore. `data/README.md` now records the provenance (PR #146).
 - `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
   if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),
