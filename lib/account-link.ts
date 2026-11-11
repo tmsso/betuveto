@@ -4,8 +4,10 @@
  * migrations/0008) so another device can resolve to the same player.
  *
  * The caller has already verified the Neon Auth JWT (lib/neon-auth.ts) — this only decides
- * which player the device should be on afterwards. Nothing about the Google account
- * (email, name, picture) is stored: the opaque Neon user id is the whole link.
+ * which player the device should be on afterwards. `players` stores only the opaque Neon
+ * user id. The Google name, email and picture URL do live in this database, but in Neon
+ * Auth's own `neon_auth` tables, which the game never reads; "Delete my data" removes that
+ * user too (lib/account.ts).
  */
 import { db } from "./db.js";
 
