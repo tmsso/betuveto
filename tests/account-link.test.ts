@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MERGE_CONFIRM_MIN_GAMES, needsMergeConfirmation, planLink } from "../lib/account-link.js";
+import { MERGE_CONFIRM_MIN_GAMES, MERGE_CONFIRM_MIN_GAMES_ADMIN, needsMergeConfirmation, planLink } from "../lib/account-link.js";
 
 const anon = (id: string) => ({ id, authUserId: null });
 
@@ -34,5 +34,16 @@ describe("needsMergeConfirmation", () => {
   });
   it("proceeds once the player said yes", () => {
     expect(needsMergeConfirmation(50, true)).toBe(false);
+  });
+  it("asks at five games for a regular account", () => {
+    expect(MERGE_CONFIRM_MIN_GAMES).toBe(5);
+    expect(needsMergeConfirmation(4, false)).toBe(false);
+    expect(needsMergeConfirmation(5, false)).toBe(true);
+  });
+  it("asks after a single game when the account is an admin's", () => {
+    expect(MERGE_CONFIRM_MIN_GAMES_ADMIN).toBe(1);
+    expect(needsMergeConfirmation(0, false, true)).toBe(false);
+    expect(needsMergeConfirmation(1, false, true)).toBe(true);
+    expect(needsMergeConfirmation(1, true, true)).toBe(false);
   });
 });

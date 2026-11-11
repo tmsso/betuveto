@@ -52,7 +52,7 @@ export async function completeGoogleSignInIfReturning() {
         headers: { Authorization: `Bearer ${jwt}` },
       })
       if (response.ok) outcome = (await response.json()).outcome
-      // The phone has real history (10+ games): nothing merged yet, ask the player first.
+      // The phone has real history (5+ games, 1+ for an admin account): nothing merged yet, ask the player first.
       else if (response.status === 409) {
         const body = await response.json()
         try { sessionStorage.setItem(PENDING_MERGE_KEY, String(body.device_games ?? '')) } catch { /* storage blocked */ }

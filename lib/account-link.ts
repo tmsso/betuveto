@@ -31,11 +31,22 @@ export type LinkPlan =
 
 /** A phone with this many finished games is probably someone's real history, not a quick
  *  try — merging it into a Google account then needs an explicit yes (a tester signing in
- *  on a friend's phone would otherwise take the friend's games, with no undo). */
-export const MERGE_CONFIRM_MIN_GAMES = 10;
+ *  on a friend's phone would otherwise take the friend's games, with no undo). Five games
+ *  already shows real interest (owner decision 2026-11-11). */
+export const MERGE_CONFIRM_MIN_GAMES = 5;
+/** For an admin's account the question comes after a single game, so the owner can test
+ *  the dialog without playing five games first (owner decision 2026-11-11). */
+export const MERGE_CONFIRM_MIN_GAMES_ADMIN = 1;
 
-export function needsMergeConfirmation(deviceGames: number, confirmed: boolean): boolean {
-  return !confirmed && deviceGames >= MERGE_CONFIRM_MIN_GAMES;
+/** `targetIsAdmin` is about the account being merged INTO (the one signing in), never the
+ *  phone's anonymous player — that one can't be an admin. */
+export function needsMergeConfirmation(
+  deviceGames: number,
+  confirmed: boolean,
+  targetIsAdmin = false,
+): boolean {
+  const threshold = targetIsAdmin ? MERGE_CONFIRM_MIN_GAMES_ADMIN : MERGE_CONFIRM_MIN_GAMES;
+  return !confirmed && deviceGames >= threshold;
 }
 
 /** The decision alone, as a pure function so every branch is unit-testable.
@@ -67,8 +78,8 @@ export async function linkAccount(
 > {
   const sql = db();
   return sql.begin(async (tx) => {
-    const [owner] = await tx<{ id: string }[]>`
-      select id from players where auth_user_id = ${authUserId} for update
+    const [owner] = await tx<{ id: string; is_admin: boolean }[]>`
+      select id, is_admin from players where auth_user_id = ${authUserId} for update
     `;
     const [device] = devicePlayerId
       ? await tx<{ id: string; auth_user_id: string | null }[]>`
@@ -89,7 +100,7 @@ export async function linkAccount(
           select count(*)::int as n from games
           where player_id = ${plan.mergeFrom} and status <> 'active'
         `;
-        if (needsMergeConfirmation(n, confirmMerge)) {
+        if (needsMergeConfirmation(n, confirmMerge, owner?.is_admin === true)) {
           return { outcome: "confirm_merge" as const, deviceGames: n };
         }
         await tx`select merge_players(${plan.mergeFrom}::uuid, ${plan.playerId}::uuid)`;

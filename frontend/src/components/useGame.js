@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { betuAPI } from '../api/client'
+import { focusGuessInput } from './focusGuessInput'
 
 // Fallbacks until the first start response arrives (and for an older deployment without
 // `rules`); after that the server's admin-editable values (ROADMAP 12.5 / 11.5) win.
@@ -178,9 +179,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
     setAllPossibleWords([])
     setPossibleWordsCount(response.possible_count)
 
-    if (window.innerWidth >= 640) {
-      document.getElementById('guess-input')?.focus()
-    }
+    focusGuessInput()
     return ui
   }, [])
 
@@ -458,11 +457,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         setCurrentGuess('')
       }
 
-      if (window.innerWidth >= 640) {
-        document.getElementById('guess-input')?.focus()
-      } else {
-        document.getElementById('guess-input')?.blur()
-      }
+      focusGuessInput()
     } catch (err) {
       console.error('Error submitting guess:', err)
       // A 400 (game not active) or 404 (game expired/unknown) means the game is over on
@@ -478,11 +473,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         showTemporaryError(t('errors.submitFailed'))
       }
       setCurrentGuess('')
-      if (window.innerWidth >= 640) {
-        document.getElementById('guess-input')?.focus()
-      } else {
-        document.getElementById('guess-input')?.blur()
-      }
+      focusGuessInput()
     }
   }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength, onRoomFinished])
 
@@ -494,9 +485,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   const handleLetterClick = useCallback((letter, tileIndex = null) => {
     setPickedTiles((prev) => [...prev.slice(0, currentGuess.length), tileIndex])
     setCurrentGuess(currentGuess + letter)
-    if (window.innerWidth >= 640) {
-      document.getElementById('guess-input')?.focus()
-    }
+    focusGuessInput()
   }, [currentGuess])
 
   const handleScramble = useCallback(async () => {
