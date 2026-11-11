@@ -2353,8 +2353,12 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   as JSON without a redirect. **Plumbing done 2026-10-29 (PR #118):** the file is served as `[]`
   with `application/json`, 200 and no redirect (checked with curl on the preview); the real
   statement waits for the signing fingerprint. Steps in `docs/play-store.md`.
-- `[ ]` **16.6 Play Console paperwork** *(owner, Claude drafts text from the privacy page)*:
-  **2026-11-03 (PR #126, built, awaiting merge):** listing assets ready in `docs/play-store/`:
+- `[~]` **16.6 Play Console paperwork** *(owner, Claude drafts text from the privacy page)*:
+  **2026-11-10: PR #126 MERGED** — screenshots and feature graphic regenerated with the
+  2026-11 design (teal/paper, Baloo title). **2026-11-11 (PR #145):** the Data safety draft now
+  declares the email and user IDs of the optional Google sign-in, and "Delete my data" also
+  deletes the Neon Auth user, which meets Play's account-deletion rule. Originally
+  **2026-11-03 (PR #126):** listing assets ready in `docs/play-store/`:
   5 portrait screenshots per language (1080×1920 JPEG), a 1024×500 feature graphic per language,
   full hu + en descriptions; generator in `frontend/play-assets/` (refuses production; never run
   by CI). Also manifest screenshots and `theme_color` #2272b8. Uploading is the owner's step.
@@ -2398,14 +2402,20 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
   discussed in a later batch.** Pairs with 11.21 (licence accepted, ready to build).
-- `[ ]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
+- `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
-  if testers will switch devices.
+  if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),
+  verified by the owner. Follow-ups: a brand-new visitor can save a display name (#142); merging
+  a phone's games into an account asks first from 5 games, 1 for an admin account (#143, #144;
+  the owner tested the admin path 2026-11-11); the phone keyboard no longer opens on load (#144);
+  "Delete my data" removes the Neon Auth user too, admin accounts refused (#145). Open: the Google
+  consent screen names "neon.tech" (the Neon Auth callback host); look at brand verification or
+  a custom auth domain before the public launch.
 - **Open forks:**
   - **D-16b** Offline play: a TWA needs the site up; offline needs a service-worker wordlist
     slice (9.2 note). *(Default: not for the first release.)*
-  - **D-16d (2026-11-03, built as the recommended default, awaiting the owner's OK in PR
-    #125):** the green guess-submit button becomes darker in **light** mode too (#2ecc71 →
+  - **D-16d — moot (2026-11-08):** the design refresh replaced the palette. Original note
+    (2026-11-03, PR #125): the green guess-submit button becomes darker in **light** mode too (#2ecc71 →
     #15803d), because the light green also failed AA (2.1:1). This goes beyond the approved
     dark-mode change. If rejected, #126's screenshots must be regenerated.
   - **D-16c** Order. *(Default: 16.1, 16.2, 16.3, 16.8 first, all useful without a store; then
