@@ -198,6 +198,10 @@
     "back": "← Back to the game",
     "intro": "Betűvető can be played without signing up. This page explains what the game stores and how to erase it.",
     "sections": {
+      "operator": {
+        "heading": "Who is responsible",
+        "body": "Betűvető is run by a private individual as a non-commercial hobby project; that person is the data controller (called \"the operator\" on this page). For any privacy question or request, use the in-game feedback form (from the help screen or Settings); if you want a reply, say where we can reach you."
+      },
       "stored": {
         "heading": "What we store",
         "body": "So that scores, streaks and settings work, the game stores — tied to a random ID kept in a cookie on this device, not to your name or email — your games and guesses, your scores and daily streaks, your achievements, per-word solve counts (used only to choose which words to serve you, never shown), the display name you set if you chose one, the rooms you joined, your settings (board length, language, theme, sound), and an approximate country worked out from your connection when a game starts (visible only to the game's operator, never to other players). To limit automated abuse, when a new player ID is created the game keeps a keyed hash of your IP address (never the address itself) for 24 hours. If you report a word, suggest a word, send feedback (from the help screen or Settings) or report a player's name, that report or message is stored; feedback and name reports also keep the page address, your browser's user-agent string and the interface language, so the operator can read them. Deleting your data (see below) deletes all of these too."
@@ -216,7 +220,15 @@
       },
       "retention": {
         "heading": "Retention",
-        "body": "Data is kept until you delete it (see below). The database is backed up weekly; backups are encrypted and deleted after 90 days."
+        "body": "Data is kept until you delete it (see below). The database is backed up weekly; backups are encrypted, kept in a non-public place and deleted after 90 days. A deleted player's data can therefore remain in backups for up to 90 days."
+      },
+      "rights": {
+        "heading": "Your rights",
+        "body": "We process your data because the game cannot work without it (scores, streaks, settings, rooms — GDPR Article 6(1)(b)), and, for limiting abuse and for error reports, on the basis of legitimate interest (Article 6(1)(f)). Your data is never sold, and is not passed to anyone other than the processors listed above. You can ask to see, correct or delete the data held about you, and you can object to its processing; deletion you can do yourself below, the rest you can request through the feedback form. If you believe your data is handled wrongly, you can complain to your data protection authority (in Hungary: the National Authority for Data Protection and Freedom of Information, naih.hu)."
+      },
+      "children": {
+        "heading": "Children",
+        "body": "The game is not aimed at children under 13, and we do not knowingly collect data about them. If you are a parent and believe your child's data is in the game, it can be removed with the \"Delete my data\" button on their device, or by asking through the feedback form."
       }
     },
     "delete": {
@@ -233,7 +245,7 @@
   },
   "terms": {
     "title": "Terms of use",
-    "updated": "Last updated: October 2026",
+    "updated": "Last updated: November 2026",
     "back": "← Back to the game",
     "intro": "Betűvető is a free word game you can play without signing up. By playing it you agree to these terms. They are meant to be short and readable; the Privacy page explains what data the game stores.",
     "sections": {
@@ -255,7 +267,7 @@
       },
       "words": {
         "heading": "Words",
-        "body": "The word lists come from open-source dictionaries and may contain mistakes, or words some people find offensive. A word appearing in the game is not an endorsement. If you find one that shouldn't be there, report it from the found-words list."
+        "body": "The word lists come from publicly available word collections and may contain mistakes, or words some people find offensive. A word appearing in the game is not an endorsement. If you find one that shouldn't be there, report it from the found-words list."
       },
       "liability": {
         "heading": "Liability",

@@ -37,14 +37,26 @@ request time.
 
 ## `magyar-szavak.txt` (wordlist code `hu`)
 
-- **Provenance unknown, licence unverified.** This file predates ROADMAP.md (present
-  since the original Streamlit prototype) and Batch 0.9 already flagged "confirm and
-  document the source and licence" as an open TODO — checked again for this batch
-  (git history, README, and repo-wide search for any accompanying note) and still found
-  nothing establishing where the 161k-word list came from or under what terms. Do not
-  assert a licence for this file without a source to point at. If the original author can
-  identify the source, update this section; until then, treat it as a legacy asset carried
-  forward, not one with confirmed redistribution rights.
+- **Source (identified by the project owner, 2026-11-11):** the GitHub gist
+  [Konstantinusz/f9517357e46fa827c3736031ac8d01c7](https://gist.github.com/Konstantinusz/f9517357e46fa827c3736031ac8d01c7)
+  ("Magyar szavak listája", published 2020-09-22).
+- **Licence: none stated.** The gist carries no licence file or notice, and its author has
+  not answered a 2024 comment asking what the list was compiled from. With no licence the
+  default is "all rights reserved": the file is publicly readable, but nothing grants a right
+  to redistribute it. (A bare list of words has thin copyright protection at best, and the
+  EU database right needs a substantial investment by an EU maker — so the practical risk is
+  low, but it is not *no* risk, and it is not a claim we can make to players. The Terms page
+  therefore says "publicly available word collections", not "open-source dictionaries".)
+- **Not a fix:** [Blkzer0/Wordlists](https://github.com/Blkzer0/Wordlists) `Hungarian.txt`
+  was considered as a replacement and rejected — that repository has no licence either
+  (and is a password-cracking collection, last updated 2018).
+- **Planned revision (ROADMAP 16.9):** rebuild the list against
+  [Magyar Ispell](https://github.com/laszlonemeth/magyarispell) (the hunspell `hu_HU`
+  dictionary; tri-licensed GPL 2 / LGPL 2.1 / MPL 1.1). Expand its `.dic`/`.aff` into word
+  forms, keep the words that are in both lists, and mark the rest of the current list
+  inactive (`words.active = false`, never deleted — game history references them). After that
+  the active list is a subset of a freely licensed dictionary and this section can name
+  that licence instead.
 
 ## `name-blocklist/hu.txt`, `name-blocklist/en.txt` (display-name filter)
 
