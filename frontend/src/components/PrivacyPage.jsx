@@ -11,7 +11,7 @@ import { betuAPI } from '../api/client'
  */
 export default function PrivacyPage() {
   const { t } = useTranslation()
-  const [status, setStatus] = useState('idle') // 'idle' | 'deleting' | 'done' | 'error'
+  const [status, setStatus] = useState('idle') // 'idle' | 'deleting' | 'done' | 'error' | 'admin'
 
   const handleDelete = async () => {
     if (!window.confirm(t('privacy.delete.confirm'))) return
@@ -19,8 +19,9 @@ export default function PrivacyPage() {
     try {
       await betuAPI.deleteMe()
       setStatus('done')
-    } catch {
-      setStatus('error')
+    } catch (err) {
+      // 409: an admin account is never self-deleted (lib/account.ts explains why).
+      setStatus(String(err?.message).includes('(409)') ? 'admin' : 'error')
     }
   }
 
@@ -75,9 +76,9 @@ export default function PrivacyPage() {
               >
                 {status === 'deleting' ? t('privacy.delete.deleting') : t('privacy.delete.button')}
               </button>
-              {status === 'error' && (
+              {(status === 'error' || status === 'admin') && (
                 <p role="alert" className="mt-2 text-sm text-game-error">
-                  {t('privacy.delete.error')}
+                  {t(status === 'admin' ? 'privacy.delete.adminRefused' : 'privacy.delete.error')}
                 </p>
               )}
             </>

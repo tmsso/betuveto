@@ -194,7 +194,7 @@
   },
   "privacy": {
     "title": "Adatvédelem",
-    "updated": "Utolsó frissítés: 2026. október",
+    "updated": "Utolsó frissítés: 2026. november",
     "back": "← Vissza a játékhoz",
     "intro": "A Betűvető regisztráció nélkül játszható. Ez az oldal leírja, milyen adatokat tárol a játék, és hogyan törölheted őket.",
     "sections": {
@@ -208,7 +208,7 @@
       },
       "google": {
         "heading": "Nem kötelező Google-bejelentkezés",
-        "body": "Ha a Beállításokban a „Haladás mentése Google-fiókkal” lehetőséget választod, a bejelentkezést a Neon Auth (hitelesítési szolgáltatónk, adatfeldolgozó) végzi: a Google-tól megkapja a fiókod nevét, e-mail-címét és azonosítóját. A játék saját adatbázisa csak egy belső fiókazonosítót tárol, amely a játékosodat ehhez a bejelentkezéshez köti, az e-mail-címedet soha. Az e-mail-címed csak neked látszik a Beállításokban, közvetlenül a bejelentkezésből olvasva; más játékosok soha nem látják. Ha olyan eszközön jelentkezel be, ahol már vannak játékaid, azokat egyesítjük a fiókodéval. Kijelentkezéskor a fiókod megmarad; az adataid törlése (lásd lent) törli a játékosodat és annak kapcsolatát a fiókkal."
+        "body": "Ha a Beállításokban a „Haladás mentése Google-fiókkal” lehetőséget választod, a bejelentkezést a Neon Auth (hitelesítési szolgáltatónk, adatfeldolgozó) végzi. A Google-tól megkapja a fiókod nevét, e-mail-címét, profilképének hivatkozását és azonosítóját, és ezeket a saját bejelentkezési tábláiban tárolja, a játékkal azonos adatbázisban. Maga a játék csak egy belső fiókazonosítót használ, amely a játékosodat ehhez a bejelentkezéshez köti; a nevedet és az e-mail-címedet onnan soha nem olvassa ki. Az e-mail-címed csak neked látszik a Beállításokban, közvetlenül a bejelentkezésből olvasva; más játékosok soha nem látják. Ha olyan eszközön jelentkezel be, ahol már vannak játékaid, azokat egyesítjük a fiókodéval (5 vagy több játéknál előbb megkérdezünk). Kijelentkezéskor a fiókod megmarad. Az adataid törlése (lásd lent) a játékosodat és a Google-bejelentkezésed adatait (név, e-mail-cím, kép hivatkozása) is törli."
       },
       "hosting": {
         "heading": "Hol tároljuk",
@@ -221,13 +221,14 @@
     },
     "delete": {
       "heading": "Adataim törlése",
-      "body": "Ez véglegesen eltávolítja a játékosprofilodat, a szavankénti statisztikáidat, a napi eredményeidet, a kitüntetéseidet, az általad küldött szójelentéseket és -javaslatokat, valamint a visszajelzéseidet. A korábbi játékaid névtelen előzményként az adatbázisban maradnak, de nem köthetők hozzád. Utána azonnal folytathatod a játékot új, névtelen játékosként.",
+      "body": "Ez véglegesen eltávolítja a játékosprofilodat, a szavankénti statisztikáidat, a napi eredményeidet, a kitüntetéseidet, az általad küldött szójelentéseket és -javaslatokat, valamint a visszajelzéseidet. Ha Google-fiókkal jelentkeztél be, a bejelentkezésed adatai (név, e-mail-cím, kép hivatkozása) is törlődnek, és kijelentkeztetünk. A korábbi játékaid névtelen előzményként az adatbázisban maradnak, de nem köthetők hozzád. Utána azonnal folytathatod a játékot új, névtelen játékosként.",
       "button": "Adataim törlése",
       "deleting": "Törlés…",
       "confirm": "Véglegesen törlöd a Betűvető-adataidat ezen az eszközön? Ezt nem lehet visszavonni.",
       "done": "Az adataidat töröltük.",
       "startFresh": "Kezdés elölről →",
-      "error": "Valami hiba történt. Próbáld újra."
+      "error": "Valami hiba történt. Próbáld újra.",
+      "adminRefused": "Ez egy adminisztrátori fiók, ezért innen nem törölhető. Az üzemeltető kézzel távolítja el."
     }
   },
   "terms": {

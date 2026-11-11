@@ -81,8 +81,8 @@ export function takeSignInOutcome() {
   }
 }
 
-/** The signed-in Google account's email, read from the Neon Auth session in the browser
- *  only (our API never receives or stores it). Null when the Neon session has lapsed —
+/** The signed-in Google account's email, read from the Neon Auth session in the browser.
+ *  Our API never reads it; Neon Auth keeps it in its own tables (see the privacy page). Null when the Neon session has lapsed —
  *  the device stays linked either way. */
 export async function signedInEmail() {
   try {

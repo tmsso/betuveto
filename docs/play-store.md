@@ -55,18 +55,26 @@ the project, so nothing is shared.
 | Play data type | Collected? | What it is in Betűvető | Optional? | Purposes |
 |---|---|---|---|---|
 | Location → Approximate location | Yes | Country derived from the IP when a game starts (`games.country`), admin-only | No | Analytics |
-| Personal info → Name | Yes | Display name (a nickname the player chooses), shown on leaderboards and in rooms | Yes | App functionality |
+| Personal info → Name | Yes | Display name (a nickname the player chooses), shown on leaderboards and in rooms; with Google sign-in also the Google account name, kept by Neon Auth and never shown | Yes | App functionality, Account management |
+| Personal info → Email address | Yes | Only with the optional Google sign-in (Batch 8.1): Neon Auth stores the Google email in its `neon_auth` tables in our database; shown only to the player, in Settings | Yes | Account management |
+| Personal info → User IDs | Yes | Only with Google sign-in: the Neon Auth user id (`players.auth_user_id`) and the Google account id Neon Auth keeps | Yes | Account management |
 | App activity → App interactions | Yes | Games, guesses, scores, streaks, achievements, per-word solve counts, room membership | No | App functionality, Analytics |
 | App activity → Other user-generated content | Yes | Feedback messages, word reports, word suggestions, name reports | Yes | App functionality (support, moderation) |
 | App info and performance → Crash logs | Yes | Sentry error reports (frontend and API) | No | App functionality (diagnostics) |
 | App info and performance → Diagnostics | Yes | Browser user-agent stored with feedback; Sentry context | No | App functionality |
 | Device or other IDs | Yes | Random player ID in the `bv_anon` cookie; keyed hash of the IP for 24 h when a new ID is minted | No | App functionality, Fraud prevention/security |
-| Everything else (email, phone, contacts, photos, payments, health, …) | No | | | |
+| Everything else (phone, contacts, photos, payments, health, …) | No | | | |
 
 - Data encrypted in transit: **yes** (HTTPS only).
 - Users can request deletion: **yes**. In-app: Settings → Privacy → "Delete my data"
   (`DELETE /api/v1/me`). Deletion URL for the form: `https://betuveto.tmsso.com/privacy`.
-- No account is needed, so Play's "account deletion" requirement is met by the same page.
+- Accounts: playing needs no account, but the optional Google sign-in creates one, so Play's
+  account-deletion requirement applies. The same "Delete my data" button covers it: it
+  deletes the player **and** the Neon Auth user (`neon_auth."user"`, whose sessions and
+  linked Google account rows cascade), so the email and name are gone too. Admin accounts are
+  refused there (removed by hand). Verified by `tests/delete-me.test.ts`.
+- Google profile picture: Neon Auth stores only the picture's URL, which the game never
+  shows. Not declared as "Photos" (no image is collected); re-check this against the live form.
 
 **Log drain (checked 2026-10-29):** no Vercel log drains exist (neither current nor legacy
 integration drains). `SENTRY_VERCEL_LOG_DRAIN_URL` is only a URL the Sentry integration
