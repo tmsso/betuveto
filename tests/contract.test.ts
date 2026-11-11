@@ -93,6 +93,11 @@ interface StartResult {
   difficulty: "easy" | "normal";
 }
 
+/** game id -> the identity cookie it was started with (see `call`). */
+const gameOwnerCookie = new Map<string, string>();
+/** Pass as `extraHeaders` to send a game request with no identity at all. */
+const NO_COOKIE = { Cookie: "" };
+
 async function call(
   method: "GET" | "POST" | "PATCH" | "DELETE",
   route: string,
@@ -101,6 +106,14 @@ async function call(
 ): Promise<{ status: number; json: any; headers: Headers }> {
   const headers: Record<string, string> = { ...extraHeaders };
   if (BYPASS) headers["x-vercel-protection-bypass"] = BYPASS;
+  // Game routes answer only the game's owner (pre-Play hardening). A browser's cookie jar
+  // does this by itself; here `call` replays the cookie the game was started with unless
+  // the test passes its own Cookie header (NO_COOKIE to send none at all).
+  const hasCookie = Object.keys(headers).some((name) => name.toLowerCase() === "cookie");
+  const gameInRoute = route.match(/\/game\/([0-9a-f-]{36})(?:[/?]|$)/i)?.[1];
+  if (!hasCookie && gameInRoute && gameOwnerCookie.has(gameInRoute)) {
+    headers.Cookie = gameOwnerCookie.get(gameInRoute)!;
+  }
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   const response = await fetch(`${BASE_URL}${route}`, {
@@ -121,6 +134,13 @@ async function call(
     if (missing.length > 0) {
       throw new Error(`${method} ${route} is missing fields client.ts requires: ${missing.slice(0, 10).join(", ")}`);
     }
+  }
+  // Remember who owns a game the moment a response hands out its id.
+  const startedGame = (json as { game_id?: unknown } | null)?.game_id;
+  if (response.ok && typeof startedGame === "string") {
+    const sent = Object.entries(headers).find(([name]) => name.toLowerCase() === "cookie")?.[1];
+    const owner = response.headers.get("set-cookie")?.split(";", 1)[0] ?? sent;
+    if (owner) gameOwnerCookie.set(startedGame, owner);
   }
   return { status: response.status, json, headers: response.headers };
 }
@@ -341,6 +361,44 @@ function theTarget(game: StartResult): string {
 }
 
 describeApi("Betűvető API contract", () => {
+  // --- Pre-Play hardening: a game answers only its owner --------------------
+  it("game routes are a 404 for anyone but the player who started the game", async () => {
+    const game = await start();
+    const stranger = await startWithCookie();
+    const routes: ["GET" | "POST", string][] = [
+      ["GET", ""],
+      ["GET", "/possible_words/count"],
+      ["GET", "/possible_words"],
+      ["POST", "/guess"],
+      ["POST", "/hint"],
+      ["POST", "/rescramble"],
+      ["POST", "/give_up"], // last: had the check failed, this would end the game
+    ];
+    for (const who of [NO_COOKIE, { Cookie: stranger.cookie }]) {
+      for (const [method, suffix] of routes) {
+        const body = suffix === "/guess" ? { word: "ABC" } : undefined;
+        const { status } = await call(method, `/api/game/${game.game_id}${suffix}`, body, who);
+        expect(status, `${method} ${suffix}`).toBe(404);
+      }
+    }
+    // ...and none of that touched the owner's game.
+    const mine = await call("GET", `/api/game/${game.game_id}`);
+    expect(mine.status).toBe(200);
+    expect(mine.json.status).toBe("active");
+  });
+
+  it("refuses a write sent from another site, but not a read", async () => {
+    const elsewhere = { Origin: "https://example.com" };
+    const write = await call("POST", "/api/game/start?target_length=7", undefined, elsewhere);
+    expect(write.status).toBe(403);
+    expect(write.headers.get("set-cookie")).toBeNull(); // refused before any identity is minted
+    const labelled = await call("POST", "/api/game/start?target_length=7", undefined, {
+      "Sec-Fetch-Site": "same-site",
+    });
+    expect(labelled.status).toBe(403);
+    expect((await call("GET", "/api/v1/health", undefined, elsewhere)).status).toBe(200);
+  });
+
   // --- No solution leaks ---------------------------------------------------
   it("start does not leak the solution", async () => {
     const game = await start();
@@ -2439,7 +2497,7 @@ describeApi("Betűvető API contract", () => {
     expect(after.members.every((m: any) => m.done)).toBe(true);
     expect(after.your_game.game_active).toBe(false);
 
-    const state = await call("GET", `/api/game/${guestGame}`);
+    const state = await call("GET", `/api/game/${guestGame}`, undefined, { Cookie: guestCookie });
     expect(state.json.status).toBe("expired");
   }, 60_000);
 
@@ -2527,7 +2585,7 @@ describeApi("Betűvető API contract", () => {
     expect(gaveUp.json.room_pending).toBe(true);
     expect(gaveUp.json.target_word).toBeNull();
     expect(gaveUp.json.possible_words).toBeNull();
-    const peek = await call("GET", `/api/game/${room.guestGame.game_id}/possible_words`);
+    const peek = await call("GET", `/api/game/${room.guestGame.game_id}/possible_words`, undefined, { Cookie: room.guestCookie });
     expect(peek.status).toBe(403);
     expect(peek.json.detail).toBe("room_in_progress");
     const guestRow = (await snapshot(room.code, room.hostCookie)).json.members.find((m: any) => !m.is_host);
@@ -2655,7 +2713,7 @@ describeApi("Betűvető API contract", () => {
     expect(alone.ends_at).toBeCloseTo(before.ends_at + 5, 0);
     expect(alone.your_game.ends_at).toBeCloseTo(before.ends_at + 5, 0);
     // The member's own game row moved too, or lazy expiry would still cut it at the old time.
-    const state = await call("GET", `/api/game/${alone.your_game.game_id}`);
+    const state = await call("GET", `/api/game/${alone.your_game.game_id}`, undefined, { Cookie: hostCookie });
     expect(state.json.ends_at).toBeCloseTo(before.ends_at + 5, 0);
 
     // Granted at most once, however often the snapshot is read.
@@ -2903,7 +2961,9 @@ describeApi("Betűvető API contract", () => {
     // The reported player: a fresh identity with a unique display name.
     const minted = await call("POST", "/api/game/start?target_length=7");
     const targetAuth = { Cookie: minted.headers.get("set-cookie")!.split(";", 1)[0] };
-    const name = `Rep${Date.now() % 1e9}`;
+    // Consonants only: with digits in it, a name now and then read as a blocklisted word to
+    // the display-name filter (which undoes look-alike digits) and this test failed at random.
+    const name = `Rep${[...String(Date.now() % 1e9)].map((d) => "bcdfghjklm"[Number(d)]).join("")}`;
     expect((await call("PATCH", "/api/v1/me/preferences", { display_name: name }, targetAuth)).status).toBe(200);
 
     // The reporter has no cookie yet: the route mints one, like feedback.

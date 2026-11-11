@@ -198,6 +198,10 @@
     "back": "← Vissza a játékhoz",
     "intro": "A Betűvető regisztráció nélkül játszható. Ez az oldal leírja, milyen adatokat tárol a játék, és hogyan törölheted őket.",
     "sections": {
+      "operator": {
+        "heading": "Ki kezeli az adatokat",
+        "body": "A Betűvetőt egy magánszemély üzemelteti hobbiprojektként, haszonszerzési cél nélkül; ő az adatkezelő (a továbbiakban: az üzemeltető). Adatvédelmi kérdéssel vagy kéréssel a játékon belüli visszajelzés űrlapon érheted el (a súgóból vagy a Beállításokból); ha választ vársz, írd bele, hol érhetünk el."
+      },
       "stored": {
         "heading": "Mit tárolunk",
         "body": "Hogy a pontszámok, a sorozatok és a beállítások működjenek, a játék egy véletlenszerű azonosítóhoz köti az adataidat. Ezt az azonosítót egy süti őrzi ezen az eszközön, és nem kapcsolódik a nevedhez vagy az e-mail-címedhez. Az azonosítóhoz a következőket tároljuk: a játékaidat és tippjeidet, a pontszámaidat és napi sorozataidat, a kitüntetéseidet, azt, hogy az egyes szavakat hányszor fejtetted meg (ezt kizárólag arra használjuk, hogy eldöntsük, milyen szavakat kapj, és sehol sem jelenik meg), a megjelenítendő nevedet, ha megadtál ilyet, a szobákat, amelyekhez csatlakoztál, a beállításaidat (szóhossz, nyelv, téma, hang), valamint a hozzávetőleges országodat, amelyet egy játék indulásakor a kapcsolatodból állapítunk meg (ezt csak a játék üzemeltetője látja, a többi játékos soha). Az automatizált visszaélések korlátozására új játékosazonosító létrehozásakor az IP-címedből kulccsal képzett lenyomatot tárolunk 24 órán át (magát a címet soha). Ha szót jelentesz vagy javasolsz, visszajelzést küldesz (a súgóból vagy a Beállításokból), vagy egy játékos nevét jelented, ezeket is tároljuk; a visszajelzések és a névjelentések mellé az oldal címét, a böngésződ azonosító szövegét és a felület nyelvét is elmentjük, hogy az üzemeltető elolvashassa őket. Ha törlöd az adataidat (lásd lent), ezek is törlődnek."
@@ -216,7 +220,15 @@
       },
       "retention": {
         "heading": "Megőrzés",
-        "body": "Az adatokat addig őrizzük meg, amíg nem törlöd őket (lásd lent). Az adatbázisról hetente titkosított biztonsági mentés készül, ezeket 90 nap után töröljük."
+        "body": "Az adatokat addig őrizzük meg, amíg nem törlöd őket (lásd lent). Az adatbázisról hetente titkosított biztonsági mentés készül; ezeket nem nyilvános helyen tároljuk, és 90 nap után töröljük. Egy törölt játékos adatai így legfeljebb 90 napig még szerepelhetnek a mentésekben."
+      },
+      "rights": {
+        "heading": "A jogaid",
+        "body": "Az adataidat azért kezeljük, mert a játék nélkülük nem működne (pontszámok, sorozatok, beállítások, szobák — GDPR 6. cikk (1) bekezdés b) pont), a visszaélések korlátozását és a hibajelentéseket pedig jogos érdek alapján (f) pont). Az adataidat nem adjuk el, és nem adjuk át másnak a fent felsorolt adatfeldolgozókon kívül. Kérheted, hogy megmutassuk, kijavítsuk vagy töröljük a rólad tárolt adatokat, és tiltakozhatsz a kezelésük ellen; a törlést lent magad is elvégezheted, a többit a visszajelzés űrlapon kérheted. Ha úgy látod, hogy az adataidat nem megfelelően kezeljük, panaszt tehetsz az adatvédelmi hatóságnál (Magyarországon a Nemzeti Adatvédelmi és Információszabadság Hatóságnál, naih.hu)."
+      },
+      "children": {
+        "heading": "Gyerekek",
+        "body": "A játék nem 13 éven aluli gyerekeknek készült, és tudatosan nem gyűjtünk róluk adatot. Ha szülőként úgy látod, hogy a gyermeked adatai a játékba kerültek, az ő eszközén az „Adataim törlése” gombbal, vagy a visszajelzés űrlapon kérve eltávolíthatók."
       }
     },
     "delete": {
@@ -233,7 +245,7 @@
   },
   "terms": {
     "title": "Felhasználási feltételek",
-    "updated": "Utolsó frissítés: 2026. október",
+    "updated": "Utolsó frissítés: 2026. november",
     "back": "← Vissza a játékhoz",
     "intro": "A Betűvető ingyenes szójáték, amely regisztráció nélkül játszható. A játékkal elfogadod ezeket a feltételeket. Igyekeztünk röviden és érthetően fogalmazni; hogy a játék milyen adatokat tárol, azt az Adatvédelem oldal írja le.",
     "sections": {
@@ -255,7 +267,7 @@
       },
       "words": {
         "heading": "Szavak",
-        "body": "A szólisták nyílt forrású szótárakból származnak, és tartalmazhatnak hibákat vagy olyan szavakat, amelyeket egyesek sértőnek tartanak. Attól, hogy egy szó szerepel a játékban, még nem értünk vele egyet. Ha olyat találsz, aminek nem kellene ott lennie, jelentsd a talált szavak listájából."
+        "body": "A szólisták nyilvánosan elérhető szógyűjteményekből származnak, és tartalmazhatnak hibákat vagy olyan szavakat, amelyeket egyesek sértőnek tartanak. Attól, hogy egy szó szerepel a játékban, még nem értünk vele egyet. Ha olyat találsz, aminek nem kellene ott lennie, jelentsd a talált szavak listájából."
       },
       "liability": {
         "heading": "Felelősség",
