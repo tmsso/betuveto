@@ -2409,8 +2409,10 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   a phone's games into an account asks first from 5 games, 1 for an admin account (#143, #144;
   the owner tested the admin path 2026-11-11); the phone keyboard no longer opens on load (#144);
   "Delete my data" removes the Neon Auth user too, admin accounts refused (#145). Open: the Google
-  consent screen names "neon.tech" (the Neon Auth callback host); look at brand verification or
-  a custom auth domain before the public launch.
+  consent screen names "neon.tech" (the Neon Auth callback host). Researched 2026-11-11 in
+  `docs/research/google-consent-neon-domain.md`: Google shows the redirect host until the brand is
+  verified; Neon Auth has no custom domain. Path: verify tmsso.com in Search Console, then Verify
+  Branding (owner); fallback if refused: Google ID-token sign-in on our domain (unverified on Neon).
 - **Open forks:**
   - **D-16b** Offline play: a TWA needs the site up; offline needs a service-worker wordlist
     slice (9.2 note). *(Default: not for the first release.)*
