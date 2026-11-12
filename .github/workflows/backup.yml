@@ -20,6 +20,24 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    # contents: read for the checkout; issues: write for the failure alert at the end.
+    permissions:
+      contents: read
+      issues: write
+    # A throwaway Postgres 18 that lives only inside this job: the restore test below loads
+    # every dump into it, so a backup that can't be restored fails the run (and alerts).
+    services:
+      restore-test:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: restore-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Install pg_dump matching the Neon server version (PG 18)
         run: |
@@ -52,6 +70,49 @@ jobs:
           # postgresql-client-18 package above is installed alongside it — so call
           # the versioned binary directly instead of trusting PATH resolution.
           /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" --format=custom --file=betuveto-backup.dump
+
+      # Restore test (2026-11): a backup is only worth something if it restores. Load the
+      # dump into the throwaway Postgres above and compare row counts with production.
+      # Counts can drift by a few rows because players keep playing between pg_dump's
+      # snapshot and the count query, hence the tolerance (2% or 50 rows, whichever is
+      # larger). A missing table or a big gap means a broken backup.
+      # continue-on-error: a backup that fails the test is still encrypted and pushed (a
+      # partial backup beats none); the "Fail the run" step below then makes the run red.
+      - name: Restore test — load the dump into a throwaway Postgres and compare row counts
+        id: restore
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESTORE_URL: postgresql://postgres:restore-test@localhost:5432/postgres
+        run: |
+          bin=/usr/lib/postgresql/18/bin
+          # --no-owner/--no-privileges: Neon's roles (neondb_owner, ...) don't exist here.
+          # --exit-on-error: any failed statement fails the test instead of being skipped.
+          $bin/pg_restore --no-owner --no-privileges --schema=public --exit-on-error \
+            --dbname "$RESTORE_URL" betuveto-backup.dump
+          tables_sql="select table_name from information_schema.tables
+                      where table_schema = 'public' and table_type = 'BASE TABLE' order by 1"
+          src_tables=$($bin/psql "$DATABASE_URL" -tAc "$tables_sql")
+          dst_tables=$($bin/psql "$RESTORE_URL" -tAc "$tables_sql")
+          if [ "$src_tables" != "$dst_tables" ]; then
+            echo "::error::Restored table list differs from production."
+            diff <(echo "$src_tables") <(echo "$dst_tables") || true
+            exit 1
+          fi
+          bad=0
+          for t in $src_tables; do
+            src=$($bin/psql "$DATABASE_URL" -tAc "select count(*) from public.\"$t\"")
+            dst=$($bin/psql "$RESTORE_URL" -tAc "select count(*) from public.\"$t\"")
+            diff=$(( src > dst ? src - dst : dst - src ))
+            allowed=$(( src / 50 > 50 ? src / 50 : 50 ))
+            printf '%-22s production %8s  restored %8s\n' "$t" "$src" "$dst"
+            if [ "$diff" -gt "$allowed" ]; then
+              echo "::error::$t: restored $dst rows, production has $src."
+              bad=1
+            fi
+          done
+          if [ "$bad" -ne 0 ]; then exit 1; fi
+          echo "Restore test passed: $(echo "$src_tables" | wc -l) tables."
 
       - name: Encrypt the dump (public-key only; the plaintext never leaves the runner)
         run: |
@@ -136,3 +197,42 @@ jobs:
           path: betuveto-backup.dump.gpg
           if-no-files-found: error
           retention-days: 90
+
+      - name: Fail the run if the restore test failed
+        if: steps.restore.outcome == 'failure'
+        run: |
+          echo "::error::The backup was pushed, but it did not pass the restore test (see that step's log)."
+          exit 1
+
+      # Failure alert (2026-11): the scheduled run of 2026-11-09 failed (stale DATABASE_URL
+      # secret) and nobody noticed for three days, because GitHub's email about a failed
+      # scheduled run is easy to miss. An issue that @-mentions the owner is harder to miss.
+      # One open issue at a time: later failures add a comment; the next green run closes it.
+      # The issue is public (this repo is), so it carries only the run link, never log text.
+      - name: Alert — open or update a "backup failed" issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Weekly DB backup failed"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$open" ]; then
+            gh issue comment "$open" -R "$GITHUB_REPOSITORY" --body "Failed again on $(date -u +%F): $run_url"
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$title" \
+              --body "@tmsso the weekly database backup failed on $(date -u +%F): $run_url — see the failed step's log. This issue closes itself after the next successful run."
+          fi
+
+      - name: Close the "backup failed" issue after a successful run
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Weekly DB backup failed"
+          for n in $(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" \
+              --json number,title --jq ".[] | select(.title == \"$title\") | .number"); do
+            gh issue close "$n" -R "$GITHUB_REPOSITORY" \
+              --comment "Backup succeeded again on $(date -u +%F): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          done

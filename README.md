@@ -127,7 +127,21 @@ public key in `.github/backup-public-key.asc`, and pushes it to the private repo
 `tmsso/betuveto-backups` as `backups/betuveto-<date>.dump.gpg` (the last 90 days are kept).
 Only the project owner holds the matching private key (never stored in GitHub). The
 workflow pushes with a deploy key limited to that repository;
-`scripts/setup-backup-deploy-key.sh` creates or rotates it. To restore:
+`scripts/setup-backup-deploy-key.sh` creates or rotates it.
+
+Safety checks around it:
+
+- **Restore test (every run):** before encrypting, the workflow restores the dump into a
+  throwaway Postgres 18 inside the CI job and compares every `public` table's row count with
+  production. A failing test still pushes the backup, but turns the run red.
+- **Failure alert:** a failed run opens a public issue "Weekly DB backup failed" (run link
+  only, no log text) that @-mentions the owner, or comments on the open one; the next green
+  run closes it.
+- **Decrypt check (owner, by hand):** CI never holds the private key, so
+  `scripts/check-backup-decrypt.sh path/to/private-key.asc` downloads the newest backup and
+  checks it decrypts to a pg_dump archive, without writing the plaintext to disk.
+
+To restore:
 
 ```bash
 gh api repos/tmsso/betuveto-backups/contents/backups --jq '.[].name'   # what is there
