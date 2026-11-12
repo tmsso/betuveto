@@ -2428,6 +2428,13 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   IP addresses" done (owner). Still open: IP/2FA posture for `/admin`; retiring the legacy
   `ADMIN_TOKEN` path; a Vercel Firewall rate-limit rule (owner decision).
   **PR #147 (merged):** the guess input marks typed letters the board cannot supply.
+  **2026-11-12, backups:** the scheduled run had failed silently since 2026-11-09 (stale
+  `DATABASE_URL` Actions secret; owner refreshed it and set the deploy key). Backups now land
+  in the private repo; the 8 old encrypted artifacts on this public repo were deleted.
+  **PR #150 (merged, verified from main):** every run restore-tests the dump in a throwaway
+  Postgres 18 (row counts vs production, 20/20 tables exact), a failed run opens an issue that
+  @-mentions the owner and the next green run closes it (failure path tested via #149), and
+  `scripts/check-backup-decrypt.sh` lets the owner check the private key decrypts the newest backup.
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
