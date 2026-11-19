@@ -2442,6 +2442,12 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   Firewall rule **"API rate limit per IP (production)"** published (owner): `/api/` on
   production, 300 requests per 60 s per IP, fixed window, answers 429; a room player polls about
   20/min.
+  **Still open from this round (2026-11-19):** (a) remove the `ADMIN_TOKEN` login: the token form in
+  `frontend/src/AdminApp.jsx`, `hasValidAdminToken` in `lib/admin.ts`, the `x-admin-token`
+  contract cases, and the Preview env var; (b) no automated test covers the
+  `game_starts_per_player_per_hour` cap (#146); (c) owner: confirm the backup private key
+  (uid "Betuveto backup", 6167249F) exists somewhere. It is not on the dev machine, and without
+  it no backup can be decrypted. If it is lost, generate a new keypair and commit the new public key.
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
