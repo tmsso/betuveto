@@ -51,6 +51,34 @@ export {
   loadGame,
 } from "./game-core.js";
 
+/** Games this player started in the last hour, and whether it is a pinned CI player. $1 =
+ *  player id. `is_ci` is null for an unknown player, which counts as "not CI". */
+export const START_CAP_USAGE_SQL = `
+  select count(*)::int as recent,
+         (select is_ci from players where id = $1) as is_ci
+    from games
+   where player_id = $1 and started_at >= now() - interval '1 hour'
+`;
+
+export interface StartCapUsage {
+  recent: number;
+  is_ci: boolean | null;
+}
+
+/** Whether the per-player game-start cap is checked at all (see startGame for why each
+ *  exemption exists). A cap of 0 or less switches it off. */
+export function startCapApplies(
+  cap: number,
+  ctx: { freshIdentity: boolean; vercelEnv: string | undefined },
+): boolean {
+  return cap > 0 && !ctx.freshIdentity && ctx.vercelEnv !== "preview";
+}
+
+/** True once the player has used the whole hourly allowance; CI players never are. */
+export function overStartCap(cap: number, usage: StartCapUsage): boolean {
+  return !usage.is_ci && usage.recent >= cap;
+}
+
 export async function startGame(
   targetLength: number,
   durationSeconds: number | undefined,
@@ -104,15 +132,11 @@ export async function startGame(
   // contract suite starts 100+ boards per run) and on previews (throwaway branch database),
   // the same exemptions lib/identity-throttle.ts makes. A plain count-then-insert: a burst
   // of parallel requests can overshoot by a few, which doesn't matter for a storage cap.
+  // The decision and the query are exported so tests/game-start-cap.test.ts can run them.
   const startCap = config.game_starts_per_player_per_hour;
-  if (startCap > 0 && !setCookieHeader && process.env.VERCEL_ENV !== "preview") {
-    const [usage] = await sql<{ recent: number; is_ci: boolean | null }[]>`
-      select count(*)::int as recent,
-             (select is_ci from players where id = ${playerId}) as is_ci
-        from games
-       where player_id = ${playerId} and started_at >= now() - interval '1 hour'
-    `;
-    if (!usage.is_ci && usage.recent >= startCap) {
+  if (startCapApplies(startCap, { freshIdentity: Boolean(setCookieHeader), vercelEnv: process.env.VERCEL_ENV })) {
+    const [usage] = await sql.unsafe<StartCapUsage[]>(START_CAP_USAGE_SQL, [playerId]);
+    if (overStartCap(startCap, usage)) {
       return { status: 429, body: { detail: "rate_limited" } };
     }
   }
