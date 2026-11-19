@@ -26,9 +26,7 @@ const STRINGS = {
     'login.magicSend': 'Belépési link küldése',
     'login.magicSent': 'Belépési linket küldtünk a(z) {{email}} címre. Kattints rá az e-mailben, hogy bejelentkezz.',
     'login.magicError': 'Nem sikerült elküldeni a belépési linket.',
-    'login.or': 'vagy',
-    'login.tokenLabel': 'Admin token',
-    'login.tokenSubmit': 'Belépés tokennel',
+    'login.notConfigured': 'Az admin bejelentkezés ezen a telepítésen nincs beállítva (hiányzik a Neon Auth URL).',
 
     'tabs.dashboard': 'Áttekintés',
     'tabs.queue': 'Ellenőrzési sor',
@@ -68,7 +66,7 @@ const STRINGS = {
     'common.default': 'Alapérték',
     'common.setting': 'Beállítás',
 
-    'err.invalidToken': 'Érvénytelen token.',
+    'err.invalidToken': 'A bejelentkezés lejárt vagy érvénytelen, lépj be újra.',
     'err.sessionNoJwt': 'A bejelentkezés lejárt vagy nem teljes. Jelentkezz be újra a Magic Linkkel.',
     'err.load': 'Hiba történt a betöltéskor.',
     'err.fetch': 'Hiba történt a lekéréskor.',
@@ -220,9 +218,7 @@ const STRINGS = {
     'login.magicSend': 'Send sign-in link',
     'login.magicSent': 'A sign-in link was sent to {{email}}. Click it in the email to sign in.',
     'login.magicError': "Couldn't send the sign-in link.",
-    'login.or': 'or',
-    'login.tokenLabel': 'Admin token',
-    'login.tokenSubmit': 'Sign in with token',
+    'login.notConfigured': 'Admin sign-in is not configured on this deployment (no Neon Auth URL).',
 
     'tabs.dashboard': 'Overview',
     'tabs.queue': 'Review queue',
@@ -262,7 +258,7 @@ const STRINGS = {
     'common.default': 'Default',
     'common.setting': 'Setting',
 
-    'err.invalidToken': 'Invalid token.',
+    'err.invalidToken': 'Your sign-in has expired or is invalid; please sign in again.',
     'err.sessionNoJwt': 'Your sign-in expired or did not complete. Please sign in again with the Magic Link.',
     'err.load': 'Something went wrong loading.',
     'err.fetch': 'Something went wrong fetching.',

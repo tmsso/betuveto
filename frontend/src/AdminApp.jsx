@@ -9,13 +9,10 @@ import { ADMIN_LANGUAGES, adminLocale, useAdminT } from './admin/adminI18n'
 import { authClient } from './neonAuth'
 import { isJwtShaped } from './admin/jwtShape'
 
-// Interim admin auth (ROADMAP 5.1): a shared token, not a real per-admin login — see
-// lib/admin.ts for why. Stored client-side only in this browser's localStorage; never
-// sent anywhere except as this app's own x-admin-token header. Kept in parallel with the
-// Neon Auth session below (ROADMAP 5.2 follow-up) per the transition plan there — a
-// same-day cutover risks locking out the only admin if the new path has an edge case
-// nobody's hit yet, so both stay live until the session path is confirmed working.
-const TOKEN_KEY = 'bv_admin_token'
+// The retired shared-token login (ROADMAP 5.1, removed 2026-11-19 per 16.8 (a)) kept its
+// token under this localStorage key. Cleared on load so an old browser doesn't keep a
+// dead secret around; the API ignores the x-admin-token header now.
+const LEGACY_TOKEN_KEY = 'bv_admin_token'
 
 // Wrapper so useAdminT works everywhere inside, including AdminAppInner's own body.
 export default function AdminApp() {
@@ -28,8 +25,6 @@ export default function AdminApp() {
 
 function AdminAppInner() {
   const { lang, setLang, t } = useAdminT()
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
-  const [tokenInput, setTokenInput] = useState('')
   // The Neon Auth session's own bearer JWT (ROADMAP 5.2 follow-up) — null until a magic
   // link has actually been followed. Checked once on mount.
   const [sessionJwt, setSessionJwt] = useState(null)
@@ -46,6 +41,14 @@ function AdminAppInner() {
   // Keys of rows with a mutation in flight (e.g. "report-12", "suggestion-7"), so only
   // that row's buttons disable rather than the whole page freezing during one request.
   const [pendingRows, setPendingRows] = useState(() => new Set())
+
+  useEffect(() => {
+    try {
+      localStorage.removeItem(LEGACY_TOKEN_KEY)
+    } catch {
+      // storage blocked (private mode etc.): nothing stored there either
+    }
+  }, [])
 
   useEffect(() => {
     if (!authClient) return
@@ -88,14 +91,10 @@ function AdminAppInner() {
       .finally(() => setSessionChecked(true))
   }, [])
 
-  // Whichever credential is live — the legacy token takes precedence only because it's
-  // the one already in localStorage from a prior session; a fresh magic-link sign-in sets
-  // sessionJwt, not token, so there's no real conflict in practice.
-  const authHeaders = useMemo(() => {
-    if (token) return { 'x-admin-token': token }
-    if (sessionJwt) return { Authorization: `Bearer ${sessionJwt}` }
-    return null
-  }, [token, sessionJwt])
+  const authHeaders = useMemo(
+    () => (sessionJwt ? { Authorization: `Bearer ${sessionJwt}` } : null),
+    [sessionJwt],
+  )
   const isAuthenticated = authHeaders !== null
 
   const loadQueue = useCallback(async (headers) => {
@@ -104,8 +103,6 @@ function AdminAppInner() {
     try {
       const response = await fetch('/api/v1/admin/queue', { headers })
       if (response.status === 401) {
-        localStorage.removeItem(TOKEN_KEY)
-        setToken('')
         setSessionJwt(null)
         setError(t('err.invalidToken'))
         return
@@ -133,8 +130,6 @@ function AdminAppInner() {
         body: JSON.stringify({ decision }),
       })
       if (response.status === 401) {
-        localStorage.removeItem(TOKEN_KEY)
-        setToken('')
         setSessionJwt(null)
         setError(t('err.invalidToken'))
         return
@@ -158,15 +153,6 @@ function AdminAppInner() {
   const handleResolveSuggestion = (suggestionId, decision) =>
     runMutation(`suggestion-${suggestionId}`, `/api/v1/admin/suggestions/${suggestionId}/resolve`, decision)
 
-  const handleTokenSubmit = (e) => {
-    e.preventDefault()
-    const trimmed = tokenInput.trim()
-    if (!trimmed) return
-    localStorage.setItem(TOKEN_KEY, trimmed)
-    setToken(trimmed)
-    setTokenInput('')
-  }
-
   const handleMagicLinkSubmit = async (e) => {
     e.preventDefault()
     const trimmed = magicLinkEmail.trim()
@@ -184,8 +170,6 @@ function AdminAppInner() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem(TOKEN_KEY)
-    setToken('')
     setSessionJwt(null)
     setQueue(null)
     setMagicLinkSent(false)
@@ -233,30 +217,14 @@ function AdminAppInner() {
                   </button>
                 </form>
               )}
-              <div className="flex items-center gap-2 text-xs text-game-primary/40 mb-4">
-                <div className="flex-1 border-t border-game-border" />
-                {t('login.or')}
-                <div className="flex-1 border-t border-game-border" />
-              </div>
             </>
           )}
 
-          <form onSubmit={handleTokenSubmit}>
-            <input
-              type="password"
-              aria-label={t('login.tokenLabel')}
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder={t('login.tokenLabel')}
-              className="w-full border-2 border-game-border rounded p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-game-secondary"
-            />
-            <button
-              type="submit"
-              className="w-full bg-game-primary/80 text-game-paper font-semibold rounded p-2 hover:bg-game-primary transition-colors"
-            >
-              {t('login.tokenSubmit')}
-            </button>
-          </form>
+          {/* A build without VITE_NEON_AUTH_URL (CI, a misconfigured preview) has no way to
+              sign in at all now that the token login is gone: say so instead of a blank card. */}
+          {!authClient && (
+            <p role="alert" className="text-sm text-game-primary/80">{t('login.notConfigured')}</p>
+          )}
         </div>
       </div>
     )
