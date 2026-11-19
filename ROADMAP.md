@@ -2450,6 +2450,59 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   Blkzer0/Wordlists repo has none either (rejected as a replacement). Plan: rebuild the hu list
   against Magyar Ispell (hunspell hu_HU) and inactivate non-matching words; its own batch, not a
   chore. `data/README.md` now records the provenance (PR #146).
+  **Execution plan (written 2026-11-19 for a lower-tier model; owner asked for it).** One session,
+  1 PR plus an owner-run production step. Read this whole item first; STOP at each gate.
+  - **Facts (verified 2026-11-19):** `data/magyar-szavak.txt` has 161,744 lowercase words, ~120k of
+    length 5-10 (the target range). An inactive word is neither a target nor an accepted guess
+    (`lib/game.ts` ~line 282 keeps only the *current* target guessable), so every inactivation is
+    player-visible. `words.source` has a CHECK of `'original'|'suggested'`: do not invent a new
+    value, so no migration. `scripts/import-wordlist.ts` never touches `active` on re-import, so an
+    inactivation survives re-imports. `.env`'s DATABASE_URL is PRODUCTION: read-only use only, and
+    the auto-mode classifier blocks even reads, so the owner runs every production command.
+  - **Owner pre-step (before the session):** `sudo apt install hunspell hunspell-hu` (Debian's
+    `hunspell-hu` 25.2.3 *is* Magyar Ispell; small package, no Docker). Check:
+    `echo almafa | hunspell -d hu_HU -l` prints nothing.
+  - **Step 1, local, no database:** add `scripts/check-wordlist-hunspell.sh` (or `.ts`): run the hu
+    list through `hunspell -d hu_HU -i utf-8 -l` (prints the words it does NOT accept), join with
+    `data/frequency-hu.tsv`, and write `data/wordlist-review/hu-not-in-ispell.tsv` with columns
+    `word  length  zipf(or empty)`. Print counts: total rejected, rejected per length 5-10, and
+    how many rejected words have zipf >= 3. Spot-check ~30 rejected words and ~30 accepted ones by eye
+    and note obvious false positives (valid compounds hunspell rejects).
+  - **GATE A (owner decision, STOP and ask, with the numbers):**
+    - D-16.9a Scope: inactivate every rejected word *(recommended)*, or only lengths 5-10.
+    - D-16.9b Frequency rescue: keep rejected words with zipf >= 3, which wordfreq sees in real text
+      (slang, newer words) *(recommended: keep)*.
+    - D-16.9c Never inactivate `source='suggested'` rows (admin-approved player suggestions) or rows
+      that are already inactive *(recommended; not really optional)*.
+    - D-16.9d Missing Ispell words (reverse import): *not now (recommended)*; a separate item.
+    - Sanity check before agreeing: active words per length 5-10 after the change must stay large
+      (each length >= 3,000, a guideline: daily/room/personalised picks need a deep pool).
+  - **Step 2, the PR:** commit the final list as `data/wordlist-review/hu-inactivate-<date>.txt`
+    (this file is the record of what was switched off; reverting = setting them active again) and
+    `scripts/apply-wordlist-inactivation.ts`:
+    - It defaults to `--dry-run`, which prints counts only.
+    - `--apply` updates `active=false` in batches of 2,000 inside a transaction, limited to
+      `wordlist code 'hu' and active and source = 'original'`.
+    - It skips any word that is the target of an `in_progress`/active game (reuse the
+      `isActiveGameTarget` idea from `lib/admin-words.ts`).
+    - It writes ONE `admin_audit_log` row (`action 'wordlist_ispell_inactivate'`, payload: count +
+      the list file's sha256, `admin_id` null).
+    - It also takes `--revert <file>` to set them active again.
+    - Add a unit test for the pure parts (file parsing, batching).
+    Update `data/README.md` (hu section: what was done, with the Ispell attribution: László Németh
+    and Ferenc Godó, tri-licence GPL 2/LGPL 2.1/MPL 1.1) and this item. Usual CI and the ship-pr flow.
+  - **Step 3, owner-run (production write, STOP and hand over):** first against the PR's Neon
+    preview branch DB (check its host is NOT the production endpoint; see the preview-fallback
+    gotcha), then production:
+    `node --env-file=.env --import tsx scripts/apply-wordlist-inactivation.ts data/wordlist-review/hu-inactivate-<date>.txt --dry-run`,
+    then the same with `--apply`. Claude gives the exact commands.
+  - **Verify (Claude, after the owner reports):** have the owner run a read-only count of active hu
+    words per length 5-10 and compare with the dry-run numbers. Check the admin word search shows a
+    sample word inactive. Play one game on production; check `get_runtime_errors` is quiet the next day.
+  - **Licence honesty:** after this, every *active* hu word is one Magyar Ispell accepts, but the
+    selection still comes from the unlicensed gist. Say exactly that in `data/README.md`; do not
+    claim the list "is" Ispell-derived. A full rebuild *from* Ispell (affix expansion) is the
+    licence-clean route if ever needed: a separate, larger item.
 - `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
   if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),
