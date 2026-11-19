@@ -2442,12 +2442,25 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   Firewall rule **"API rate limit per IP (production)"** published (owner): `/api/` on
   production, 300 requests per 60 s per IP, fixed window, answers 429; a room player polls about
   20/min.
-  **Still open from this round (2026-11-19):** (a) remove the `ADMIN_TOKEN` login: the token form in
-  `frontend/src/AdminApp.jsx`, `hasValidAdminToken` in `lib/admin.ts`, the `x-admin-token`
-  contract cases, and the Preview env var; (b) no automated test covers the
-  `game_starts_per_player_per_hour` cap (#146); (c) owner: confirm the backup private key
-  (uid "Betuveto backup", 6167249F) exists somewhere. It is not on the dev machine, and without
-  it no backup can be decrypted. If it is lost, generate a new keypair and commit the new public key.
+  **Round closed (2026-11-19, evening):** (a) **done, PR #155 (merged, live):** the token login
+  is gone (API ignores `x-admin-token`, admin page is Magic Link only, a build without Neon Auth
+  says sign-in isn't configured, the old localStorage key is cleared). The 12 token-only contract
+  cases went with it (CI never had the token). New `tests/admin-words.test.ts` covers the admin
+  word writes on PGlite instead. Previews have no admin login now (accepted). Owner: delete the
+  Preview `ADMIN_TOKEN` env var; sign in once on production to confirm Magic Link still works.
+  (b) **done, PR #153 (merged, live):** `tests/game-start-cap.test.ts` runs the cap's exact query
+  on PGlite plus every decision branch. (c) backup private key: the owner found a copy (saved
+  2026-10-29), but importing it fails with "Invalid armor header" / CRC error. Diagnosis is in
+  progress.
+  **Also 2026-11-19, PR #154 (merged, live):** word reports and suggestions now send the game's
+  wordlist. Before, they always went to `hu`, even from an English game. A Hungarian board no
+  longer offers the suggest link for words with Q/W/X/Y, which the server refuses by design
+  (owner's "MIX" report), and a refused suggestion now gets a clear message.
+  **New D-16.8e (open):** about 2,761 abandoned games keep `status='active'` forever (seen on a
+  production copy). `lib/admin-words.ts` treats them as live targets, so editing or deleting such
+  a word answers 409 indefinitely. *Recommended:* add `ends_at > now()` to `isActiveGameTarget`
+  and the bulk-delete query (a code fix, no production write). The alternative is an owner-run
+  sweep of the stale rows to `expired`.
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
