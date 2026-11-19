@@ -2509,6 +2509,27 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
     selection still comes from the unlicensed gist. Say exactly that in `data/README.md`; do not
     claim the list "is" Ispell-derived. A full rebuild *from* Ispell (affix expansion) is the
     licence-clean route if ever needed: a separate, larger item.
+  - **Step 1 result (2026-11-19, `scripts/check-wordlist-hunspell.ts`):** 152,228 game words after
+    the importer's normalisation (the raw file's 161,744 lines include duplicates by case, hyphens
+    and lengths outside 3-15). Hunspell, asked about the *lowercase* form so proper nouns count as
+    rejected, rejects **11,370** (`data/wordlist-review/hu-not-in-ispell.tsv`; 1,282 contain
+    Q/W/X/Y). Per length 5-10, rejected/total: 1,204/6,525; 1,328/10,171; 1,384/15,141;
+    1,382/20,190; 1,293/21,975; 1,210/21,697. Even with nothing rescued, every length 5-10 keeps
+    >= 5,300 active words, so the sanity guideline holds.
+    - **D-16.9b (frequency rescue) is backwards:** the 917 rejected words with zipf >= 3 are mostly
+      first names, places and English (PÁL, ÁGNES, EGYIPTOM, THOMAS, AVENUE, PERFECT): frequent in
+      text, not game words. New recommendation: **no blanket frequency rescue.**
+    - **Compounds are the real false positives:** 2,078 rejected words split into two parts hunspell
+      accepts (`split` column, e.g. `kéz+írat`). Many are genuinely wrong under the current rules,
+      which write them apart (`nagy méretű`, `széles körű`, `légi forgalom`, `sorban állás`,
+      `szén-dioxid`), so a split alone is no reason to keep a word either.
+    - **New D-16.9e (owner asked for an LLM screen, 2026-11-19):** Claude screened the 2,959
+      rescue candidates (zipf >= 3 or a split) and kept **269** confident single-word common words
+      (`data/wordlist-review/hu-ispell-rescue-keep.txt`; doubtful = out). Proposed inactivation:
+      11,370 - 269 = **11,101** words. The other 8,411 rejected words were not screened: mostly
+      rare or technical, some of them valid loanwords (AERONAUTIKA, FRIKCIÓS), which a player
+      could no longer use as guesses. The licence-honesty line above becomes "every active hu word is
+      Ispell-accepted, except the 269 listed ones".
 - `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
   if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),
