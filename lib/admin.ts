@@ -43,9 +43,10 @@ export async function authorizeAdmin(req: VercelRequest): Promise<AdminIdentity 
 }
 
 /** One row per admin mutation. `admin` is whatever authorizeAdmin resolved for the
- *  request, passed down explicitly from the route (no request-scoped globals). Rows from
- *  before 2026-11-19 may have a null admin_id: those came from the retired shared token
- *  (see the 0004 migration's comment). Shared by every
+ *  request, passed down explicitly from the route (no request-scoped globals). A null
+ *  admin_id means either a retired shared-token action (before 2026-11-19, see the 0004
+ *  migration's comment) or an owner-run maintenance script such as
+ *  scripts/apply-wordlist-inactivation.ts (actions `wordlist_inactivate*`). Shared by every
  *  admin-mutating module (queue, words, config, players), so every future mutation logs
  *  the same way without re-implementing this. */
 export async function logAdminAction(
