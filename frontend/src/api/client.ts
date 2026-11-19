@@ -535,11 +535,13 @@ class BetuAPIClient {
 
   // Word curation (ROADMAP 4.1): flag a found/missing word as wrong. Idempotent — a
   // repeat report for the same word just comes back as already_reported.
-  async reportWord(word: string, reason?: string): Promise<{ reported: boolean; already_reported: boolean; deactivated: boolean }> {
+  // `wordlist` is the game's own wordlist: without it the server files the report or
+  // suggestion under the default (hu) list, even from an English game.
+  async reportWord(word: string, reason?: string, wordlist?: string): Promise<{ reported: boolean; already_reported: boolean; deactivated: boolean }> {
     const response = await fetch('/api/v1/words/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reason ? { word, reason } : { word }),
+      body: JSON.stringify({ word, ...(reason ? { reason } : {}), ...(wordlist ? { wordlist } : {}) }),
     });
     if (!response.ok) {
       // status rides along so the caller can tell the daily cap (429, ROADMAP 12.2) apart
@@ -586,13 +588,15 @@ class BetuAPIClient {
     return response.json();
   }
 
-  async suggestWord(word: string): Promise<{ suggested: boolean; already_present: boolean }> {
+  async suggestWord(word: string, wordlist?: string): Promise<{ suggested: boolean; already_present: boolean }> {
     const response = await fetch('/api/v1/words/suggest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ word }),
+      body: JSON.stringify(wordlist ? { word, wordlist } : { word }),
     });
-    if (!response.ok) throw new Error(`Failed to suggest word (${response.status})`);
+    if (!response.ok) {
+      throw Object.assign(new Error(`Failed to suggest word (${response.status})`), { status: response.status });
+    }
     return response.json();
   }
   /** Points the per-game calls (guess / hint / give_up / possible_words / rescramble) at a

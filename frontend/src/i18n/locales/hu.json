@@ -332,6 +332,7 @@
     "reportLimit": "Ma már sok szót jelentettél — köszönjük! Holnap folytathatod.",
     "suggestRateLimited": "Túl sok javaslat mára, próbáld holnap.",
     "suggestFailed": "Hiba történt a javaslat küldésekor.",
+    "suggestNotAccepted": "Ezt a szót nem lehet javasolni (Q, W, X, Y betűs szavakat nem gyűjtünk).",
     "foundByTeammate": "{{name}} már megtalálta ezt a szót.",
     "foundByTeammateAnon": "Ezt a szót már megtalálta valaki.",
     "dailyGaveUp": "Feladtad. A napi rejtvény megoldását nem mutatjuk meg, hogy másoknak ne rontsuk el.",

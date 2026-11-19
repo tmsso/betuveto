@@ -332,6 +332,7 @@
     "reportLimit": "You have reported a lot of words today — thanks! Try again tomorrow.",
     "suggestRateLimited": "Too many suggestions today, try tomorrow.",
     "suggestFailed": "Something went wrong sending the suggestion.",
+    "suggestNotAccepted": "This word can't be suggested for this word list.",
     "foundByTeammate": "{{name}} already found that word.",
     "foundByTeammateAnon": "Someone already found that word.",
     "dailyGaveUp": "You gave up. The daily solution stays hidden so it isn’t spoiled for others.",
