@@ -5,9 +5,9 @@
  *
  * Only rows that are `active` and `source = 'original'` are touched (D-16.9c: admin-approved
  * player suggestions and already-inactive rows are left alone). A word that is the target of
- * an active game, or of today's daily puzzle, is skipped and reported: the same rule as the
- * admin word tools (lib/admin-words.ts isActiveGameTarget). Re-run the script later to catch
- * those; it is idempotent.
+ * a game whose clock is still running, or of today's daily puzzle, is skipped and reported
+ * (like lib/admin-words.ts isActiveGameTarget, but ignoring abandoned games past `ends_at`).
+ * Re-run the script later to catch those; it is idempotent.
  *
  * --apply writes ONE admin_audit_log row (action `wordlist_inactivate`) whose payload holds the
  * list file's sha256 and the exact words it switched off. --revert reactivates exactly the words
@@ -61,10 +61,14 @@ export function batches<T>(items: T[], size: number): T[][] {
 /** Shared filter: $1 = wordlist id, $2 = text[] of words. Rows eligible for inactivation. */
 const ELIGIBLE = `
   w.wordlist_id = $1 and w.word = any($2::text[]) and w.active and w.source = 'original'`;
-/** Rows that must not change right now (an active game's or today's daily target). */
+/** Rows that must not change right now: the target of a game whose clock is still running,
+ *  or of today's daily. `status = 'active'` alone is not enough: an abandoned game keeps that
+ *  status forever (2,761 such rows on a 2026-11-19 production copy, 62 of them really live), and
+ *  the server rejects guesses after `ends_at` anyway. */
 const IN_PLAY = `
   (exists (select 1 from games g
-            where g.target_word = w.word and g.wordlist_id = w.wordlist_id and g.status = 'active')
+            where g.target_word = w.word and g.wordlist_id = w.wordlist_id
+              and g.status = 'active' and g.ends_at > now())
    or exists (select 1 from daily_puzzles d
                where d.target_word = w.word and d.wordlist_id = w.wordlist_id
                  and d.puzzle_date = (now() at time zone 'Europe/Budapest')::date))`;

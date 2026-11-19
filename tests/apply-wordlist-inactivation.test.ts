@@ -63,6 +63,7 @@ describe("inactivation SQL", () => {
     await add(hu, "THOMAS");
     await add(hu, "AVENUE");
     await add(hu, "INGAME"); // target of an active game
+    await add(hu, "ABANDON"); // target of an abandoned game: status 'active', clock long over
     await add(hu, "DAILYW"); // today's daily target
     await add(hu, "SUGGES", { source: "suggested" });
     await add(hu, "ALREADY", { active: false }); // inactive before (e.g. a report)
@@ -73,19 +74,25 @@ describe("inactivation SQL", () => {
       [hu],
     );
     await pg.query(
+      `insert into games (wordlist_id, target_word, scrambled_letters, target_length, ends_at, status)
+       values ($1, 'ABANDON', 'NODABAN', 7, now() - interval '2 days', 'active')`,
+      [hu],
+    );
+    await pg.query(
       `insert into daily_puzzles (puzzle_date, wordlist_id, target_length, target_word, scrambled_letters, possible_count)
        values ((now() at time zone 'Europe/Budapest')::date, $1, 6, 'DAILYW', 'WDAILY', 10)`,
       [hu],
     );
   }, 60_000);
 
-  const list = ["THOMAS", "AVENUE", "INGAME", "DAILYW", "SUGGES", "ALREADY", "MISSING"];
+  const list = ["THOMAS", "AVENUE", "ABANDON", "INGAME", "DAILYW", "SUGGES", "ALREADY", "MISSING"];
 
   it("dry run: only active original rows, in-play targets flagged", async () => {
     const rows = (await pg.query<{ word: string; in_play: boolean }>(DRY_RUN_SQL, [hu, list])).rows;
     expect(Object.fromEntries(rows.map((r) => [r.word, r.in_play]))).toEqual({
       THOMAS: false,
       AVENUE: false,
+      ABANDON: false,
       INGAME: true,
       DAILYW: true,
     });
@@ -93,7 +100,7 @@ describe("inactivation SQL", () => {
 
   it("inactivates the eligible words only, in this wordlist only", async () => {
     const done = (await pg.query<{ word: string }>(INACTIVATE_SQL, [hu, list])).rows.map((r) => r.word).sort();
-    expect(done).toEqual(["AVENUE", "THOMAS"]);
+    expect(done).toEqual(["ABANDON", "AVENUE", "THOMAS"]);
     expect(await active(hu, "THOMAS")).toBe(false);
     expect(await active(en, "THOMAS")).toBe(true);
     expect(await active(hu, "INGAME")).toBe(true);

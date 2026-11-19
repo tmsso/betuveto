@@ -2536,6 +2536,17 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
       D-16.9c never touch `source='suggested'` or already-inactive rows; D-16.9d no reverse
       import now; D-16.9e the screened keep list above. The licence-honesty line becomes "every
       active hu word is Ispell-accepted, except the 1,403 listed ones".
+    - **Step 2 built (2026-11-19, PR #152):** `data/wordlist-review/hu-inactivate-2026-11-19.txt`
+      (9,967 words) + `scripts/apply-wordlist-inactivation.ts` (dry run default; `--apply`/`--revert`
+      need `--confirm-host`; one audit row holding the exact words; `--revert` restores exactly
+      those). Verified on the PR's Neon preview branch (a production copy): apply 9,959 → revert
+      9,959 → apply 9,958; a wrong `--confirm-host` is refused. Active per length 5-10 after:
+      5,378 / 8,922 / 13,891 / 19,004 / 20,883 / 20,723.
+    - **Finding:** 2,761 games on that copy are stuck at `status='active'` (abandoned; 2,451 more
+      than a day past `ends_at`, only 62 live). The script therefore counts a game as in play only
+      while `ends_at > now()`. `lib/admin-words.ts isActiveGameTarget` has the same flaw: an admin
+      edit or delete of such a word answers "try again once it ends" forever. Separate small item:
+      either add the `ends_at` condition there or sweep the stale rows to `expired`.
 - `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
   if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),
