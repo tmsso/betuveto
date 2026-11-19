@@ -50,13 +50,21 @@ request time.
 - **Not a fix:** [Blkzer0/Wordlists](https://github.com/Blkzer0/Wordlists) `Hungarian.txt`
   was considered as a replacement and rejected — that repository has no licence either
   (and is a password-cracking collection, last updated 2018).
-- **Planned revision (ROADMAP 16.9):** rebuild the list against
-  [Magyar Ispell](https://github.com/laszlonemeth/magyarispell) (the hunspell `hu_HU`
-  dictionary; tri-licensed GPL 2 / LGPL 2.1 / MPL 1.1). Expand its `.dic`/`.aff` into word
-  forms, keep the words that are in both lists, and mark the rest of the current list
-  inactive (`words.active = false`, never deleted — game history references them). After that
-  the active list is a subset of a freely licensed dictionary and this section can name
-  that licence instead.
+- **Checked against Magyar Ispell (ROADMAP 16.9, 2026-11-19).** Every word was checked with
+  hunspell's `hu_HU` dictionary, [Magyar Ispell](https://github.com/laszlonemeth/magyarispell)
+  by László Németh and Ferenc Godó, tri-licensed GPL 2 / LGPL 2.1 / MPL 1.1 (Debian package
+  `hunspell-hu` 25.2.3). The check asks about the lowercase form, so proper nouns count as
+  rejected (`scripts/check-wordlist-hunspell.ts`). Of 152,228 game words, hunspell rejects
+  11,370 (`wordlist-review/hu-not-in-ispell.tsv`). An LLM screen kept 1,403 of those as standard
+  Hungarian words (`wordlist-review/hu-ispell-rescue-keep.txt`), and the other **9,967 are
+  inactivated** (`wordlist-review/hu-inactivate-2026-11-19.txt`, applied by
+  `scripts/apply-wordlist-inactivation.ts`, reversible with `--revert`; never deleted, because game
+  history references them). Ispell itself is not redistributed: it was only used as a checker.
+- **What this does and doesn't change about the licence:** every *active* hu word is now one
+  Magyar Ispell accepts, except the 1,403 listed keeps, but the *selection* still comes from the
+  unlicensed gist above. Don't describe the list as Ispell-derived. The licence-clean route, if
+  ever needed, is a separate and larger item: rebuild the list *from* Ispell by expanding its
+  `.dic`/`.aff` into word forms.
 
 ## `name-blocklist/hu.txt`, `name-blocklist/en.txt` (display-name filter)
 
