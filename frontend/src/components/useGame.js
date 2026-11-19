@@ -318,7 +318,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   const handleReportWord = useCallback(async (word) => {
     if (reportedWords.has(word)) return
     try {
-      await betuAPI.reportWord(word)
+      await betuAPI.reportWord(word, undefined, gameWordlist)
       setReportedWords((prev) => new Set(prev).add(word))
       // A visible confirmation (owner review 2026-11-08: a greyed flag alone was too subtle).
       setReportToast(word)
@@ -327,7 +327,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
       console.error('Error reporting word:', err)
       showTemporaryError(t(err?.status === 429 ? 'errors.reportLimit' : 'errors.reportFailed'))
     }
-  }, [reportedWords, showTemporaryError, t])
+  }, [reportedWords, showTemporaryError, t, gameWordlist])
 
   // Word curation (ROADMAP 4.2): offer to submit a rejected guess as a possibly-real word
   // the dictionary is missing. already_present and a genuinely new suggestion both read as
@@ -335,17 +335,21 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
   const handleSuggestWord = useCallback(async (word) => {
     setSuggestLoading(true)
     try {
-      await betuAPI.suggestWord(word)
+      await betuAPI.suggestWord(word, gameWordlist)
       setSuggestPrompt(null)
       setSuggestThanks(true)
       setTimeout(() => setSuggestThanks(false), 2500)
     } catch (err) {
       console.error('Error suggesting word:', err)
-      showTemporaryError(err.message?.includes('429') ? t('errors.suggestRateLimited') : t('errors.suggestFailed'))
+      const key = err?.status === 429 ? 'errors.suggestRateLimited'
+        : err?.status === 422 ? 'errors.suggestNotAccepted'
+        : 'errors.suggestFailed'
+      showTemporaryError(t(key))
+      if (err?.status === 422) setSuggestPrompt(null)
     } finally {
       setSuggestLoading(false)
     }
-  }, [showTemporaryError, t])
+  }, [showTemporaryError, t, gameWordlist])
 
   const handleSubmit = useCallback(async () => {
     const guess = currentGuess.trim().toUpperCase()
@@ -449,7 +453,10 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
         // (cannot_form) handled below.
         showTemporaryError(t('errors.notInDictionary', { word: guess }))
         play('reject')
-        setSuggestPrompt(guess) // ROADMAP 4.2: maybe it's a real word the dictionary is missing
+        // ROADMAP 4.2: maybe it's a real word the dictionary is missing. Not offered when the
+        // server would refuse it anyway: Hungarian suggestions exclude Q/W/X/Y on purpose
+        // (lib/word-suggestions.ts SUGGESTION_ALPHABET_OVERRIDES), so "MIX" got a dead link.
+        if (!(gameWordlist === 'hu' && /[QWXY]/i.test(guess))) setSuggestPrompt(guess)
         setCurrentGuess('')
       } else {
         showTemporaryError(t('errors.notOnlyGivenLetters'))
@@ -475,7 +482,7 @@ export function useGame({ t, play, fireConfetti, fireExplosion, onRoomFinished }
       setCurrentGuess('')
       focusGuessInput()
     }
-  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength, onRoomFinished])
+  }, [currentGuess, scrambledLetters, fireExplosion, fireConfetti, isTimeUp, showTemporaryError, t, play, endGame, rules.minWordLength, onRoomFinished, gameWordlist])
 
   // Which tile each guess character came from, by position (null = typed). With repeated
   // letters the board must grey out the tile actually tapped, not the first one that

@@ -258,7 +258,7 @@ function suggestWordRoute(req: VercelRequest) {
 }
 
 /** Wraps an admin logic function so every /api/v1/admin/* route enforces the same check
- *  (admin token or Neon Auth session — lib/admin.ts) the same way, in one place — no
+ *  (a Neon Auth admin session — lib/admin.ts) the same way, in one place — no
  *  future admin route can add itself here and forget it. The resolved identity is handed
  *  to the logic so mutations can record who made them (ROADMAP 11.8). */
 function requireAdmin(logic: (req: VercelRequest, admin: AdminIdentity) => Promise<Reply>) {

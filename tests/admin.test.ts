@@ -1,6 +1,6 @@
 /**
- * ROADMAP 11.8 — authorizeAdmin must tell "denied" (null) apart from "authorized by the
- * shared token" ({ adminId: null }), and attribute a Magic Link session to its players.id.
+ * ROADMAP 11.8 / 16.8 (a): authorizeAdmin attributes a Magic Link session to its players.id
+ * and denies everything else, including the retired shared x-admin-token header.
  * The Neon Auth verifier and the DB are stubbed: a real session token can't be minted in
  * a test, so the Magic Link path is covered here and not by the contract suite.
  */
@@ -36,15 +36,8 @@ describe("authorizeAdmin", () => {
     expect(await authorizeAdmin(request({}))).toBeNull();
   });
 
-  it("denies a wrong shared token", async () => {
-    expect(await authorizeAdmin(request({ "x-admin-token": "nope" }))).toBeNull();
-  });
-
-  it("authorizes the shared token with no per-admin identity", async () => {
-    expect(await authorizeAdmin(request({ "x-admin-token": "the-shared-token" }))).toEqual({
-      adminId: null,
-    });
-    // No Bearer header, so the session branch never calls the verifier.
+  it("ignores the retired shared token, even while the env var still exists", async () => {
+    expect(await authorizeAdmin(request({ "x-admin-token": "the-shared-token" }))).toBeNull();
     expect(verifyNeonAuthToken).not.toHaveBeenCalled();
   });
 
@@ -62,20 +55,11 @@ describe("authorizeAdmin", () => {
     expect(await authorizeAdmin(request({ authorization: "Bearer jwt" }))).toBeNull();
   });
 
-  it("prefers the named session over the shared token when both are sent", async () => {
-    verifyNeonAuthToken.mockResolvedValue({ userId: "neon-user-1" });
-    playerRows.push([{ id: ADMIN_PLAYER_ID, is_admin: true }]);
-    const admin = await authorizeAdmin(
-      request({ authorization: "Bearer jwt", "x-admin-token": "the-shared-token" }),
-    );
-    expect(admin).toEqual({ adminId: ADMIN_PLAYER_ID });
-  });
-
-  it("falls back to the token when the session is invalid", async () => {
+  it("denies an invalid session even with the old shared token alongside", async () => {
     verifyNeonAuthToken.mockResolvedValue(null);
     const admin = await authorizeAdmin(
       request({ authorization: "Bearer expired", "x-admin-token": "the-shared-token" }),
     );
-    expect(admin).toEqual({ adminId: null });
+    expect(admin).toBeNull();
   });
 });

@@ -39,9 +39,10 @@ import { clientShapeViolations } from "./client-shape.js";
 // Vitest would overwrite whatever the shell set with "/".
 const BASE_URL = process.env.API_BASE_URL?.replace(/\/$/, "");
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-// Optional: only the negative (401) admin-queue cases run without it, since there's no
-// safe way to guess a real token. Pass it when you have it to also check the 200 path.
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+// Admin routes accept only a Neon Auth (Magic Link) session, which this suite can't mint, so
+// it checks the 401 gates only; tests/admin-words.test.ts covers the admin word writes on
+// PGlite. The x-admin-token login (and the success-path cases that needed it) was retired
+// 2026-11-19 (ROADMAP 16.8 (a)).
 
 // ROADMAP Batch 10 item 11 (contract-suite half). `start()` below mints a brand-new
 // anonymous player on every call, and `startUntil` calls it in a retry loop — so one
@@ -1285,11 +1286,10 @@ describeApi("Betűvető API contract", () => {
   });
 
   // --- Magic Link admin login (backend prep only, not yet wired to a frontend) ---
-  it("rejects a garbage bearer token the same as a missing admin token", async () => {
+  it("rejects a garbage bearer token the same as no session", async () => {
     // No live Neon Auth issuer to test a real session against yet (NEON_AUTH_JWKS_URL
     // unset in every environment so far) — this only proves a malformed/unverifiable
-    // token can't slip through as if it were a valid session, same shape as the existing
-    // wrong-x-admin-token case below.
+    // token can't slip through as if it were a valid session.
     const garbageBearer = await call("GET", "/api/v1/admin/queue", undefined, {
       Authorization: "Bearer this-is-not-a-real-jwt",
     });
@@ -1297,7 +1297,7 @@ describeApi("Betűvető API contract", () => {
   });
 
   // --- Batch 5.1: admin review queue -----------------------------------------
-  it("gates the admin review queue behind the admin token", async () => {
+  it("gates the admin review queue: no session, or the retired x-admin-token header, is 401", async () => {
     const noToken = await call("GET", "/api/v1/admin/queue");
     expect(noToken.status).toBe(401);
 
@@ -1305,132 +1305,11 @@ describeApi("Betűvető API contract", () => {
       "x-admin-token": "definitely-not-the-real-token",
     });
     expect(wrongToken.status).toBe(401);
-
-    if (!ADMIN_TOKEN) return; // no safe way to test the success path without the real secret
-
-    const ok = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
-    expect(ok.status).toBe(200);
-    expect(Array.isArray(ok.json.reports)).toBe(true);
-    expect(Array.isArray(ok.json.suggestions)).toBe(true);
   });
 
   // --- Batch 5.2: review queue mutations --------------------------------------
-  it("resolves a word report: reject reactivates, accept deactivates, then it's gone from the queue", async () => {
-    if (!ADMIN_TOKEN) return; // every assertion below needs the real token
-
-    const game = await start();
-    const word = findable(game)[0];
-    const { cookie } = await startWithCookie();
-    await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
-
-    const queue = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
-    const entry = queue.json.reports.find((r: any) => r.word === word);
-    expect(entry).toBeDefined();
-
-    const rejected = await call(
-      "POST",
-      `/api/v1/admin/reports/${entry.word_id}/resolve`,
-      { decision: "reject" },
-      { "x-admin-token": ADMIN_TOKEN },
-    );
-    expect(rejected.status).toBe(200);
-    expect(rejected.json.active).toBe(true);
-
-    // No open reports left for this word — resolving again 404s.
-    const again = await call(
-      "POST",
-      `/api/v1/admin/reports/${entry.word_id}/resolve`,
-      { decision: "reject" },
-      { "x-admin-token": ADMIN_TOKEN },
-    );
-    expect(again.status).toBe(404);
-
-    // Invalid decision value is a validation error, not a silent no-op.
-    const invalid = await call(
-      "POST",
-      `/api/v1/admin/reports/${entry.word_id}/resolve`,
-      { decision: "maybe" },
-      { "x-admin-token": ADMIN_TOKEN },
-    );
-    expect(invalid.status).toBe(422);
-  });
-
-  it("reactivates a word directly, independent of report status", async () => {
-    if (!ADMIN_TOKEN) return;
-
-    const game = await startUntil((g) => findable(g).length > 0);
-    const word = findable(game)[0];
-    const { cookie } = await startWithCookie();
-    await call("POST", "/api/v1/words/report", { word }, { Cookie: cookie });
-
-    const queue = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
-    const entry = queue.json.reports.find((r: any) => r.word === word);
-
-    await call(
-      "POST",
-      `/api/v1/admin/reports/${entry.word_id}/resolve`,
-      { decision: "accept" },
-      { "x-admin-token": ADMIN_TOKEN },
-    ); // deactivates it
-
-    const reactivated = await call(
-      "POST",
-      `/api/v1/admin/words/${entry.word_id}/reactivate`,
-      undefined,
-      { "x-admin-token": ADMIN_TOKEN },
-    );
-    expect(reactivated.status).toBe(200);
-    expect(reactivated.json.active).toBe(true);
-
-    const unknown = await call("POST", "/api/v1/admin/words/999999999/reactivate", undefined, {
-      "x-admin-token": ADMIN_TOKEN,
-    });
-    expect(unknown.status).toBe(404);
-  });
-
-  it("resolves a word suggestion: approve activates it, re-resolving conflicts", async () => {
-    if (!ADMIN_TOKEN) return;
-
-    const { cookie } = await startWithCookie();
-    const alphabet = "BDFGKLMNPRST";
-    let novel = "";
-    do {
-      novel = Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(
-        "",
-      );
-    } while (dictionary.includes(novel));
-
-    const suggested = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
-    expect(suggested.json.already_present).toBe(false);
-
-    const queue = await call("GET", "/api/v1/admin/queue", undefined, { "x-admin-token": ADMIN_TOKEN });
-    const entry = queue.json.suggestions.find((s: any) => s.word === novel);
-    expect(entry).toBeDefined();
-
-    const approved = await call(
-      "POST",
-      `/api/v1/admin/suggestions/${entry.id}/resolve`,
-      { decision: "approve" },
-      { "x-admin-token": ADMIN_TOKEN },
-    );
-    expect(approved.status).toBe(200);
-
-    // Now active: suggesting it again reads as already_present, not a fresh suggestion.
-    const again = await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
-    expect(again.json.already_present).toBe(true);
-
-    // Already resolved — re-resolving is a conflict, not a silent success.
-    const conflict = await call(
-      "POST",
-      `/api/v1/admin/suggestions/${entry.id}/resolve`,
-      { decision: "approve" },
-      { "x-admin-token": ADMIN_TOKEN },
-    );
-    expect(conflict.status).toBe(409);
-  });
-
   // --- Batch 5.2 item 1: word search, edit, delete -----------------------------
-  it("gates word search/edit/delete behind the admin token", async () => {
+  it("gates word search/edit/delete behind an admin session", async () => {
     const noToken = await call("GET", "/api/v1/admin/words?q=xyz");
     expect(noToken.status).toBe(401);
 
@@ -1440,170 +1319,20 @@ describeApi("Betűvető API contract", () => {
     expect(wrongToken.status).toBe(401);
   });
 
-  it("searches, edits and deletes a word", async () => {
-    if (!ADMIN_TOKEN) return; // every assertion below needs the real token
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const { cookie } = await startWithCookie();
-    const alphabet = "BDFGKLMNPRST";
-    const randomWord = () =>
-      Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-    let novel = randomWord();
-    while (dictionary.includes(novel)) novel = randomWord();
-
-    await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
-
-    const found = await call(
-      "GET",
-      `/api/v1/admin/words?q=${novel}`,
-      undefined,
-      adminHeaders,
-    );
-    expect(found.status).toBe(200);
-    const row = found.json.words.find((w: any) => w.word === novel);
-    expect(row).toBeDefined();
-    expect(row.active).toBe(false);
-    expect(row.source).toBe("suggested");
-
-    // Editing to a spelling already in the dictionary conflicts rather than silently
-    // merging two rows into one.
-    const conflict = await call(
-      "PATCH",
-      `/api/v1/admin/words/${row.id}`,
-      { word: dictionary[0] },
-      adminHeaders,
-    );
-    expect(conflict.status).toBe(409);
-
-    // Too short to be a real word — the same 3-15 letter rule words.ts enforces everywhere.
-    const tooShort = await call("PATCH", `/api/v1/admin/words/${row.id}`, { word: "AB" }, adminHeaders);
-    expect(tooShort.status).toBe(422);
-
-    let renamed = randomWord();
-    while (dictionary.includes(renamed) || renamed === novel) renamed = randomWord();
-    const edited = await call(
-      "PATCH",
-      `/api/v1/admin/words/${row.id}`,
-      { word: renamed },
-      adminHeaders,
-    );
-    expect(edited.status).toBe(200);
-    expect(edited.json.word).toBe(renamed);
-
-    const afterEdit = await call(
-      "GET",
-      `/api/v1/admin/words?q=${renamed}`,
-      undefined,
-      adminHeaders,
-    );
-    expect(afterEdit.json.words.some((w: any) => w.word === renamed)).toBe(true);
-
-    const deleted = await call("DELETE", `/api/v1/admin/words/${row.id}`, undefined, adminHeaders);
-    expect(deleted.status).toBe(200);
-
-    const afterDelete = await call(
-      "GET",
-      `/api/v1/admin/words?q=${renamed}`,
-      undefined,
-      adminHeaders,
-    );
-    expect(afterDelete.json.words.some((w: any) => w.word === renamed)).toBe(false);
-
-    // Already gone — a second delete/edit 404s rather than silently no-op'ing.
-    const deleteAgain = await call("DELETE", `/api/v1/admin/words/${row.id}`, undefined, adminHeaders);
-    expect(deleteAgain.status).toBe(404);
-  });
-
   // --- ROADMAP 13.5: bulk word actions -----------------------------------------
   it("gates and validates the bulk word endpoint", async () => {
     const noToken = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: [1] });
     expect(noToken.status).toBe(401);
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-    const badAction = await call("POST", "/api/v1/admin/words/bulk", { action: "nuke", ids: [1] }, adminHeaders);
-    expect(badAction.status).toBe(422);
-    const noIds = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids: [] }, adminHeaders);
-    expect(noIds.status).toBe(422);
-    // Never valid ids here: a numeric string like "1" IS accepted (bigint ids arrive as
-    // strings), and would really inactivate word 1.
-    for (const ids of [["x1"], [-1], [1.5], [0]]) {
-      const bad = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids }, adminHeaders);
-      expect(bad.status, JSON.stringify(ids)).toBe(422);
-    }
-  });
-
-  it("reactivates, inactivates and deletes several words in one call", { timeout: 30_000 }, async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-    const { cookie } = await startWithCookie();
-    const alphabet = "BDFGKLMNPRST";
-    const randomWord = () =>
-      Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-    const ids: number[] = [];
-    for (let i = 0; i < 2; i++) {
-      let novel = randomWord();
-      while (dictionary.includes(novel)) novel = randomWord();
-      await call("POST", "/api/v1/words/suggest", { word: novel }, { Cookie: cookie });
-      const found = await call("GET", `/api/v1/admin/words?q=${novel}`, undefined, adminHeaders);
-      const row = found.json.words.find((w: any) => w.word === novel);
-      expect(row?.active).toBe(false);
-      ids.push(row.id);
-    }
-
-    const on = await call("POST", "/api/v1/admin/words/bulk", { action: "reactivate", ids }, adminHeaders);
-    expect(on.status).toBe(200);
-    // ids are sent as searchWords returned them (bigint → numeric strings); the reply
-    // uses numbers.
-    expect(on.json.changed.map((w: any) => w.id).sort()).toEqual(ids.map(Number).sort());
-    // Already active: nothing changes, and nothing is audit-logged as a change.
-    const again = await call("POST", "/api/v1/admin/words/bulk", { action: "reactivate", ids }, adminHeaders);
-    expect(again.json.changed).toHaveLength(0);
-    expect(again.json.unchanged_count).toBe(2);
-
-    const off = await call("POST", "/api/v1/admin/words/bulk", { action: "inactivate", ids }, adminHeaders);
-    expect(off.json.changed).toHaveLength(2);
-
-    const unknownId = 2_000_000_000;
-    const gone = await call("POST", "/api/v1/admin/words/bulk", { action: "delete", ids: [...ids, unknownId] }, adminHeaders);
-    expect(gone.status).toBe(200);
-    expect(gone.json.changed).toHaveLength(2);
-    expect(gone.json.skipped).toEqual([{ id: unknownId, reason: "not_found" }]);
   });
 
   // --- ROADMAP 13.6: suspicious-word scan ---------------------------------------
   it("scans for suspicious words (read-only) with the heuristics' reasons", { timeout: 30_000 }, async () => {
     const noToken = await call("GET", "/api/v1/admin/words/suspicious");
     expect(noToken.status).toBe(401);
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const scan = await call("GET", "/api/v1/admin/words/suspicious?wordlist=hu", undefined, adminHeaders);
-    expect(scan.status).toBe(200);
-    expect(scan.json.params).toEqual({ minLength: 3, maxVowelRun: 3, maxConsonantRun: 4 });
-    expect(scan.json.words.length).toBeLessThanOrEqual(200);
-    expect(scan.json.total_flagged).toBeGreaterThanOrEqual(scan.json.words.length);
-    const counted = Object.values(scan.json.reason_counts as Record<string, number>).reduce((a, b) => a + b, 0);
-    expect(counted).toBeGreaterThanOrEqual(scan.json.total_flagged); // a word can have several reasons
-    for (const w of scan.json.words) {
-      expect(w.active).toBe(true);
-      expect(w.reasons.length).toBeGreaterThan(0);
-    }
-
-    // Out-of-range thresholds are clamped, not rejected.
-    const clamped = await call(
-      "GET",
-      "/api/v1/admin/words/suspicious?wordlist=hu&min_length=99&max_vowel_run=0&max_consonant_run=x",
-      undefined,
-      adminHeaders,
-    );
-    expect(clamped.json.params).toEqual({ minLength: 15, maxVowelRun: 1, maxConsonantRun: 4 });
-
-    const unknown = await call("GET", "/api/v1/admin/words/suspicious?wordlist=zz", undefined, adminHeaders);
-    expect(unknown.status).toBe(404);
   });
 
   // --- Batch 5.2 item 2: config editor ----------------------------------------
-  it("gates the config endpoints behind the admin token", async () => {
+  it("gates the config endpoints behind an admin session", async () => {
     const noToken = await call("GET", "/api/v1/admin/config");
     expect(noToken.status).toBe(401);
 
@@ -1612,179 +1341,6 @@ describeApi("Betűvető API contract", () => {
     });
     expect(wrongToken.status).toBe(401);
   });
-
-  it("lists, updates and restores a config value; rejects unknown keys and bad values", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const list = await call("GET", "/api/v1/admin/config", undefined, adminHeaders);
-    expect(list.status).toBe(200);
-    const hintCost = list.json.config.find((row: any) => row.key === "hint_cost");
-    expect(hintCost).toBeDefined();
-    const original = hintCost.value;
-
-    const unknownKey = await call(
-      "PATCH",
-      "/api/v1/admin/config/not_a_real_key",
-      { value: 1 },
-      adminHeaders,
-    );
-    expect(unknownKey.status).toBe(404);
-
-    const badValue = await call(
-      "PATCH",
-      "/api/v1/admin/config/hint_cost",
-      { value: "free" },
-      adminHeaders,
-    );
-    expect(badValue.status).toBe(422);
-
-    const negative = await call(
-      "PATCH",
-      "/api/v1/admin/config/hint_cost",
-      { value: -1 },
-      adminHeaders,
-    );
-    expect(negative.status).toBe(422);
-
-    const updated = await call(
-      "PATCH",
-      "/api/v1/admin/config/hint_cost",
-      { value: original + 1 },
-      adminHeaders,
-    );
-    expect(updated.status).toBe(200);
-    expect(updated.json.value).toBe(original + 1);
-
-    // lib/config.ts caches reads per warm serverless instance for up to 30s, and a PATCH
-    // only clears the cache on the instance that served it — a GET can briefly land on a
-    // different instance still holding the pre-update value, so poll rather than assert
-    // on the first read.
-    let row: { value: number } | undefined;
-    for (let attempt = 0; attempt < 8 && row?.value !== original + 1; attempt++) {
-      const relisted = await call("GET", "/api/v1/admin/config", undefined, adminHeaders);
-      row = relisted.json.config.find((r: any) => r.key === "hint_cost");
-      if (row?.value !== original + 1) await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    expect(row?.value).toBe(original + 1);
-
-    // Restore, so this test doesn't leave the shared preview/production config mutated
-    // for every other test run that depends on the default hint cost.
-    const restored = await call(
-      "PATCH",
-      "/api/v1/admin/config/hint_cost",
-      { value: original },
-      adminHeaders,
-    );
-    expect(restored.status).toBe(200);
-  }, 15000); // longer than the default: the read-back above polls for up to ~8s to ride
-  // out lib/config.ts's per-instance cache (see that assertion's own comment).
-
-  // --- Batch 10 item 14: player-facing control visibility --------------------
-  it("gates the UI-config endpoints behind the admin token", async () => {
-    const noToken = await call("GET", "/api/v1/admin/ui-config");
-    expect(noToken.status).toBe(401);
-
-    const wrongToken = await call(
-      "PATCH",
-      "/api/v1/admin/ui-config/show_length_selector",
-      { value: false },
-      { "x-admin-token": "definitely-not-the-real-token" },
-    );
-    expect(wrongToken.status).toBe(401);
-  });
-
-  it("lists UI config and rejects unknown keys / malformed values", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const list = await call("GET", "/api/v1/admin/ui-config", undefined, adminHeaders);
-    expect(list.status).toBe(200);
-    const keys = list.json.config.map((row: any) => row.key).sort();
-    expect(keys).toEqual(
-      [
-        "default_length",
-        "default_wordlist",
-        "show_easy_mode",
-        "show_length_selector",
-        "show_wordlist_selector",
-      ].sort(),
-    );
-
-    const unknownKey = await call(
-      "PATCH",
-      "/api/v1/admin/ui-config/not_a_real_key",
-      { value: true },
-      adminHeaders,
-    );
-    expect(unknownKey.status).toBe(404);
-
-    // a boolean key must reject a non-boolean
-    const badBool = await call(
-      "PATCH",
-      "/api/v1/admin/ui-config/show_length_selector",
-      { value: "maybe" },
-      adminHeaders,
-    );
-    expect(badBool.status).toBe(422);
-
-    // default_length must stay in 5..10
-    const badLength = await call(
-      "PATCH",
-      "/api/v1/admin/ui-config/default_length",
-      { value: 99 },
-      adminHeaders,
-    );
-    expect(badLength.status).toBe(422);
-
-    // default_wordlist must be a known code
-    const badWordlist = await call(
-      "PATCH",
-      "/api/v1/admin/ui-config/default_wordlist",
-      { value: "de" },
-      adminHeaders,
-    );
-    expect(badWordlist.status).toBe(422);
-  });
-
-  it("a hidden length selector forces the configured default in game/start", async () => {
-    if (!ADMIN_TOKEN || IS_PRODUCTION) return; // mutates a player-visible setting
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const list = await call("GET", "/api/v1/admin/ui-config", undefined, adminHeaders);
-    const origShow = list.json.config.find((r: any) => r.key === "show_length_selector").value;
-    const origLen = list.json.config.find((r: any) => r.key === "default_length").value;
-    const forcedLen = origLen === 6 ? 8 : 6; // a value we can prove wasn't the request
-
-    try {
-      expect(
-        (await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: forcedLen }, adminHeaders)).status,
-      ).toBe(200);
-      expect(
-        (await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: false }, adminHeaders)).status,
-      ).toBe(200);
-
-      // Ride out lib/config.ts's per-instance cache (~30s TTL, only the PATCH-serving
-      // instance is cleared) by starting a few games until the forcing takes effect.
-      let started: { status: number; json: any } | undefined;
-      for (let attempt = 0; attempt < 12; attempt++) {
-        started = await call(
-          "POST",
-          "/api/v1/game/start?target_length=9",
-          undefined,
-          { ...PINNED_COOKIE_HEADER },
-        );
-        if (started.json?.target_length === forcedLen) break;
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-      expect(started?.status).toBe(200);
-      expect(started?.json.target_length).toBe(forcedLen); // NOT the requested 9
-      expect(started?.json.ui.show_length_selector).toBe(false);
-    } finally {
-      await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: origShow }, adminHeaders);
-      await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: origLen }, adminHeaders);
-    }
-  }, 30000);
 
   // --- Batch 10 item 1: daily puzzle + streaks -------------------------------
   // These create and read today's real `daily_puzzles` row, so they run only against a
@@ -1873,47 +1429,8 @@ describeApi("Betűvető API contract", () => {
     // one length, so "a different combo" may resolve to the same puzzle.)
   }, 60000);
 
-  it("a hidden length selector also pins the daily puzzle's length", async () => {
-    if (!ADMIN_TOKEN || IS_PRODUCTION) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const list = await call("GET", "/api/v1/admin/ui-config", undefined, adminHeaders);
-    const origShow = list.json.config.find((r: any) => r.key === "show_length_selector").value;
-    const origLen = list.json.config.find((r: any) => r.key === "default_length").value;
-    const forcedLen = origLen === 6 ? 8 : 6;
-
-    try {
-      expect(
-        (await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: forcedLen }, adminHeaders)).status,
-      ).toBe(200);
-      expect(
-        (await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: false }, adminHeaders)).status,
-      ).toBe(200);
-
-      let view: { status: number; json: any } | undefined;
-      for (let attempt = 0; attempt < 12; attempt++) {
-        view = await call("GET", "/api/v1/daily?target_length=9", undefined, PINNED_COOKIE_HEADER);
-        if (view.json?.target_length === forcedLen) break;
-        await new Promise((r) => setTimeout(r, 1500));
-      }
-      expect(view?.json.target_length).toBe(forcedLen); // NOT the requested 9
-
-      const started = await call(
-        "POST",
-        "/api/v1/daily/start?target_length=9",
-        undefined,
-        // A fresh identity: the pinned CI player may have used today's one daily already.
-      );
-      expect(started.json.target_length).toBe(forcedLen);
-      expect(started.json.ui.show_length_selector).toBe(false);
-    } finally {
-      await call("PATCH", "/api/v1/admin/ui-config/show_length_selector", { value: origShow }, adminHeaders);
-      await call("PATCH", "/api/v1/admin/ui-config/default_length", { value: origLen }, adminHeaders);
-    }
-  }, 30000);
-
   // --- Batch 5.2 item 3: player and leaderboard maintenance -------------------
-  it("gates player/score maintenance behind the admin token", async () => {
+  it("gates player/score maintenance behind an admin session", async () => {
     const noToken = await call("GET", "/api/v1/admin/players?q=xyz");
     expect(noToken.status).toBe(401);
 
@@ -1923,144 +1440,10 @@ describeApi("Betűvető API contract", () => {
     expect(wrongToken.status).toBe(401);
   });
 
-  it("searches and renames a player", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    // game/start's response echoes player_id directly (lib/game.ts's startGame) — no need
-    // to parse the signed cookie ourselves to find this test's own player row.
-    const { game } = await startWithCookie();
-    const playerId = (game as unknown as { player_id: string }).player_id;
-    expect(playerId).toBeTruthy();
-
-    const uniqueName = `Teszt Játékos ${Math.random().toString(36).slice(2, 8)}`;
-    const renamed = await call(
-      "PATCH",
-      `/api/v1/admin/players/${playerId}`,
-      { display_name: uniqueName },
-      adminHeaders,
-    );
-    expect(renamed.status).toBe(200);
-    expect(renamed.json.display_name).toBe(uniqueName);
-
-    const found = await call(
-      "GET",
-      `/api/v1/admin/players?q=${encodeURIComponent(uniqueName)}`,
-      undefined,
-      adminHeaders,
-    );
-    expect(found.status).toBe(200);
-    expect(found.json.players.some((p: any) => p.id === playerId)).toBe(true);
-
-    // Too long — the admin tool's own sanity cap, not tied to any existing player-facing limit.
-    const tooLong = await call(
-      "PATCH",
-      `/api/v1/admin/players/${playerId}`,
-      { display_name: "x".repeat(21) },
-      adminHeaders,
-    );
-    expect(tooLong.status).toBe(422);
-
-    const unknown = await call(
-      "PATCH",
-      "/api/v1/admin/players/00000000-0000-0000-0000-000000000000",
-      { display_name: "nope" },
-      adminHeaders,
-    );
-    expect(unknown.status).toBe(404);
-  });
-
-  it("lists leaderboard entries and disqualifies one", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    // completeSmallGame's own game_id, not "the top of the listing" — this is a shared,
-    // persistent database, so a low-scoring small board isn't guaranteed to rank inside
-    // the (limited, real-score-ordered) admin listing at all; disqualify targets it
-    // directly by id instead of depending on where it ranks.
-    const { totalScore, gameId } = await completeSmallGame();
-    expect(totalScore).toBeGreaterThan(0);
-
-    const entries = await call("GET", "/api/v1/admin/scores?length=5", undefined, adminHeaders);
-    expect(entries.status).toBe(200);
-    expect(Array.isArray(entries.json.entries)).toBe(true);
-
-    const disqualified = await call(
-      "POST",
-      `/api/v1/admin/games/${gameId}/disqualify`,
-      undefined,
-      adminHeaders,
-    );
-    expect(disqualified.status).toBe(200);
-
-    // Gone from the admin listing (disqualified_at is null filter) ...
-    const afterEntries = await call("GET", "/api/v1/admin/scores?length=5", undefined, adminHeaders);
-    expect(afterEntries.json.entries.some((e: any) => e.id === gameId)).toBe(false);
-
-    // ... already-disqualified is a conflict, not a silent no-op ...
-    const again = await call(
-      "POST",
-      `/api/v1/admin/games/${gameId}/disqualify`,
-      undefined,
-      adminHeaders,
-    );
-    expect(again.status).toBe(409);
-
-    // ... and an unknown game id 404s.
-    const unknown = await call(
-      "POST",
-      "/api/v1/admin/games/00000000-0000-0000-0000-000000000000/disqualify",
-      undefined,
-      adminHeaders,
-    );
-    expect(unknown.status).toBe(404);
-  }, 15000); // completeSmallGame() alone paces its guesses 400ms apart to stay under the
-  // anti-cheat rate limit, plus several more round trips here — comfortably over the
-
-  // --- Batch 10 item 12: admin per-game drill-down -----------------------------
-  it("gates and returns one game's full guess timeline, revealing the target word", async () => {
-    const noToken = await call("GET", "/api/v1/admin/games/00000000-0000-0000-0000-000000000000");
-    expect(noToken.status).toBe(401);
-
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const { totalScore, gameId } = await completeSmallGame();
-    expect(totalScore).toBeGreaterThan(0);
-
-    const detail = await call("GET", `/api/v1/admin/games/${gameId}`, undefined, adminHeaders);
-    expect(detail.status).toBe(200);
-    expect(detail.json.game.id).toBe(gameId);
-    // completeSmallGame() finds every findable word, so found_count reaches possible_count
-    // and the game auto-finishes (ROADMAP 3.2) — admin-only, so revealing target_word here
-    // does not conflict with the player-facing no-word-history rule (Batch 10 item 3).
-    expect(typeof detail.json.game.target_word).toBe("string");
-    expect(detail.json.game.target_word.length).toBeGreaterThan(0);
-    expect(detail.json.game.found_count).toBe(detail.json.game.possible_count);
-    expect(detail.json.game.status).toBe("finished");
-
-    expect(Array.isArray(detail.json.guesses)).toBe(true);
-    expect(detail.json.guesses.length).toBe(detail.json.game.found_count);
-    for (const guess of detail.json.guesses) {
-      expect(guess.correct).toBe(true);
-      expect(typeof guess.word).toBe("string");
-      expect(typeof guess.created_at).toBe("string");
-    }
-    expect(Array.isArray(detail.json.hints)).toBe(true);
-    expect(detail.json.hints).toHaveLength(0);
-
-    const unknown = await call(
-      "GET",
-      "/api/v1/admin/games/00000000-0000-0000-0000-000000000000",
-      undefined,
-      adminHeaders,
-    );
-    expect(unknown.status).toBe(404);
-  }, 15000);
   // suite's default timeout even though nothing is actually stuck.
 
   // --- Batch 5.2 item 4: admin dashboard ---------------------------------------
-  it("gates the admin dashboard behind the admin token", async () => {
+  it("gates the admin dashboard behind an admin session", async () => {
     const noToken = await call("GET", "/api/v1/admin/dashboard");
     expect(noToken.status).toBe(401);
 
@@ -2070,125 +1453,8 @@ describeApi("Betűvető API contract", () => {
     expect(wrongToken.status).toBe(401);
   });
 
-  it("returns 30 days of zero-filled daily stats, most-failed words and queue sizes", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    // Play and fail one game first so there's at least one word_stats row: a fresh Neon
-    // branch/preview could otherwise leave most_failed_words empty and this test would
-    // only be checking the shape, never the aggregation itself. Fresh (never-pinned)
-    // player — the assertion below is that today's games/DAU are non-zero, which excludes
-    // an is_ci-pinned identity (see CONTRACT_CI_PLAYER_COOKIE note).
-    const game = await startDashboardVisibleGame(7);
-    await call("POST", `/api/game/${game.game_id}/give_up`);
-
-    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
-    expect(dashboard.status).toBe(200);
-
-    expect(dashboard.json.daily).toHaveLength(30);
-    // Today is always the last row, and a game just started today, so it's never zero —
-    // the one non-tautological assertion the zero-filled series admits without a clean DB.
-    const today = dashboard.json.daily[29];
-    expect(today.games).toBeGreaterThan(0);
-    expect(today.dau).toBeGreaterThan(0);
-
-    expect(Array.isArray(dashboard.json.most_failed_words)).toBe(true);
-    expect(dashboard.json.most_failed_words.length).toBeGreaterThan(0);
-    for (const row of dashboard.json.most_failed_words) {
-      expect(row.times_failed).toBeGreaterThan(0);
-      // Wordlist-scoped (Batch 10 follow-up fix) so a spelling shared between hu/en can't
-      // silently merge its counts across languages, mirroring getMyStats's own fix for the
-      // same bug shape (PR #37).
-      expect(typeof row.wordlist).toBe("string");
-      expect(row.wordlist.length).toBeGreaterThan(0);
-    }
-
-    expect(dashboard.json.queue_size.reports).toBeGreaterThanOrEqual(0);
-    expect(dashboard.json.queue_size.suggestions).toBeGreaterThanOrEqual(0);
-  });
-
   // --- Batch 10 item 13: player-stat drill-down ---------------------------------
-  it("reports player-stat drill-down: averages, time buckets and a country distribution", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    // A game that actually reaches a terminal status, so it counts toward the
-    // avg-games/avg-duration figures (lib/admin-dashboard.ts's TERMINAL_STATUSES). Fresh
-    // (never-pinned) player, since those figures exclude is_ci identities
-    // (see CONTRACT_CI_PLAYER_COOKIE note).
-    const game = await startDashboardVisibleGame(7);
-    await call("POST", `/api/game/${game.game_id}/give_up`);
-
-    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
-    expect(dashboard.status).toBe(200);
-
-    expect(dashboard.json.player_stats.avg_games_per_player).toBeGreaterThan(0);
-    expect(dashboard.json.player_stats.avg_game_duration_seconds).toBeGreaterThanOrEqual(0);
-
-    for (const series of [
-      dashboard.json.games_by_month,
-      dashboard.json.games_by_quarter,
-      dashboard.json.games_by_hour,
-    ]) {
-      expect(Array.isArray(series)).toBe(true);
-      expect(series.length).toBeGreaterThan(0);
-      for (const row of series) {
-        expect(typeof row.bucket).toBe("string");
-        expect(row.games).toBeGreaterThan(0);
-        // Not toBeGreaterThan(0): a bucket's games could in principle all have a null
-        // player_id (games.player_id is nullable, on delete set null), which count(distinct)
-        // wouldn't count — vanishingly unlikely against real data, but not impossible.
-        expect(row.dau).toBeGreaterThanOrEqual(0);
-      }
-    }
-    // Today's game must land in exactly one hour-of-day bucket, and that bucket's count
-    // is never zero-filled (unlike the daily series) — a real, non-tautological check
-    // that the extract(hour ...) grouping actually groups, not just returns 24 empty rows.
-    const hourGamesTotal = dashboard.json.games_by_hour.reduce((sum: number, r: any) => sum + r.games, 0);
-    expect(hourGamesTotal).toBeGreaterThan(0);
-
-    expect(Array.isArray(dashboard.json.countries)).toBe(true);
-    for (const row of dashboard.json.countries) {
-      expect(typeof row.country).toBe("string");
-      expect(row.games).toBeGreaterThan(0);
-    }
-
-    // The API surface a player actually sees never mentions country — it's an admin-only
-    // aggregate (ROADMAP Batch 10 item 13's own scope decision).
-    expect(game).not.toHaveProperty("country");
-
-    // Admin per-game detail (item 12) also surfaces this same game's country, whatever it
-    // resolved to for this request (null under a local/CI run with no edge geo header).
-    const detail = await call("GET", `/api/v1/admin/games/${game.game_id}`, undefined, adminHeaders);
-    expect(detail.status).toBe(200);
-    expect(detail.json.game).toHaveProperty("country");
-  }, 15000);
-
   // --- Batch 10: difficulty rating per word (hardest_words + easy mode) --------
-  it("ranks hardest_words by success rate, scoped per wordlist, above the min-attempts floor", async () => {
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-
-    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, adminHeaders);
-    expect(dashboard.status).toBe(200);
-    expect(Array.isArray(dashboard.json.hardest_words)).toBe(true);
-
-    let previousRate = -1;
-    for (const row of dashboard.json.hardest_words) {
-      const attempts = row.times_solved + row.times_failed;
-      // MIN_ATTEMPTS_FOR_DIFFICULTY (lib/word-stats.ts) — a word tried only once or twice
-      // must not appear, however extreme its rate looks.
-      expect(attempts).toBeGreaterThanOrEqual(5);
-      expect(row.success_rate).toBeGreaterThanOrEqual(0);
-      expect(row.success_rate).toBeLessThanOrEqual(1);
-      expect(row.success_rate).toBeCloseTo(row.times_solved / attempts, 5);
-      expect(typeof row.wordlist).toBe("string");
-      // Ascending by success_rate (hardest first).
-      expect(row.success_rate).toBeGreaterThanOrEqual(previousRate);
-      previousRate = row.success_rate;
-    }
-  });
-
   it("accepts an easy-mode game/start and echoes the actual (possibly cold-start-fallback) outcome", async () => {
     const query = new URLSearchParams({ target_length: "7", difficulty: "easy" });
     const { status, json } = await call("POST", `/api/v1/game/start?${query}`);
@@ -2866,25 +2132,6 @@ describeApi("Betűvető API contract", () => {
   }, 180_000);
 
   // --- Multiplayer rooms — admin (ROADMAP 7.2.7) -------------------------------
-  it("shows rooms on the admin dashboard and the room in a member game's drill-down", async () => {
-    if (IS_PRODUCTION) return; // mints players + rooms (ROADMAP 7.2.3+) — previews only
-    if (!ADMIN_TOKEN) return;
-    const admin = { "x-admin-token": ADMIN_TOKEN };
-    const { code, hostCookie } = await twoPlayerLobby();
-    await call("POST", `/api/v1/rooms/${code}/start`, {}, { Cookie: hostCookie });
-    const gameId = (await snapshot(code, hostCookie)).json.your_game.game_id;
-
-    const dashboard = await call("GET", "/api/v1/admin/dashboard", undefined, admin);
-    expect(dashboard.status).toBe(200);
-    expect(dashboard.json.rooms.started).toBeGreaterThanOrEqual(1);
-    expect(dashboard.json.daily.at(-1).rooms).toBeGreaterThanOrEqual(1);
-
-    const detail = await call("GET", `/api/v1/admin/games/${gameId}`, undefined, admin);
-    expect(detail.status).toBe(200);
-    expect(detail.json.game.room_code).toBe(code);
-    expect(detail.json.game.room_mode).toBe("coop");
-  }, 60_000);
-
   // ROADMAP 12.7 — in-app feedback replaces the mailto link.
   it("rejects empty and over-long feedback", async () => {
     const empty = await call("POST", "/api/v1/feedback", { message: "   " });
@@ -2895,7 +2142,7 @@ describeApi("Betűvető API contract", () => {
     expect(wrongType.status).toBe(422);
   });
 
-  it("stores feedback for a first-time visitor, caps it per day, and lets the admin resolve it", async () => {
+  it("stores feedback for a first-time visitor, caps it per day", async () => {
     if (IS_PRODUCTION) return; // writes real rows
 
     // No cookie: the route mints an identity (like game/start) and must hand it back.
@@ -2920,34 +2167,6 @@ describeApi("Betűvető API contract", () => {
     const capped = await call("POST", "/api/v1/feedback", { message: `${marker} #6` }, { Cookie: cookie });
     expect(capped.status).toBe(429);
     expect(capped.json.detail).toBe("rate_limited");
-
-    if (!ADMIN_TOKEN) return;
-    const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-    expect((await call("GET", "/api/v1/admin/feedback")).status).toBe(401);
-
-    const open = await call("GET", "/api/v1/admin/feedback?status=open", undefined, adminHeaders);
-    expect(open.status).toBe(200);
-    const mine = open.json.feedback.filter((f: any) => f.message.startsWith(marker));
-    expect(mine).toHaveLength(5); // the refused 6th was rolled back
-    const firstRow = mine.find((f: any) => f.message === `${marker} first`);
-    expect(firstRow.page_url).toBe("https://example.test/?x=1");
-    expect(firstRow.ui_language).toBe("hu");
-    expect(typeof firstRow.user_agent).toBe("string");
-    expect(firstRow.resolved_at).toBeNull();
-
-    const resolved = await call("POST", `/api/v1/admin/feedback/${firstRow.id}/resolve`, undefined, adminHeaders);
-    expect(resolved.status).toBe(200);
-    expect(resolved.json.resolved_at).toBeTruthy();
-    const openAfter = await call("GET", "/api/v1/admin/feedback?status=open", undefined, adminHeaders);
-    expect(openAfter.json.feedback.some((f: any) => f.id === firstRow.id)).toBe(false);
-    const all = await call("GET", "/api/v1/admin/feedback?status=all", undefined, adminHeaders);
-    expect(all.json.feedback.some((f: any) => f.id === firstRow.id && f.resolved_at)).toBe(true);
-    expect((await call("POST", "/api/v1/admin/feedback/999999999/resolve", undefined, adminHeaders)).status).toBe(404);
-
-    // Account deletion takes the player's feedback with it (privacy page promise).
-    expect((await call("DELETE", "/api/v1/me", undefined, { Cookie: cookie })).status).toBe(200);
-    const afterDelete = await call("GET", "/api/v1/admin/feedback?status=all", undefined, adminHeaders);
-    expect(afterDelete.json.feedback.some((f: any) => f.message.startsWith(marker))).toBe(false);
   }, 60_000);
 
   // ROADMAP 16.2 — "report this name" lands in the feedback queue in a fixed shape.
@@ -2982,12 +2201,6 @@ describeApi("Betűvető API contract", () => {
     expect(report.status).toBe(200);
     expect(report.json.sent).toBe(true);
     const reporterCookie = report.headers.get("set-cookie")!.split(";", 1)[0];
-
-    if (ADMIN_TOKEN) {
-      const adminHeaders = { "x-admin-token": ADMIN_TOKEN };
-      const open = await call("GET", "/api/v1/admin/feedback?status=open", undefined, adminHeaders);
-      expect(open.json.feedback.some((f: any) => f.message === `[name report] "${name}" (daily)`)).toBe(true);
-    }
 
     expect((await call("DELETE", "/api/v1/me", undefined, { Cookie: reporterCookie })).status).toBe(200);
     expect((await call("DELETE", "/api/v1/me", undefined, targetAuth)).status).toBe(200);
