@@ -2435,6 +2435,13 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   Postgres 18 (row counts vs production, 20/20 tables exact), a failed run opens an issue that
   @-mentions the owner and the next green run closes it (failure path tested via #149), and
   `scripts/check-backup-decrypt.sh` lets the owner check the private key decrypts the newest backup.
+  **2026-11-19:** `ADMIN_TOKEN` removed from the Production env (owner) and production redeployed
+  via PR #151, so only Magic Link admin sessions work on production (previews keep the token);
+  the token login UI is still to be removed. A week of runtime errors showed 0
+  `neon_auth_not_jwt`/`neon_auth_verify_failed`, so not_jwt now logs at warn (#151). Vercel
+  Firewall rule **"API rate limit per IP (production)"** published (owner): `/api/` on
+  production, 300 requests per 60 s per IP, fixed window, answers 429; a room player polls about
+  20/min.
 - `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
