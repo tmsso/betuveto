@@ -2580,6 +2580,9 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   `docs/research/google-consent-neon-domain.md`: Google shows the redirect host until the brand is
   verified; Neon Auth has no custom domain. Path: verify tmsso.com in Search Console, then Verify
   Branding (owner); fallback if refused: Google ID-token sign-in on our domain (unverified on Neon).
+  **Fixed 2026-11-21 (owner):** tmsso.com verified in Search Console (Cloudflare DNS TXT), Verify
+  Branding passed with neon.tech still in Authorized domains (kept: it is the OAuth redirect host),
+  branding published; the Google consent screen now shows "Betűvető". No code change, no fallback needed.
 - **Open forks:**
   - **D-16b** Offline play: a TWA needs the site up; offline needs a service-worker wordlist
     slice (9.2 note). *(Default: not for the first release.)*
