@@ -2522,6 +2522,44 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
     selection still comes from the unlicensed gist. Say exactly that in `data/README.md`; do not
     claim the list "is" Ispell-derived. A full rebuild *from* Ispell (affix expansion) is the
     licence-clean route if ever needed: a separate, larger item.
+  - **Step 1 result (2026-11-19, `scripts/check-wordlist-hunspell.ts`):** 152,228 game words after
+    the importer's normalisation (the raw file's 161,744 lines include duplicates by case, hyphens
+    and lengths outside 3-15). Hunspell, asked about the *lowercase* form so proper nouns count as
+    rejected, rejects **11,370** (`data/wordlist-review/hu-not-in-ispell.tsv`; 1,282 contain
+    Q/W/X/Y). Per length 5-10, rejected/total: 1,204/6,525; 1,328/10,171; 1,384/15,141;
+    1,382/20,190; 1,293/21,975; 1,210/21,697. Even with nothing rescued, every length 5-10 keeps
+    >= 5,300 active words, so the sanity guideline holds.
+    - **D-16.9b (frequency rescue) is backwards:** the 917 rejected words with zipf >= 3 are mostly
+      first names, places and English (PÁL, ÁGNES, EGYIPTOM, THOMAS, AVENUE, PERFECT): frequent in
+      text, not game words. New recommendation: **no blanket frequency rescue.**
+    - **Compounds are the real false positives:** 2,078 rejected words split into two parts hunspell
+      accepts (`split` column, e.g. `kéz+írat`). Many are genuinely wrong under the current rules,
+      which write them apart (`nagy méretű`, `széles körű`, `légi forgalom`, `sorban állás`,
+      `szén-dioxid`), so a split alone is no reason to keep a word either.
+    - **New D-16.9e (owner asked for an LLM screen, 2026-11-19):** Claude screened **all 11,370**
+      rejected words, first the 2,959 rescue candidates (zipf >= 3 or a split), then, at the
+      owner's request, the other 8,411 (mostly technical terms, Latin taxa and the given-name
+      register). It kept confident standard common words, technical terms included. A second pass
+      ran every keep through `hunspell -a` and dropped those whose suggestion is the same word
+      apart from accents or doubled letters, i.e. a non-standard spelling (ÁRBOC → árbóc,
+      KÉZÍRAT → kézirat, MAMMUT → mamut, ZSÜRI → zsűri; 204 dropped). Result: **1,403 keeps**
+      (`data/wordlist-review/hu-ispell-rescue-keep.txt`; doubtful = out) and **9,967 words to
+      inactivate**. Per length 5-10, inactivated: 1,147; 1,249; 1,253; 1,186; 1,092; 976.
+    - **Gate A decided (owner, 2026-11-19):** D-16.9a all lengths; D-16.9b no frequency rescue;
+      D-16.9c never touch `source='suggested'` or already-inactive rows; D-16.9d no reverse
+      import now; D-16.9e the screened keep list above. The licence-honesty line becomes "every
+      active hu word is Ispell-accepted, except the 1,403 listed ones".
+    - **Step 2 built (2026-11-19, PR #152):** `data/wordlist-review/hu-inactivate-2026-11-19.txt`
+      (9,967 words) + `scripts/apply-wordlist-inactivation.ts` (dry run default; `--apply`/`--revert`
+      need `--confirm-host`; one audit row holding the exact words; `--revert` restores exactly
+      those). Verified on the PR's Neon preview branch (a production copy): apply 9,959 → revert
+      9,959 → apply 9,958; a wrong `--confirm-host` is refused. Active per length 5-10 after:
+      5,378 / 8,922 / 13,891 / 19,004 / 20,883 / 20,723.
+    - **Finding:** 2,761 games on that copy are stuck at `status='active'` (abandoned; 2,451 more
+      than a day past `ends_at`, only 62 live). The script therefore counts a game as in play only
+      while `ends_at > now()`. `lib/admin-words.ts isActiveGameTarget` has the same flaw: an admin
+      edit or delete of such a word answers "try again once it ends" forever. Separate small item:
+      either add the `ends_at` condition there or sweep the stale rows to `expired`.
 - `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
   if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),

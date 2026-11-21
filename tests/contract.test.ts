@@ -20,7 +20,7 @@
  * Without API_BASE_URL the suite is skipped, so `npm test` still runs the unit tests
  * anywhere (including CI, which has no database).
  */
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it, type TestContext } from "vitest";
@@ -32,6 +32,7 @@ import {
   signatureOf,
 } from "../lib/words.js";
 import { ACHIEVEMENT_KEYS } from "../lib/achievements.js";
+import { parseList } from "../scripts/apply-wordlist-inactivation.js";
 import { clientShapeViolations } from "./client-shape.js";
 
 // Not BASE_URL: that is a Vite/Vitest reserved variable (the app's public base path), so
@@ -187,9 +188,19 @@ beforeAll(async () => {
   const probe = await call("GET", "/api/words/lengths");
   selectors.length = probe.json?.ui?.show_length_selector !== false;
   selectors.wordlist = probe.json?.ui?.show_wordlist_selector !== false;
-  const hu = loadDictionary(
-    await readFile(path.join(REPO_ROOT, "data", "magyar-szavak.txt"), "utf-8"),
-  );
+  // ROADMAP 16.9: words switched off by scripts/apply-wordlist-inactivation.ts are listed in
+  // data/wordlist-review/hu-inactivate-*.txt. The database the suite runs against has them
+  // inactive, so the file minus those lists is what the API really plays with.
+  const reviewDir = path.join(REPO_ROOT, "data", "wordlist-review");
+  const inactive = new Set<string>();
+  for (const f of (await readdir(reviewDir)).filter((n) => /^hu-inactivate-.*\.txt$/.test(n))) {
+    for (const w of parseList(await readFile(path.join(reviewDir, f), "utf-8")).words) inactive.add(w);
+  }
+  const huText = (await readFile(path.join(REPO_ROOT, "data", "magyar-szavak.txt"), "utf-8"))
+    .split(/\r?\n/)
+    .filter((line) => !inactive.has(line.trim().normalize("NFC").toUpperCase()))
+    .join("\n");
+  const hu = loadDictionary(huText);
   dictionary = hu.words;
   bySignature = hu.bySignature;
 
