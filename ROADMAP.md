@@ -2461,7 +2461,7 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
   a word answers 409 indefinitely. *Recommended:* add `ends_at > now()` to `isActiveGameTarget`
   and the bulk-delete query (a code fix, no production write). The alternative is an owner-run
   sweep of the stale rows to `expired`.
-- `[ ]` **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
+- `[x]` *(done 2026-11-21: PR #152 + production apply)* **16.9 Wordlist provenance and licence.** `magyar-szavak.txt` has unknown provenance, a
   real risk once distributed through a store. Check against Magyar Ispell (hunspell; GPL/LGPL/MPL)
   plus frequency; inactivate rather than delete. **Agreed in principle 2026-10-29; details to be
   discussed in a later batch.** Pairs with 11.21 (licence accepted, ready to build).
@@ -2560,6 +2560,15 @@ $99/yr, and needs Sign in with Apple once any other login is offered). The custo
       while `ends_at > now()`. `lib/admin-words.ts isActiveGameTarget` has the same flaw: an admin
       edit or delete of such a word answers "try again once it ends" forever. Separate small item:
       either add the `ends_at` condition there or sweep the stale rows to `expired`.
+    - **Step 3 + Verify done (2026-11-21):** the owner ran the dry run and `--apply` against
+      production (host `ep-frosty-surf-…-pooler`): **9,961 inactivated**, 0 skipped as in-play, 6
+      absent/already inactive/suggested; one `admin_audit_log` row (id 51, `wordlist_inactivate`,
+      9,961 words, `admin_id` null by design). #152 merged after the apply. A read-only check
+      matched the apply's per-length counts exactly (3-15: 624 / 1,955 / 5,378 / 8,922 / 13,888 /
+      19,004 / 20,883 / 20,724 / 17,860 / 13,748 / 9,541 / 6,020 / 3,715) and sample words
+      (AGYŐ, REFRESHFUL inactive; ABIOGENETIKUS kept). Remaining checks: one production game by the
+      owner, `get_runtime_errors` on 2026-11-22; an optional `--apply` re-run (expected no-op).
+      Undo: the same command with `--revert --confirm-host <host>`.
 - `[x]` **16.10 Identity continuity.** An anonymous cookie means lost progress on reinstall or a
   new device. Batch 8 (Google sign-in) is the fix; sequence it before or alongside the closed test
   if testers will switch devices. **Done 2026-11-10/11:** 8.1 Google sign-in live (#139, #140),
