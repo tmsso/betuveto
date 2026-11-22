@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.tmsso.betuveto",
+      "sha256_cert_fingerprints": [
+        "2A:6D:28:98:0C:33:13:15:86:A9:A2:9E:AF:B2:BE:B1:ED:02:77:C0:D5:ED:5F:D2:F7:E0:B0:10:2C:F7:13:F0"
+      ]
+    }
+  }
+]
